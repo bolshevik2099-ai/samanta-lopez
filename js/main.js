@@ -6,8 +6,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Verificar sesión al cargar
     const session = checkAuth();
     if (session) {
-        const userNameDisp = document.getElementById('user-name-display');
-        if (userNameDisp) userNameDisp.innerText = session.nombre;
+        const ids = ['user-name-display', 'display-chofer', 'admin-name', 'user-display'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = session.nombre || session.Usuario || 'Usuario';
+        });
     }
 
     const gastoForm = document.getElementById('gasto-form');

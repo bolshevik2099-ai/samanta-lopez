@@ -1,7 +1,7 @@
 <script src="./js/auth.js"></script>
 <script>
     const session = checkAuth();
-    if (!session || session.rol !== 'Chofer') {
+    if (!session || String(session.rol).toLowerCase().trim() !== 'chofer') {
         window.location.href = 'index.html';
     }
 </script>
