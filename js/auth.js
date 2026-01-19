@@ -46,11 +46,24 @@ async function handleLogin(e) {
         });
 
         if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.error || 'Error al conectar con el servidor');
+            // Capturar error del proxy o de AppSheet
+            let errorMessage = 'Error en el servidor';
+            try {
+                const errData = await response.json();
+                errorMessage = errData.error || errData.details?.error || errorMessage;
+            } catch (e) {
+                errorMessage = `Error ${response.status}: ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
         }
 
         const users = await response.json();
+        console.log('Datos recibidos del Proxy:', users);
+
+        if (!Array.isArray(users)) {
+            console.error('La respuesta no es una lista:', users);
+            throw new Error('La respuesta de AppSheet no tiene el formato esperado (se esperaba una lista de usuarios).');
+        }
 
         // Buscar el usuario que coincida
         const foundUser = users.find(u =>
@@ -73,11 +86,14 @@ async function handleLogin(e) {
             redirectByRol(foundUser.Rol);
         } else {
             errorMsg.classList.remove('hidden');
+            // Opcional: Mostrar mensaje más específico
+            const span = errorMsg.querySelector('span');
+            if (span) span.innerText = 'Credenciales inválidas. Verifica tu usuario y contraseña.';
         }
 
     } catch (error) {
-        console.error('Login Error:', error);
-        alert('Hubo un problema al conectar con el servicio de autenticación.');
+        console.error('Login Error Detail:', error);
+        alert(`Fallo en el inicio de sesión: ${error.message}`);
     } finally {
         loginBtn.disabled = false;
         loginBtn.innerHTML = originalText;
