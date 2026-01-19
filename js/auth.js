@@ -57,12 +57,17 @@ async function handleLogin(e) {
             throw new Error(errorMessage);
         }
 
-        const users = await response.json();
-        console.log('Datos recibidos del Proxy:', users);
+        const responseData = await response.json();
+        console.log('Datos recibidos del Proxy:', responseData);
 
-        if (!Array.isArray(users)) {
-            console.error('La respuesta no es una lista:', users);
-            throw new Error('La respuesta de AppSheet no tiene el formato esperado (se esperaba una lista de usuarios).');
+        let users = [];
+        if (Array.isArray(responseData)) {
+            users = responseData;
+        } else if (responseData && Array.isArray(responseData.Rows)) {
+            users = responseData.Rows;
+        } else {
+            console.error('La respuesta no tiene el formato esperado:', responseData);
+            throw new Error('La respuesta de AppSheet no contiene una lista de usuarios válida.');
         }
 
         // Buscar el usuario que coincida
@@ -86,7 +91,6 @@ async function handleLogin(e) {
             redirectByRol(foundUser.Rol);
         } else {
             errorMsg.classList.remove('hidden');
-            // Opcional: Mostrar mensaje más específico
             const span = errorMsg.querySelector('span');
             if (span) span.innerText = 'Credenciales inválidas. Verifica tu usuario y contraseña.';
         }
