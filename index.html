@@ -110,8 +110,19 @@
                 <i class="fas fa-info-circle mr-1"></i>
                 Tus llaves se guardarán localmente en este navegador.
             </p>
+            <button onclick="closeSetup()"
+                class="w-full mt-4 text-[10px] text-slate-300 hover:text-slate-500 uppercase tracking-widest font-bold transition-all">
+                Cerrar sin guardar
+            </button>
         </div>
     </div>
+
+    <!-- Botón de Configuración Manual (Flotante) -->
+    <button onclick="openSetup()"
+        class="fixed bottom-6 right-6 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white/50 hover:text-white w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-xl z-50 border border-white/10"
+        title="Configurar API">
+        <i class="fas fa-cog"></i>
+    </button>
 
     <script src="./js/config.js"></script>
     <script src="./js/auth.js"></script>
@@ -119,10 +130,23 @@
         // Verificar configuración al cargar
         document.addEventListener('DOMContentLoaded', () => {
             if (!isConfigValid()) {
-                document.getElementById('setup-modal').classList.remove('hidden');
-                document.getElementById('login-form').classList.add('opacity-50', 'pointer-events-none');
+                openSetup();
             }
         });
+
+        function openSetup() {
+            document.getElementById('setup-modal').classList.remove('hidden');
+            document.getElementById('login-form').classList.add('opacity-30', 'pointer-events-none');
+
+            // Pre-llenar si ya existen
+            document.getElementById('setup-app-id').value = localStorage.getItem('APPSHEET_APP_ID') || '';
+            document.getElementById('setup-access-key').value = localStorage.getItem('APPSHEET_ACCESS_KEY') || '';
+        }
+
+        function closeSetup() {
+            document.getElementById('setup-modal').classList.add('hidden');
+            document.getElementById('login-form').classList.remove('opacity-30', 'pointer-events-none');
+        }
 
         function handleSetup() {
             const appId = document.getElementById('setup-app-id').value;
