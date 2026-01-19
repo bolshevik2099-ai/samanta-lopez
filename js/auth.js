@@ -32,36 +32,30 @@ async function handleLogin(e) {
         loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando...';
         errorMsg.classList.add('hidden');
 
-        // Consultar la tabla USUARIOS en AppSheet
-        // Usamos la acción 'Find' o simplemente traemos los datos.
-        // Por seguridad y simplicidad en este ejemplo, traemos y filtramos.
-        // IMPORTANTE: En producción real, es mejor usar la acción Filter de AppSheet.
-        const url = `https://api.appsheet.com/api/v1/apps/${APPSHEET_CONFIG.appId}/tables/${APPSHEET_CONFIG.tableUsuarios}/Action`;
-
-        const response = await fetch(url, {
+        // Consultar a través del Proxy de Vercel (Evita CORS y asegura llaves)
+        const response = await fetch('/api/appsheet', {
             method: 'POST',
             headers: {
-                'ApplicationToken': APPSHEET_CONFIG.accessKey,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                "Action": "Find",
-                "Properties": {
-                    "Locale": "es-MX"
-                },
-                "Rows": [] // Dejar vacío para que traiga (según configuración de AppSheet puede requerir parámetros)
-                // Si Find no funciona sin parámetros, usaremos una técnica de fetch alternativo o Filter.
+                table: APPSHEET_CONFIG.tableUsuarios,
+                action: 'Find',
+                rows: []
             })
         });
 
-        if (!response.ok) throw new Error('Error al conectar con el servidor');
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Error al conectar con el servidor');
+        }
 
         const users = await response.json();
 
         // Buscar el usuario que coincida
         const foundUser = users.find(u =>
             (u.Email === userVal || u.Usuario === userVal) &&
-            u.Password === passVal
+            String(u.Password) === passVal
         );
 
         if (foundUser) {
