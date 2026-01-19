@@ -102,7 +102,7 @@ function redirectByRol(rol) {
         default:
             alert('Rol no reconocido. Contacta al administrador.');
             localStorage.removeItem('crm_session');
-            window.location.href = 'login.html';
+            window.location.href = 'index.html';
     }
 }
 
@@ -112,9 +112,9 @@ function redirectByRol(rol) {
 function checkAuth() {
     const session = localStorage.getItem('crm_session');
 
-    // Si no hay sesión y no estamos en login.html, redirige
-    if (!session && !window.location.pathname.includes('login.html')) {
-        window.location.href = 'login.html';
+    // Si no hay sesión y no estamos en index.html, redirige
+    if (!session && !window.location.pathname.includes('index.html')) {
+        window.location.href = 'index.html';
         return null;
     }
 
@@ -129,5 +129,5 @@ function checkAuth() {
  */
 function logout() {
     localStorage.removeItem('crm_session');
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
 }
