@@ -1,5 +1,5 @@
 /**
- * Procesa-T CRM - Lógica de Autenticación con Puente de Seguridad
+ * Procesa-T CRM - Lógica de Autenticación con Puente de Seguridad (Diagnóstico)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -30,9 +30,12 @@ async function handleLogin(e) {
         errorMsg.classList.add('hidden');
 
         let foundUser = null;
+        let bridgeUsed = false;
+        let bridgeError = null;
 
-        // --- MÉTODO 1: GOOGLE SHEETS BRIDGE (Prioritario si está configurado) ---
-        if (APPSHEET_CONFIG.bridgeUrl) {
+        // --- MÉTODO 1: GOOGLE SHEETS BRIDGE (Prioritario) ---
+        if (APPSHEET_CONFIG.bridgeUrl && APPSHEET_CONFIG.bridgeUrl.includes('script.google.com')) {
+            bridgeUsed = true;
             console.log('Intentando login vía Proxy -> GAS Bridge...');
             try {
                 const response = await fetch('/api/appsheet', {
@@ -46,17 +49,27 @@ async function handleLogin(e) {
                     })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`Proxy respondió con error ${response.status}`);
+                }
+
                 const bridgeData = await response.json();
+                console.log('Respuesta Bridge:', bridgeData);
+
                 if (bridgeData && bridgeData.success && bridgeData.user) {
                     foundUser = bridgeData.user;
+                } else if (bridgeData && bridgeData.success === false) {
+                    bridgeError = "Usuario o contraseña no encontrados en el Excel.";
                 }
             } catch (err) {
-                console.warn('Error en Bridge Proxy, intentando AppSheet directo...', err);
+                console.error('Error crítico en Bridge:', err);
+                bridgeError = err.message;
             }
         }
 
-        // --- MÉTODO 2: APPSHEET DIRECTO (Fallback si el Bridge falló o no existe) ---
+        // --- MÉTODO 2: APPSHEET DIRECTO (Fallback) ---
         if (!foundUser) {
+            console.log('Intentando login vía AppSheet directo...');
             const response = await fetch('/api/appsheet', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -85,7 +98,13 @@ async function handleLogin(e) {
 
                 // Si AppSheet devolvió null pero la conexión fue éxito, es un problema de plan
                 if (!foundUser && responseData.RowValues === null && responseData.Success === true) {
-                    alert("AVISO: AppSheet bloqueó la lectura de usuarios (restricción de plan).\n\nActiva el 'Puente de Google Sheets' para solucionar esto.");
+                    if (!bridgeUsed) {
+                        alert("⚠️ BLOQUEO DE PLAN detectado.\n\nAppSheet no permite leer usuarios. Por favor, configura el 'URL Puente (GAS)' en los ajustes para solucionar esto.");
+                    } else if (bridgeError) {
+                        alert(`⚠️ EL PUENTE FALLÓ:\n${bridgeError}\n\nVerifica que la URL del script sea correcta y que el script esté publicado como 'Anyone'.`);
+                    } else {
+                        alert("⚠️ USUARIO NO ENCONTRADO.\n\nEl puente está configurado pero no encontramos a '" + userVal + "' en tu hoja de Excel.");
+                    }
                 }
             }
         }
@@ -108,7 +127,7 @@ async function handleLogin(e) {
 
     } catch (error) {
         console.error('LOGIN ERROR:', error);
-        alert(`ERROR DE LOGIN:\n\n${error.message}`);
+        alert(`ERROR CRÍTICO:\n\n${error.message}`);
     } finally {
         loginBtn.disabled = false;
         loginBtn.innerHTML = originalText;
