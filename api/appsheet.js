@@ -1,5 +1,5 @@
 /**
- * Vercel Proxy para AppSheet API - Versión Corregida (Headers)
+ * Vercel Proxy para AppSheet + GAS Bridge
  */
 
 export default async function handler(req, res) {
@@ -7,61 +7,57 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Método no permitido' });
     }
 
-    const { table, action, rows, properties, appId: clientAppId, accessKey: clientAccessKey } = req.body;
+    const { table, action, rows, appId, accessKey, bridgeUrl } = req.body;
 
-    // Priorizar llaves enviadas por el navegador (panel naranja)
-    const APP_ID = clientAppId || process.env.APPSHEET_APP_ID;
-    const ACCESS_KEY = clientAccessKey || process.env.APPSHEET_ACCESS_KEY;
-
-    if (!APP_ID || !ACCESS_KEY) {
-        return res.status(400).json({
-            error: 'Faltan credenciales.',
-            details: 'No se encontraron llaves en Vercel ni en el navegador.'
-        });
+    // --- CASO 1: LOGIN VÍA BRIDGE (GOOGLE SHEETS) ---
+    if (bridgeUrl && action === 'login') {
+        try {
+            console.log('Proxy: Redirigiendo login a GAS Bridge...');
+            const gasResponse = await fetch(bridgeUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(req.body)
+            });
+            const gasData = await gasResponse.json();
+            return res.status(200).json(gasData);
+        } catch (error) {
+            console.error('GAS Bridge Proxy Error:', error);
+            return res.status(500).json({ error: 'Error al contactar el puente de Google Sheets' });
+        }
     }
 
-    const url = `https://api.appsheet.com/api/v1/apps/${APP_ID}/tables/${table}/Action`;
+    // --- CASO 2: APPSHEET API ESTÁNDAR ---
+    const APPSHEET_APP_ID = appId || process.env.APPSHEET_APP_ID;
+    const APPSHEET_ACCESS_KEY = accessKey || process.env.APPSHEET_ACCESS_KEY;
+
+    if (!APPSHEET_APP_ID || !APPSHEET_ACCESS_KEY) {
+        return res.status(400).json({ error: 'Configuración de AppSheet faltante' });
+    }
+
+    const apiUrl = `https://api.appsheet.com/api/v1/apps/${APPSHEET_APP_ID}/tables/${table}/Action`;
 
     try {
-        const response = await fetch(url, {
+        const appsheetResponse = await fetch(apiUrl, {
             method: 'POST',
             headers: {
-                // Según el error y docs recientes, el nombre exacto es ApplicationAccessKey
-                'ApplicationAccessKey': ACCESS_KEY,
-                'ApplicationToken': ACCESS_KEY, // Backup para versiones antiguas
+                'ApplicationAccessKey': APPSHEET_ACCESS_KEY,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                Action: action || 'Find',
-                Properties: properties || { Locale: 'es-MX' },
+                Action: action,
+                Properties: { Locale: 'es-MX' },
                 Rows: rows || []
             })
         });
 
-        const data = await response.json();
+        const data = await appsheetResponse.json();
 
-        const debugInfo = {
-            usingProxy: true,
-            source: clientAppId ? 'Navegador' : 'Vercel',
-            appIdSnippet: APP_ID.substring(0, 5) + '...',
-            headerUsed: 'ApplicationAccessKey'
-        };
-
-        if (!response.ok || data.Success === false) {
-            return res.status(response.status || 401).json({
-                error: 'AppSheet rechazó la petición',
-                details: data.ErrorDescription || 'Error de autenticación.',
-                debug: debugInfo
-            });
-        }
+        // Log para diagnóstico
+        console.log(`AppSheet Proxy [${action} on ${table}]: Success=${data.Success}`);
 
         return res.status(200).json(data);
-
     } catch (error) {
-        console.error('Proxy Error:', error);
-        return res.status(500).json({
-            error: 'Error interno del Proxy',
-            details: error.message
-        });
+        console.error('AppSheet Proxy Error:', error);
+        return res.status(500).json({ error: 'Error al contactar con AppSheet' });
     }
 }

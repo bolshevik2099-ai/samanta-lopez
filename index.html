@@ -101,6 +101,13 @@
                         class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm"
                         placeholder="Ej: V2-...">
                 </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">URL Puente
+                        (GAS)</label>
+                    <input type="text" id="setup-bridge-url"
+                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm"
+                        placeholder="https://script.google.com/...">
+                </div>
                 <button onclick="handleSetup()"
                     class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow-lg transition-all">
                     Guardar Configuración
@@ -141,6 +148,7 @@
             // Pre-llenar si ya existen
             document.getElementById('setup-app-id').value = localStorage.getItem('APPSHEET_APP_ID') || '';
             document.getElementById('setup-access-key').value = localStorage.getItem('APPSHEET_ACCESS_KEY') || '';
+            document.getElementById('setup-bridge-url').value = localStorage.getItem('GAS_BRIDGE_URL') || '';
         }
 
         function closeSetup() {
@@ -151,7 +159,14 @@
         function handleSetup() {
             const appId = document.getElementById('setup-app-id').value;
             const accessKey = document.getElementById('setup-access-key').value;
-            saveAppSheetCredentials(appId, accessKey);
+            const bridgeUrl = document.getElementById('setup-bridge-url').value;
+
+            if (appId && accessKey) {
+                localStorage.setItem('GAS_BRIDGE_URL', bridgeUrl.trim());
+                saveAppSheetCredentials(appId, accessKey);
+            } else {
+                alert('App ID y Access Key son obligatorios.');
+            }
         }
     </script>
 </body>

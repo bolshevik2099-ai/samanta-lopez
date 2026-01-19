@@ -1,5 +1,5 @@
 /**
- * Procesa-T CRM - Lógica de Autenticación (Versión Final con Campos Validados)
+ * Procesa-T CRM - Lógica de Autenticación con Puente de Seguridad
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -20,7 +20,7 @@ async function handleLogin(e) {
     const originalText = loginBtn.innerHTML;
 
     try {
-        if (typeof isConfigValid === 'function' && !isConfigValid()) {
+        if (!isConfigValid()) {
             alert('Configuración incompleta. Usa el icono de engranaje para configurar.');
             return;
         }
@@ -29,68 +29,72 @@ async function handleLogin(e) {
         loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando...';
         errorMsg.classList.add('hidden');
 
-        // Consultar a través del Proxy de Vercel
-        const response = await fetch('/api/appsheet', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                table: APPSHEET_CONFIG.tableUsuarios,
-                action: 'Find',
-                rows: [],
-                appId: APPSHEET_CONFIG.appId,
-                accessKey: APPSHEET_CONFIG.accessKey
-            })
-        });
+        let foundUser = null;
 
-        const responseData = await response.json();
+        // --- MÉTODO 1: GOOGLE SHEETS BRIDGE (Prioritario si está configurado) ---
+        if (APPSHEET_CONFIG.bridgeUrl) {
+            console.log('Intentando login vía Proxy -> GAS Bridge...');
+            try {
+                const response = await fetch('/api/appsheet', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'login',
+                        username: userVal,
+                        password: passVal,
+                        bridgeUrl: APPSHEET_CONFIG.bridgeUrl
+                    })
+                });
 
-        if (!response.ok) {
-            const err = responseData.details || responseData.error || 'Error de conexión';
-            throw new Error(err);
+                const bridgeData = await response.json();
+                if (bridgeData && bridgeData.success && bridgeData.user) {
+                    foundUser = bridgeData.user;
+                }
+            } catch (err) {
+                console.warn('Error en Bridge Proxy, intentando AppSheet directo...', err);
+            }
         }
 
-        if (responseData && responseData.Success === false) {
-            throw new Error(responseData.ErrorDescription || 'Error en AppSheet.');
-        }
+        // --- MÉTODO 2: APPSHEET DIRECTO (Fallback si el Bridge falló o no existe) ---
+        if (!foundUser) {
+            const response = await fetch('/api/appsheet', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    table: APPSHEET_CONFIG.tableUsuarios,
+                    action: 'Find',
+                    rows: [],
+                    appId: APPSHEET_CONFIG.appId,
+                    accessKey: APPSHEET_CONFIG.accessKey
+                })
+            });
 
-        // --- LÓGICA DE DETECCIÓN DE FILAS ---
-        let users = [];
+            const responseData = await response.json();
 
-        // Si RowValues es null pero Success es true, es un problema de permisos de lectura
-        if (responseData.RowValues === null && responseData.Success === true) {
-            throw new Error("PERMISO DE LECTURA DENEGADO. AppSheet conectó pero no devolvió datos. Por favor, ve a AppSheet -> Manage -> Integrations -> IN: add-on, API -> Tables y activa el check de 'Read' para la tabla USUARIOS.");
-        }
+            if (response.ok && responseData.Success !== false) {
+                let users = [];
+                if (Array.isArray(responseData.RowValues)) users = responseData.RowValues;
+                else if (Array.isArray(responseData.Rows)) users = responseData.Rows;
 
-        if (Array.isArray(responseData)) {
-            users = responseData;
-        } else if (responseData && typeof responseData === 'object') {
-            if (Array.isArray(responseData.Rows)) {
-                users = responseData.Rows;
-            } else if (Array.isArray(responseData.RowValues)) {
-                users = responseData.RowValues;
-            } else {
-                const arrayKey = Object.keys(responseData).find(k => Array.isArray(responseData[k]));
-                if (arrayKey) {
-                    users = responseData[arrayKey];
+                if (users.length > 0) {
+                    foundUser = users.find(u =>
+                        String(u.Usuario).trim() === userVal &&
+                        String(u.Password).trim() === passVal
+                    );
+                }
+
+                // Si AppSheet devolvió null pero la conexión fue éxito, es un problema de plan
+                if (!foundUser && responseData.RowValues === null && responseData.Success === true) {
+                    alert("AVISO: AppSheet bloqueó la lectura de usuarios (restricción de plan).\n\nActiva el 'Puente de Google Sheets' para solucionar esto.");
                 }
             }
         }
 
-        if (users.length === 0) {
-            throw new Error("No se encontraron usuarios. Verifica que la tabla tenga datos y permisos de lectura.");
-        }
-
-        // Buscar el usuario usando los campos VALIDADOS en la terminal
-        // Campos: Usuario, Password, Rol, ID_Contacto
-        const foundUser = users.find(u =>
-            String(u.Usuario).trim() === userVal &&
-            String(u.Password).trim() === passVal
-        );
-
+        // Si después de todo encontramos al usuario
         if (foundUser) {
             const sessionData = {
                 userID: foundUser.ID_Contacto || foundUser.Usuario,
-                nombre: foundUser.Usuario, // Usamos Usuario ya que 'Nombre' no existe
+                nombre: foundUser.Usuario,
                 rol: foundUser.Rol,
                 timestamp: new Date().getTime()
             };
@@ -104,7 +108,7 @@ async function handleLogin(e) {
 
     } catch (error) {
         console.error('LOGIN ERROR:', error);
-        alert(`AVISO IMPORTANTE:\n\n${error.message}`);
+        alert(`ERROR DE LOGIN:\n\n${error.message}`);
     } finally {
         loginBtn.disabled = false;
         loginBtn.innerHTML = originalText;
@@ -112,12 +116,14 @@ async function handleLogin(e) {
 }
 
 function redirectByRol(rol) {
+    const r = String(rol).toLowerCase();
     const routes = {
-        'Chofer': 'vista-chofer.html',
-        'Admin': 'vista-admin.html',
-        'Super Admin': 'vista-superadmin.html'
+        'chofer': 'vista-chofer.html',
+        'admin': 'vista-admin.html',
+        'superadmin': 'vista-superadmin.html',
+        'super admin': 'vista-superadmin.html'
     };
-    window.location.href = routes[rol] || 'index.html';
+    window.location.href = routes[r] || 'index.html';
 }
 
 function checkAuth() {

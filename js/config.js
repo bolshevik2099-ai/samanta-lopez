@@ -9,10 +9,11 @@ const APPSHEET_CONFIG = {
     // Intentar leer de localStorage (persistente en el navegador)
     appId: localStorage.getItem('APPSHEET_APP_ID') || '',
     accessKey: localStorage.getItem('APPSHEET_ACCESS_KEY') || '',
+    bridgeUrl: localStorage.getItem('GAS_BRIDGE_URL') || '',
 
     // Configuración de Tablas
     tableName: 'REG_GASTOS',
-    tableUsuarios: 'USUARIOS'
+    tableUsuarios: 'Usuarios'
 };
 
 /**
