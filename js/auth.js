@@ -24,7 +24,7 @@ async function handleLogin(e) {
 
     try {
         if (typeof isConfigValid === 'function' && !isConfigValid()) {
-            alert('Configuración incompleta. Por favor ingresa el App ID y Access Key en el panel superior.');
+            alert('Configuración incompleta. Usa el icono de engranaje para configurar.');
             return;
         }
 
@@ -46,26 +46,47 @@ async function handleLogin(e) {
         });
 
         const responseData = await response.json();
+        console.log('DEBUG - Response Data:', responseData);
 
-        // Manejo detallado de errores
-        if (!response.ok || responseData.error || responseData.Success === false) {
-            const msg = responseData.details || responseData.error || 'Error desconocido';
-            const debug = responseData.debug ? `\n\nOrigen: ${responseData.debug.source}\nAppID check: ${responseData.debug.appIdUsed}` : '';
+        if (!response.ok) {
+            const err = responseData.details?.error || responseData.error || responseData.ErrorDescription || 'Error de conexión';
+            throw new Error(err);
+        }
 
-            throw new Error(`${msg}${debug}`);
+        // Si AppSheet devuelve explícitamente Success: false
+        if (responseData && responseData.Success === false) {
+            throw new Error(responseData.ErrorDescription || 'AppSheet reportó un error desconocido.');
         }
 
         let users = [];
+        // Lógica de extracción SÚPER robusta
         if (Array.isArray(responseData)) {
             users = responseData;
         } else if (responseData && typeof responseData === 'object') {
-            const arrayKey = Object.keys(responseData).find(k => Array.isArray(responseData[k]));
-            if (arrayKey) users = responseData[arrayKey];
-            else throw new Error('No se encontró lista de usuarios en la respuesta.');
-        } else {
-            throw new Error('Formato de datos inválido.');
+            // Caso 1: La data está en .Rows (estándar AppSheet)
+            if (Array.isArray(responseData.Rows)) {
+                users = responseData.Rows;
+            }
+            // Caso 2: Cualquier otra clave que sea un array
+            else {
+                const arrayKey = Object.keys(responseData).find(k => Array.isArray(responseData[k]));
+                if (arrayKey) {
+                    users = responseData[arrayKey];
+                } else {
+                    // SI NO HAY ARRAY, PUEDE SER QUE LA TABLA ESTÉ VACÍA O EL FILTRO NO COINCIDA
+                    // Si el objeto existe pero no hay arrays, mostramos qué hay dentro para diagnosticar.
+                    console.error('Keys encontradas:', Object.keys(responseData));
+                    const raw = JSON.stringify(responseData).substring(0, 150);
+                    throw new Error(`Datos no reconocidos. Recibido de AppSheet: ${raw}`);
+                }
+            }
         }
 
+        if (users.length === 0) {
+            throw new Error('La tabla de usuarios está vacía o no se devolvieron datos. Verifica tu AppSheet.');
+        }
+
+        // Buscar el usuario
         const foundUser = users.find(u =>
             (u.Email === userVal || u.Usuario === userVal) &&
             String(u.Password) === passVal
@@ -88,7 +109,7 @@ async function handleLogin(e) {
 
     } catch (error) {
         console.error('LOGIN ERROR:', error);
-        alert(`FALLO DE CONEXIÓN:\n\n${error.message}\n\nRECOMENDACIÓN: Verifica en AppSheet que la API esté habilitada y las llaves sean exactas.`);
+        alert(`FALLO DE CONEXIÓN:\n\n${error.message}\n\nRECOMENDACIÓN: Verifica en AppSheet que la tabla 'USUARIOS' tenga datos y que 'Password' sea una columna de texto.`);
     } finally {
         loginBtn.disabled = false;
         loginBtn.innerHTML = originalText;
