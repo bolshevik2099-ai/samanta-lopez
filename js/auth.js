@@ -1,5 +1,5 @@
 /**
- * Procesa-T CRM - Lógica de Autenticación (Versión de Diagnóstico Final)
+ * Procesa-T CRM - Lógica de Autenticación (Versión Final con Campos Validados)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -56,9 +56,9 @@ async function handleLogin(e) {
         // --- LÓGICA DE DETECCIÓN DE FILAS ---
         let users = [];
 
-        // Si RowValues es null pero Success es true, significa que la tabla está vacía o no hay permisos de lectura
+        // Si RowValues es null pero Success es true, es un problema de permisos de lectura
         if (responseData.RowValues === null && responseData.Success === true) {
-            throw new Error("LA TABLA ESTÁ VACÍA O SIN PERMISOS. AppSheet conectó pero no devolvió ninguna fila. Verifica que la tabla 'USUARIOS' tenga datos y permisos de LECTURA (Read) habilitados en la API.");
+            throw new Error("PERMISO DE LECTURA DENEGADO. AppSheet conectó pero no devolvió datos. Por favor, ve a AppSheet -> Manage -> Integrations -> IN: add-on, API -> Tables y activa el check de 'Read' para la tabla USUARIOS.");
         }
 
         if (Array.isArray(responseData)) {
@@ -66,31 +66,31 @@ async function handleLogin(e) {
         } else if (responseData && typeof responseData === 'object') {
             if (Array.isArray(responseData.Rows)) {
                 users = responseData.Rows;
+            } else if (Array.isArray(responseData.RowValues)) {
+                users = responseData.RowValues;
             } else {
                 const arrayKey = Object.keys(responseData).find(k => Array.isArray(responseData[k]));
                 if (arrayKey) {
                     users = responseData[arrayKey];
-                } else {
-                    const raw = JSON.stringify(responseData).substring(0, 100);
-                    throw new Error(`Formato no reconocido. Recibido: ${raw}`);
                 }
             }
         }
 
         if (users.length === 0) {
-            throw new Error("No se encontraron usuarios en la tabla. Asegúrate de tener al menos una fila en la hoja 'USUARIOS'.");
+            throw new Error("No se encontraron usuarios. Verifica que la tabla tenga datos y permisos de lectura.");
         }
 
-        // Buscar el usuario
+        // Buscar el usuario usando los campos VALIDADOS en la terminal
+        // Campos: Usuario, Password, Rol, ID_Contacto
         const foundUser = users.find(u =>
-            (u.Email === userVal || u.Usuario === userVal) &&
-            String(u.Password) === passVal
+            String(u.Usuario).trim() === userVal &&
+            String(u.Password).trim() === passVal
         );
 
         if (foundUser) {
             const sessionData = {
-                userID: foundUser.ID_Contacto,
-                nombre: foundUser.Nombre || foundUser.Usuario,
+                userID: foundUser.ID_Contacto || foundUser.Usuario,
+                nombre: foundUser.Usuario, // Usamos Usuario ya que 'Nombre' no existe
                 rol: foundUser.Rol,
                 timestamp: new Date().getTime()
             };
@@ -99,12 +99,12 @@ async function handleLogin(e) {
         } else {
             errorMsg.classList.remove('hidden');
             const span = errorMsg.querySelector('span');
-            if (span) span.innerText = 'Usuario o contraseña no encontrados.';
+            if (span) span.innerText = 'Usuario o contraseña incorrectos.';
         }
 
     } catch (error) {
         console.error('LOGIN ERROR:', error);
-        alert(`ERROR CRÍTICO:\n\n${error.message}`);
+        alert(`AVISO IMPORTANTE:\n\n${error.message}`);
     } finally {
         loginBtn.disabled = false;
         loginBtn.innerHTML = originalText;

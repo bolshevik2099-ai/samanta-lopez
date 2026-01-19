@@ -1,158 +1,83 @@
 /**
- * Procesa-T CRM - Lógica Principal
+ * Procesa-T CRM - Lógica de Formulario de Gastos
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Verificar sesión y cargar datos de usuario
-    const session = typeof checkAuth === 'function' ? checkAuth() : null;
-
+    // Verificar sesión al cargar
+    const session = checkAuth();
     if (session) {
-        // Actualizar visualización del nombre
-        const displayChofer = document.getElementById('display-chofer');
-        if (displayChofer) {
-            displayChofer.innerText = session.nombre;
-        }
+        const userNameDisp = document.getElementById('user-name-display');
+        if (userNameDisp) userNameDisp.innerText = session.nombre;
     }
 
-    const form = document.getElementById('gasto-form');
-    if (form) {
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await enviarGasto();
-        });
+    const gastoForm = document.getElementById('gasto-form');
+    if (gastoForm) {
+        gastoForm.addEventListener('submit', enviarGasto);
     }
 });
 
-/**
- * Recolecta los datos del formulario y los envía a AppSheet
- */
-async function enviarGasto() {
-    const btn = document.getElementById('submit-btn');
-    if (!btn) return;
+async function enviarGasto(e) {
+    e.preventDefault();
 
-    const originalContent = btn.innerHTML;
-    const session = JSON.parse(localStorage.getItem('crm_session'));
+    const session = checkAuth();
+    if (!session) return;
 
-    if (!session) {
-        alert('Sesión expirada. Por favor inicia sesión de nuevo.');
-        window.location.href = 'login.html';
-        return;
-    }
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
 
     try {
-        if (typeof isConfigValid === 'function' && !isConfigValid()) {
-            alert('Error: Configuración de AppSheet incompleta. Por favor contacta al administrador.');
+        if (!isConfigValid()) {
+            alert('Configuración de AppSheet no encontrada.');
             return;
         }
 
-        // Bloquear botón y mostrar cargando
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
 
-        // Recolectar datos de la interfaz
-        const idViaje = document.getElementById('ID_Viaje').value;
-        const idUnidad = document.getElementById('ID_Unidad').value;
-        const concepto = document.getElementById('Concepto').value;
-        const monto = parseFloat(document.getElementById('Monto').value);
-        const tipoPago = document.querySelector('input[name="Tipo_Pago"]:checked').value;
-        const kmts = parseInt(document.getElementById('Kmts_Actuales').value);
-        const litros = document.getElementById('Litros_Rellenados').value;
-
-        // Fotos
-        const ticketFoto = document.getElementById('Ticket_Foto').value;
-        const fotoTacometro = document.getElementById('Foto_tacometro').value;
-
-        // Datos Automáticos y de Sesión
-        const idGasto = 'GST-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-        const fecha = new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' });
-        const idChofer = session.userID; // USANDO EL ID DEL LOGIN
-
-        // Construir JSON para AppSheet
-        const payload = {
-            "Action": "Add",
-            "Properties": {
-                "Locale": "es-MX",
-                "Timezone": "Central Standard Time (Mexico)"
-            },
-            "Rows": [
-                {
-                    "ID_Gasto": idGasto,
-                    "Fecha": fecha,
-                    "ID_Chofer": idChofer,
-                    "ID_Viaje": idViaje,
-                    "ID_Unidad": idUnidad,
-                    "Concepto": concepto,
-                    "Monto": monto,
-                    "Tipo_Pago": tipoPago,
-                    "Kmts_Actuales": kmts,
-                    "Litros_Rellenados": litros || 0,
-                    "Ticket_Foto": ticketFoto,
-                    "Foto_tacometro": fotoTacometro
-                }
-            ]
+        const formData = {
+            ID_Chofer: session.userID,
+            Fecha: document.getElementById('fecha').value,
+            Concepto: document.getElementById('concepto').value,
+            Monto: parseFloat(document.getElementById('monto').value),
+            Comentarios: document.getElementById('comentarios').value,
+            // Agregamos Timestamp para control
+            Timestamp: new Date().toISOString()
         };
 
         // Enviar a través del Proxy de Vercel
         const response = await fetch('/api/appsheet', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                table: APPSHEET_CONFIG.tableName,
+                table: APPSHEET_CONFIG.tableName, // REG_GASTOS
                 action: 'Add',
-                rows: [
-                    {
-                        "ID_Gasto": idGasto,
-                        "Fecha": fecha,
-                        "ID_Chofer": idChofer,
-                        "ID_Viaje": idViaje,
-                        "ID_Unidad": idUnidad,
-                        "Concepto": concepto,
-                        "Monto": monto,
-                        "Tipo_Pago": tipoPago,
-                        "Kmts_Actuales": kmts,
-                        "Litros_Rellenados": litros || 0,
-                        "Ticket_Foto": ticketFoto,
-                        "Foto_tacometro": fotoTacometro
-                    }
-                ]
+                rows: [formData],
+                appId: APPSHEET_CONFIG.appId,
+                accessKey: APPSHEET_CONFIG.accessKey
             })
         });
 
-        if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.error || `Error en la API: ${response.statusText}`);
-        }
-
         const result = await response.json();
-        console.log('Respuesta AppSheet:', result);
 
-        showToast('¡Registro enviado con éxito!');
-        document.getElementById('gasto-form').reset();
+        if (response.ok && result.Success !== false) {
+            alert('¡Gasto registrado con éxito!');
+            e.target.reset();
+        } else {
+            const errorDetail = result.ErrorDescription || result.error || 'Error desconocido';
+            throw new Error(errorDetail);
+        }
 
     } catch (error) {
         console.error('Error al enviar gasto:', error);
-        alert('Hubo un error al enviar los datos. Revisa la consola.');
+        alert('Error al registrar gasto: ' + error.message);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = originalContent;
+        btn.innerHTML = originalText;
     }
 }
 
-/**
- * Muestra un mensaje temporal en pantalla
- */
-function showToast(message) {
-    const toast = document.getElementById('toast');
-    if (!toast) return;
-
-    toast.innerText = message;
-    toast.classList.remove('opacity-0', 'pointer-events-none');
-    toast.classList.add('opacity-100');
-
-    setTimeout(() => {
-        toast.classList.remove('opacity-100');
-        toast.classList.add('opacity-0', 'pointer-events-none');
-    }, 4000);
+// Auxiliar para checkAuth (aunque ya esté en auth.js, por si acaso se cargan por separado)
+function checkAuth() {
+    const session = localStorage.getItem('crm_session');
+    return session ? JSON.parse(session) : null;
 }
