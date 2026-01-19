@@ -38,8 +38,10 @@ export default async function handler(req, res) {
         });
 
         const data = await response.json();
+        console.log(`AppSheet response for table ${table}:`, JSON.stringify(data).substring(0, 200));
 
         if (!response.ok) {
+            console.error('AppSheet API Error:', response.status, data);
             return res.status(response.status).json({
                 error: 'Error de AppSheet',
                 details: data
