@@ -39,40 +39,39 @@ async function handleLogin(e) {
             body: JSON.stringify({
                 table: APPSHEET_CONFIG.tableUsuarios,
                 action: 'Find',
-                rows: []
+                rows: [],
+                // Fallback: enviamos las llaves locales por si Vercel no tiene las suyas listas
+                appId: APPSHEET_CONFIG.appId,
+                accessKey: APPSHEET_CONFIG.accessKey
             })
         });
 
-        if (!response.ok) {
-            let errorMessage = 'Error en el servidor';
-            try {
-                const errData = await response.json();
-                errorMessage = errData.error || errData.details?.error || errorMessage;
-            } catch (e) {
-                errorMessage = `Status ${response.status}: ${response.statusText}`;
-            }
-            throw new Error(errorMessage);
+        const responseData = await response.json();
+
+        // Manejo explícito de errores de AppSheet
+        if (responseData && responseData.Success === false) {
+            throw new Error(`AppSheet dice: ${responseData.ErrorDescription || 'Error desconocido'}`);
         }
 
-        const responseData = await response.json();
+        if (!response.ok) {
+            throw new Error(responseData.error || `Error ${response.status}: ${response.statusText}`);
+        }
+
         console.log('DEBUG - Datos recibidos:', responseData);
 
         let users = [];
-        // Lógica de extracción ultra-robusta
+        // Lógica de extracción robusta
         if (Array.isArray(responseData)) {
             users = responseData;
         } else if (responseData && typeof responseData === 'object') {
-            // Intentar encontrar cualquier clave que sea un array (Rows, rows, data, etc.)
             const arrayKey = Object.keys(responseData).find(k => Array.isArray(responseData[k]));
             if (arrayKey) {
                 users = responseData[arrayKey];
-                console.log(`DEBUG - Usando lista encontrada en clave: ${arrayKey}`);
             } else {
-                const raw = JSON.stringify(responseData).substring(0, 100);
-                throw new Error(`Estructura incompatible. Keys: ${Object.keys(responseData).join(', ')}. Raw: ${raw}`);
+                throw new Error('No se encontró la lista de usuarios en la respuesta de AppSheet.');
             }
         } else {
-            throw new Error(`Tipo de respuesta inválido: ${typeof responseData}`);
+            throw new Error('Tipo de respuesta inválida desde el servidor.');
         }
 
         // Buscar el usuario
@@ -97,8 +96,13 @@ async function handleLogin(e) {
         }
 
     } catch (error) {
-        console.error('CRITICAL LOGIN ERROR:', error);
-        alert(`ERROR TÉCNICO: ${error.message}\n\nSi el error persiste, revisa que la columna 'Password' exista en AppSheet.`);
+        console.error('LOGIN ERROR:', error);
+        // Si el error es de llaves, ser muy específico
+        if (error.message.includes('ApplicationAccessKey')) {
+            alert('¡LLAVES INVÁLIDAS!\n\nEl Access Key o el App ID no son correctos en AppSheet.\n\nPor favor, verifica el panel naranja de configuración e ingresa las llaves de nuevo.');
+        } else {
+            alert(`ERROR: ${error.message}`);
+        }
     } finally {
         loginBtn.disabled = false;
         loginBtn.innerHTML = originalText;
