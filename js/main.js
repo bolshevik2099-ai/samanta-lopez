@@ -92,18 +92,38 @@ async function enviarGasto() {
             ]
         };
 
-        const url = `https://api.appsheet.com/api/v1/apps/${APPSHEET_CONFIG.appId}/tables/${APPSHEET_CONFIG.tableName}/Action`;
-
-        const response = await fetch(url, {
+        // Enviar a través del Proxy de Vercel
+        const response = await fetch('/api/appsheet', {
             method: 'POST',
             headers: {
-                'ApplicationToken': APPSHEET_CONFIG.accessKey,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+                table: APPSHEET_CONFIG.tableName,
+                action: 'Add',
+                rows: [
+                    {
+                        "ID_Gasto": idGasto,
+                        "Fecha": fecha,
+                        "ID_Chofer": idChofer,
+                        "ID_Viaje": idViaje,
+                        "ID_Unidad": idUnidad,
+                        "Concepto": concepto,
+                        "Monto": monto,
+                        "Tipo_Pago": tipoPago,
+                        "Kmts_Actuales": kmts,
+                        "Litros_Rellenados": litros || 0,
+                        "Ticket_Foto": ticketFoto,
+                        "Foto_tacometro": fotoTacometro
+                    }
+                ]
+            })
         });
 
-        if (!response.ok) throw new Error(`Error en la API: ${response.statusText}`);
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || `Error en la API: ${response.statusText}`);
+        }
 
         const result = await response.json();
         console.log('Respuesta AppSheet:', result);
