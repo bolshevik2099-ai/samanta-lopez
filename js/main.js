@@ -37,14 +37,20 @@ async function enviarGasto(e) {
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
 
+        const getVal = (id) => document.getElementById(id) ? document.getElementById(id).value : '';
+        const tipoPago = document.querySelector('input[name="Tipo_Pago"]:checked');
+
         const formData = {
             ID_Chofer: session.userID,
-            Fecha: document.getElementById('fecha').value,
-            Concepto: document.getElementById('concepto').value,
-            Monto: parseFloat(document.getElementById('monto').value),
-            Comentarios: document.getElementById('comentarios').value,
-            // Agregamos Timestamp para control
-            Timestamp: new Date().toISOString()
+            ID_Viaje: getVal('ID_Viaje'),
+            ID_Unidad: getVal('ID_Unidad'),
+            Concepto: getVal('Concepto'),
+            Monto: parseFloat(getVal('Monto')) || 0,
+            Tipo_Pago: tipoPago ? tipoPago.value : 'Efectivo',
+            Kmts_Actuales: parseInt(getVal('Kmts_Actuales')) || 0,
+            Litros_Rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
+            Fecha: new Date().toLocaleDateString('en-CA'), // Formato YYYY-MM-DD
+            Timestamp: new Date().toLocaleString()
         };
 
         // Enviar a través del Proxy de Vercel
