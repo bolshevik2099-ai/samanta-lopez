@@ -1,5 +1,5 @@
 /**
- * Procesa-T CRM - Lógica de Autenticación con Puente de Seguridad (Diagnóstico Pro)
+ * Procesa-T CRM - Lógica de Autenticación con Puente de Seguridad (Versión Final Robusta)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function handleLogin(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
 
     const userVal = document.getElementById('username').value.trim();
     const passVal = document.getElementById('password').value.trim();
@@ -50,18 +50,16 @@ async function handleLogin(e) {
                 });
 
                 const bridgeData = await response.json();
+                console.log('Respuesta cruda del Bridge:', bridgeData);
 
-                if (!response.ok) {
-                    throw new Error(bridgeData.error || `Error ${response.status}`);
-                }
-
-                if (bridgeData && bridgeData.success && bridgeData.user) {
+                if (response.ok && bridgeData && bridgeData.success && bridgeData.user) {
                     foundUser = bridgeData.user;
+                    console.log('Usuario encontrado vía Bridge:', foundUser);
                 } else if (bridgeData && bridgeData.success === false) {
-                    bridgeError = "Usuario o contraseña no encontrados en el Excel.";
+                    bridgeError = bridgeData.error || "Credenciales no válidas en el Excel.";
                 }
             } catch (err) {
-                console.error('Error crítico en Bridge:', err);
+                console.error('Error en fetch Bridge:', err);
                 bridgeError = err.message;
             }
         }
@@ -94,22 +92,12 @@ async function handleLogin(e) {
                         String(u.Password).trim() === passVal
                     );
                 }
-
-                // Si AppSheet devolvió null pero la conexión fue éxito, es un problema de plan
-                if (!foundUser && responseData.RowValues === null && responseData.Success === true) {
-                    if (!bridgeUsed) {
-                        alert("⚠️ BLOQUEO DE PLAN detectado.\n\nAppSheet no permite leer usuarios. Por favor, configura el 'URL Puente (GAS)' en los ajustes para solucionar esto.");
-                    } else if (bridgeError) {
-                        alert(`❌ ERROR EN EL PUENTE:\n${bridgeError}\n\nRecomendación: Asegúrate de usar la URL de la 'Aplicación Web' que termina en /exec y que el script esté publicado para 'Cualquiera'.`);
-                    } else {
-                        alert("⚠️ USUARIO NO ENCONTRADO.\n\nEl puente funcionó pero no encontramos a '" + userVal + "' en tu hoja de Excel.");
-                    }
-                }
             }
         }
 
-        // Si después de todo encontramos al usuario
+        // --- RESULTADO ---
         if (foundUser) {
+            console.log('¡Login Exitoso! Guardando sesión para:', foundUser.Usuario);
             const sessionData = {
                 userID: foundUser.ID_Contacto || foundUser.Usuario,
                 nombre: foundUser.Usuario,
@@ -117,11 +105,21 @@ async function handleLogin(e) {
                 timestamp: new Date().getTime()
             };
             localStorage.setItem('crm_session', JSON.stringify(sessionData));
-            redirectByRol(foundUser.Rol);
+
+            // Pequeña pausa para asegurar que el localStorage se guarde
+            setTimeout(() => {
+                redirectByRol(foundUser.Rol);
+            }, 100);
+
         } else {
-            errorMsg.classList.remove('hidden');
-            const span = errorMsg.querySelector('span');
-            if (span) span.innerText = 'Usuario o contraseña incorrectos.';
+            // Si el puente falló explícitamente, avisamos
+            if (bridgeUsed && bridgeError && !bridgeError.includes("incorrectos")) {
+                alert(`❌ ERROR EN EL PUENTE:\n${bridgeError}`);
+            } else {
+                errorMsg.classList.remove('hidden');
+                const span = errorMsg.querySelector('span');
+                if (span) span.innerText = 'Usuario o contraseña incorrectos.';
+            }
         }
 
     } catch (error) {
@@ -134,14 +132,31 @@ async function handleLogin(e) {
 }
 
 function redirectByRol(rol) {
-    const r = String(rol).toLowerCase();
+    if (!rol) {
+        alert("Error: El usuario no tiene un Rol asignado en el Excel.");
+        window.location.href = 'index.html';
+        return;
+    }
+
+    const r = String(rol).trim().toLowerCase();
+    console.log('Redirigiendo para el rol:', r);
+
     const routes = {
         'chofer': 'vista-chofer.html',
         'admin': 'vista-admin.html',
         'superadmin': 'vista-superadmin.html',
         'super admin': 'vista-superadmin.html'
     };
-    window.location.href = routes[r] || 'index.html';
+
+    const target = routes[r];
+
+    if (target) {
+        console.log('Destino encontrado:', target);
+        window.location.href = target;
+    } else {
+        alert(`Error: El rol "${rol}" no tiene una vista asignada.\nRoles válidos: Chofer, Admin, SuperAdmin.`);
+        window.location.href = 'index.html';
+    }
 }
 
 function checkAuth() {
