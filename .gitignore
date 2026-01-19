@@ -1,1 +1,3 @@
-js/config.js
+# Gitignore rules
+# js/config.js is removed from here to allow logic updates in Vercel.
+# Secrets should NOT be hardcoded in config.js.

@@ -23,6 +23,11 @@ async function handleLogin(e) {
     const originalText = loginBtn.innerHTML;
 
     try {
+        if (typeof isConfigValid === 'function' && !isConfigValid()) {
+            alert('Configuración de AppSheet no encontrada. Por favor, recarga la página de inicio para configurar.');
+            return;
+        }
+
         loginBtn.disabled = true;
         loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando...';
         errorMsg.classList.add('hidden');

@@ -40,6 +40,11 @@ async function enviarGasto() {
     }
 
     try {
+        if (typeof isConfigValid === 'function' && !isConfigValid()) {
+            alert('Error: Configuración de AppSheet incompleta. Por favor contacta al administrador.');
+            return;
+        }
+
         // Bloquear botón y mostrar cargando
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
