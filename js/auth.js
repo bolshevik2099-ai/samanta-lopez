@@ -1,5 +1,5 @@
 /**
- * Procesa-T CRM - Lógica de Autenticación
+ * Procesa-T CRM - Lógica de Autenticación (Versión de Diagnóstico Final)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,9 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-/**
- * Maneja el proceso de inicio de sesión
- */
 async function handleLogin(e) {
     e.preventDefault();
 
@@ -46,44 +43,42 @@ async function handleLogin(e) {
         });
 
         const responseData = await response.json();
-        console.log('DEBUG - Response Data:', responseData);
 
         if (!response.ok) {
-            const err = responseData.details?.error || responseData.error || responseData.ErrorDescription || 'Error de conexión';
+            const err = responseData.details || responseData.error || 'Error de conexión';
             throw new Error(err);
         }
 
-        // Si AppSheet devuelve explícitamente Success: false
         if (responseData && responseData.Success === false) {
-            throw new Error(responseData.ErrorDescription || 'AppSheet reportó un error desconocido.');
+            throw new Error(responseData.ErrorDescription || 'Error en AppSheet.');
         }
 
+        // --- LÓGICA DE DETECCIÓN DE FILAS ---
         let users = [];
-        // Lógica de extracción SÚPER robusta
+
+        // Si RowValues es null pero Success es true, significa que la tabla está vacía o no hay permisos de lectura
+        if (responseData.RowValues === null && responseData.Success === true) {
+            throw new Error("LA TABLA ESTÁ VACÍA O SIN PERMISOS. AppSheet conectó pero no devolvió ninguna fila. Verifica que la tabla 'USUARIOS' tenga datos y permisos de LECTURA (Read) habilitados en la API.");
+        }
+
         if (Array.isArray(responseData)) {
             users = responseData;
         } else if (responseData && typeof responseData === 'object') {
-            // Caso 1: La data está en .Rows (estándar AppSheet)
             if (Array.isArray(responseData.Rows)) {
                 users = responseData.Rows;
-            }
-            // Caso 2: Cualquier otra clave que sea un array
-            else {
+            } else {
                 const arrayKey = Object.keys(responseData).find(k => Array.isArray(responseData[k]));
                 if (arrayKey) {
                     users = responseData[arrayKey];
                 } else {
-                    // SI NO HAY ARRAY, PUEDE SER QUE LA TABLA ESTÉ VACÍA O EL FILTRO NO COINCIDA
-                    // Si el objeto existe pero no hay arrays, mostramos qué hay dentro para diagnosticar.
-                    console.error('Keys encontradas:', Object.keys(responseData));
-                    const raw = JSON.stringify(responseData).substring(0, 150);
-                    throw new Error(`Datos no reconocidos. Recibido de AppSheet: ${raw}`);
+                    const raw = JSON.stringify(responseData).substring(0, 100);
+                    throw new Error(`Formato no reconocido. Recibido: ${raw}`);
                 }
             }
         }
 
         if (users.length === 0) {
-            throw new Error('La tabla de usuarios está vacía o no se devolvieron datos. Verifica tu AppSheet.');
+            throw new Error("No se encontraron usuarios en la tabla. Asegúrate de tener al menos una fila en la hoja 'USUARIOS'.");
         }
 
         // Buscar el usuario
@@ -104,12 +99,12 @@ async function handleLogin(e) {
         } else {
             errorMsg.classList.remove('hidden');
             const span = errorMsg.querySelector('span');
-            if (span) span.innerText = 'Email o Contraseña incorrectos.';
+            if (span) span.innerText = 'Usuario o contraseña no encontrados.';
         }
 
     } catch (error) {
         console.error('LOGIN ERROR:', error);
-        alert(`FALLO DE CONEXIÓN:\n\n${error.message}\n\nRECOMENDACIÓN: Verifica en AppSheet que la tabla 'USUARIOS' tenga datos y que 'Password' sea una columna de texto.`);
+        alert(`ERROR CRÍTICO:\n\n${error.message}`);
     } finally {
         loginBtn.disabled = false;
         loginBtn.innerHTML = originalText;
