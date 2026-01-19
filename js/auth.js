@@ -1,5 +1,5 @@
 /**
- * Procesa-T CRM - Lógica de Autenticación con Puente de Seguridad (Diagnóstico)
+ * Procesa-T CRM - Lógica de Autenticación con Puente de Seguridad (Diagnóstico Pro)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -49,12 +49,11 @@ async function handleLogin(e) {
                     })
                 });
 
-                if (!response.ok) {
-                    throw new Error(`Proxy respondió con error ${response.status}`);
-                }
-
                 const bridgeData = await response.json();
-                console.log('Respuesta Bridge:', bridgeData);
+
+                if (!response.ok) {
+                    throw new Error(bridgeData.error || `Error ${response.status}`);
+                }
 
                 if (bridgeData && bridgeData.success && bridgeData.user) {
                     foundUser = bridgeData.user;
@@ -101,9 +100,9 @@ async function handleLogin(e) {
                     if (!bridgeUsed) {
                         alert("⚠️ BLOQUEO DE PLAN detectado.\n\nAppSheet no permite leer usuarios. Por favor, configura el 'URL Puente (GAS)' en los ajustes para solucionar esto.");
                     } else if (bridgeError) {
-                        alert(`⚠️ EL PUENTE FALLÓ:\n${bridgeError}\n\nVerifica que la URL del script sea correcta y que el script esté publicado como 'Anyone'.`);
+                        alert(`❌ ERROR EN EL PUENTE:\n${bridgeError}\n\nRecomendación: Asegúrate de usar la URL de la 'Aplicación Web' que termina en /exec y que el script esté publicado para 'Cualquiera'.`);
                     } else {
-                        alert("⚠️ USUARIO NO ENCONTRADO.\n\nEl puente está configurado pero no encontramos a '" + userVal + "' en tu hoja de Excel.");
+                        alert("⚠️ USUARIO NO ENCONTRADO.\n\nEl puente funcionó pero no encontramos a '" + userVal + "' en tu hoja de Excel.");
                     }
                 }
             }

@@ -1,5 +1,5 @@
 /**
- * Vercel Proxy para AppSheet + GAS Bridge
+ * Vercel Proxy para AppSheet + GAS Bridge (Versión con Diagnóstico)
  */
 
 export default async function handler(req, res) {
@@ -12,17 +12,35 @@ export default async function handler(req, res) {
     // --- CASO 1: LOGIN VÍA BRIDGE (GOOGLE SHEETS) ---
     if (bridgeUrl && action === 'login') {
         try {
-            console.log('Proxy: Redirigiendo login a GAS Bridge...');
+            console.log('Proxy: Llamando a GAS Bridge:', bridgeUrl);
+
+            if (!bridgeUrl.includes('/exec')) {
+                return res.status(400).json({ error: 'La URL del puente es inválida. Debe terminar en /exec' });
+            }
+
             const gasResponse = await fetch(bridgeUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(req.body)
             });
-            const gasData = await gasResponse.json();
+
+            const text = await gasResponse.text();
+            let gasData;
+
+            try {
+                gasData = JSON.parse(text);
+            } catch (e) {
+                console.error('GAS Bridge no devolvió JSON:', text.substring(0, 100));
+                return res.status(500).json({
+                    error: 'El script de Google devolvió un error técnico en lugar de datos.',
+                    details: text.substring(0, 100)
+                });
+            }
+
             return res.status(200).json(gasData);
         } catch (error) {
             console.error('GAS Bridge Proxy Error:', error);
-            return res.status(500).json({ error: 'Error al contactar el puente de Google Sheets' });
+            return res.status(500).json({ error: `Error de conexión con Google: ${error.message}` });
         }
     }
 
@@ -51,10 +69,6 @@ export default async function handler(req, res) {
         });
 
         const data = await appsheetResponse.json();
-
-        // Log para diagnóstico
-        console.log(`AppSheet Proxy [${action} on ${table}]: Success=${data.Success}`);
-
         return res.status(200).json(data);
     } catch (error) {
         console.error('AppSheet Proxy Error:', error);
