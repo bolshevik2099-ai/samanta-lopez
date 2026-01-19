@@ -40,7 +40,6 @@ async function handleLogin(e) {
                 table: APPSHEET_CONFIG.tableUsuarios,
                 action: 'Find',
                 rows: [],
-                // Fallback: enviamos las llaves locales por si Vercel no tiene las suyas listas
                 appId: APPSHEET_CONFIG.appId,
                 accessKey: APPSHEET_CONFIG.accessKey
             })
@@ -48,33 +47,25 @@ async function handleLogin(e) {
 
         const responseData = await response.json();
 
-        // Manejo explícito de errores de AppSheet
-        if (responseData && responseData.Success === false) {
-            throw new Error(`AppSheet dice: ${responseData.ErrorDescription || 'Error desconocido'}`);
-        }
+        // Manejo detallado de errores
+        if (!response.ok || responseData.error || responseData.Success === false) {
+            const msg = responseData.details || responseData.error || 'Error desconocido';
+            const debug = responseData.debug ? `\n\nOrigen: ${responseData.debug.source}\nAppID check: ${responseData.debug.appIdUsed}` : '';
 
-        if (!response.ok) {
-            throw new Error(responseData.error || `Error ${response.status}: ${response.statusText}`);
+            throw new Error(`${msg}${debug}`);
         }
-
-        console.log('DEBUG - Datos recibidos:', responseData);
 
         let users = [];
-        // Lógica de extracción robusta
         if (Array.isArray(responseData)) {
             users = responseData;
         } else if (responseData && typeof responseData === 'object') {
             const arrayKey = Object.keys(responseData).find(k => Array.isArray(responseData[k]));
-            if (arrayKey) {
-                users = responseData[arrayKey];
-            } else {
-                throw new Error('No se encontró la lista de usuarios en la respuesta de AppSheet.');
-            }
+            if (arrayKey) users = responseData[arrayKey];
+            else throw new Error('No se encontró lista de usuarios en la respuesta.');
         } else {
-            throw new Error('Tipo de respuesta inválida desde el servidor.');
+            throw new Error('Formato de datos inválido.');
         }
 
-        // Buscar el usuario
         const foundUser = users.find(u =>
             (u.Email === userVal || u.Usuario === userVal) &&
             String(u.Password) === passVal
@@ -97,12 +88,7 @@ async function handleLogin(e) {
 
     } catch (error) {
         console.error('LOGIN ERROR:', error);
-        // Si el error es de llaves, ser muy específico
-        if (error.message.includes('ApplicationAccessKey')) {
-            alert('¡LLAVES INVÁLIDAS!\n\nEl Access Key o el App ID no son correctos en AppSheet.\n\nPor favor, verifica el panel naranja de configuración e ingresa las llaves de nuevo.');
-        } else {
-            alert(`ERROR: ${error.message}`);
-        }
+        alert(`FALLO DE CONEXIÓN:\n\n${error.message}\n\nRECOMENDACIÓN: Verifica en AppSheet que la API esté habilitada y las llaves sean exactas.`);
     } finally {
         loginBtn.disabled = false;
         loginBtn.innerHTML = originalText;

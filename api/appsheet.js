@@ -1,5 +1,5 @@
 /**
- * Vercel Proxy para AppSheet API - Versión Híbrida
+ * Vercel Proxy para AppSheet API - Versión de Diagnóstico
  */
 
 export default async function handler(req, res) {
@@ -7,17 +7,17 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Método no permitido' });
     }
 
-    // Recibir datos del cliente, incluyendo posibles llaves de fallback
     const { table, action, rows, properties, appId: clientAppId, accessKey: clientAccessKey } = req.body;
 
-    // Priorizar variables de entorno de Vercel, luego las enviadas por el cliente
-    const APP_ID = process.env.APPSHEET_APP_ID || clientAppId;
-    const ACCESS_KEY = process.env.APPSHEET_ACCESS_KEY || clientAccessKey;
+    // PRIORIDAD: Si el usuario escribió algo en el panel naranja, usaremos eso.
+    // Esto permite corregir errores de Vercel sin tener que redeployar.
+    const APP_ID = clientAppId || process.env.APPSHEET_APP_ID;
+    const ACCESS_KEY = clientAccessKey || process.env.APPSHEET_ACCESS_KEY;
 
     if (!APP_ID || !ACCESS_KEY) {
         return res.status(400).json({
-            error: 'Credenciales faltantes.',
-            message: 'No se encontraron llaves en Vercel ni se enviaron desde el cliente.'
+            error: 'Credenciales ausentes.',
+            details: 'No hay llaves en Vercel ni se recibieron desde el navegador.'
         });
     }
 
@@ -39,16 +39,26 @@ export default async function handler(req, res) {
 
         const data = await response.json();
 
-        // Registrar error en logs de Vercel (solo visible para el dueño)
+        // Enviar un resumen de qué llaves se usaron (ofuscadas) para debug
+        const usedConfig = {
+            usingProxy: true,
+            appIdUsed: APP_ID.substring(0, 5) + '...',
+            accessKeyUsed: ACCESS_KEY.substring(0, 5) + '...',
+            source: clientAppId ? 'Cargado desde navegador (Panel Naranja)' : 'Cargado desde Vercel (Env Vars)'
+        };
+
         if (!response.ok || data.Success === false) {
-            console.error(`AppSheet API Error (${table}):`, data.ErrorDescription || 'Sin descripción');
+            return res.status(response.status || 401).json({
+                error: 'AppSheet rechazó las llaves',
+                details: data.ErrorDescription || 'Error de autenticación anónimo.',
+                debug: usedConfig
+            });
         }
 
-        // Devolvemos el status original y la data completa
-        return res.status(response.status).json(data);
+        return res.status(200).json(data);
 
     } catch (error) {
-        console.error('Proxy Internal Error:', error);
+        console.error('Proxy Error:', error);
         return res.status(500).json({
             error: 'Error interno del Proxy',
             details: error.message
