@@ -49,8 +49,7 @@ async function enviarGasto(e) {
             Tipo_Pago: tipoPago ? tipoPago.value : 'Efectivo',
             Kmts_Actuales: parseInt(getVal('Kmts_Actuales')) || 0,
             Litros_Rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
-            Fecha: new Date().toLocaleDateString('en-CA'), // Formato YYYY-MM-DD
-            Timestamp: new Date().toLocaleString()
+            Fecha: new Date().toLocaleDateString('en-CA') // Formato YYYY-MM-DD
         };
 
         // Enviar a través del Proxy de Vercel
