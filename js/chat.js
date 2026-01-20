@@ -51,15 +51,19 @@ function initChat() {
 
             if (response.ok) {
                 const data = await response.json();
+                console.log('Respuesta de Make:', data);
                 removeMessage(typingId);
-                appendMessage('bot', data.reply || data.message || 'Lo siento, no pude procesar tu solicitud.');
+
+                // Extraer el campo 'respuesta' según el nuevo formato del flujo
+                const aiMessage = data.respuesta || data.reply || data.message || 'Lo siento, no pude procesar tu solicitud.';
+                appendMessage('bot', aiMessage);
             } else {
                 console.error('Webhook Error:', response.status, response.statusText);
                 throw new Error(`Error en la comunicación: ${response.status}`);
             }
         } catch (error) {
             removeMessage(typingId);
-            appendMessage('bot', 'Hubo un problema al conectar con el asistente (Es posible que el escenario de Make.com no esté ACTIVO).');
+            appendMessage('bot', 'Hubo un problema al conectar con el asistente. Revisa la consola para más detalles.');
             console.error('Chat Error Detail:', error);
         }
     });
