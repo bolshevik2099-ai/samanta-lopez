@@ -39,6 +39,7 @@ function initChat() {
         const typingId = appendMessage('bot', '<i class="fas fa-circle-notch fa-spin text-slate-400"></i>', true);
 
         try {
+            console.log('Enviando mensaje a:', MAKE_WEBHOOK_URL);
             const response = await fetch(MAKE_WEBHOOK_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -49,21 +50,32 @@ function initChat() {
                 })
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Respuesta de Make:', data);
-                removeMessage(typingId);
+            const rawText = await response.text();
+            console.log('Respuesta cruda de Make:', rawText);
 
-                // Extraer el campo 'respuesta' según el nuevo formato del flujo
-                const aiMessage = data.respuesta || data.reply || data.message || 'Lo siento, no pude procesar tu solicitud.';
+            if (response.ok) {
+                let data;
+                try {
+                    data = JSON.parse(rawText);
+                } catch (e) {
+                    console.warn('La respuesta no es JSON válido:', rawText);
+                    data = { respuesta: rawText }; // Fallback a texto plano
+                }
+
+                removeMessage(typingId);
+                const aiMessage = data.respuesta || data.reply || data.message || (typeof data === 'string' ? data : 'Lo siento, no pude procesar tu solicitud.');
                 appendMessage('bot', aiMessage);
             } else {
-                console.error('Webhook Error:', response.status, response.statusText);
-                throw new Error(`Error en la comunicación: ${response.status}`);
+                console.error('Webhook Error:', response.status, response.statusText, rawText);
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
             }
         } catch (error) {
             removeMessage(typingId);
-            appendMessage('bot', 'Hubo un problema al conectar con el asistente. Revisa la consola para más detalles.');
+            let userMsg = 'Hubo un problema al conectar con el asistente.';
+            if (error.message.includes('Failed to fetch')) {
+                userMsg = 'Error de Red: No se pudo contactar con Make.com. ¿El Webhook es correcto?';
+            }
+            appendMessage('bot', userMsg + ' (Ver consola para detalles)');
             console.error('Chat Error Detail:', error);
         }
     });
