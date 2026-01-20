@@ -240,7 +240,12 @@
                 </div>
                 <span class="text-white font-bold text-lg">Samanta López</span>
             </div>
-            <p class="text-slate-500 text-sm">© 2026 Autotransportes Samanta López. Todos los derechos reservados.</p>
+            <div class="text-center md:text-left">
+                <p class="text-slate-500 text-sm">© 2026 Autotransportes Samanta López. Todos los derechos reservados.
+                </p>
+                <p class="text-blue-500/60 text-xs mt-1 uppercase tracking-widest font-bold"><i
+                        class="fas fa-map-marker-alt mr-1"></i> Zamora, Michoacán</p>
+            </div>
             <div class="flex items-center gap-6 text-slate-400">
                 <a href="#" class="hover:text-white transition-colors"><i class="fab fa-facebook-f"></i></a>
                 <a href="#" class="hover:text-white transition-colors"><i class="fab fa-twitter"></i></a>
@@ -250,14 +255,20 @@
     </footer>
 
     <!-- Floating Chat Button -->
-    <button id="chat-toggle"
-        class="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all z-[100] group">
-        <i class="fas fa-comment-dots text-2xl group-hover:scale-110 transition-transform"></i>
+    <div class="fixed bottom-6 right-6 flex items-center gap-3 z-[100]">
         <span
-            class="absolute right-16 bg-white text-slate-800 text-xs font-bold px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-sm ring-1 ring-black/5 whitespace-nowrap pointer-events-none">
-            Asistente Virtual
+            class="bg-white text-slate-800 text-[10px] font-bold px-4 py-2 rounded-full shadow-xl ring-1 ring-black/5 whitespace-nowrap hidden md:block animate-pulse">
+            Habla con nuestra IA <i class="fas fa-arrow-right ml-1 text-blue-500"></i>
         </span>
-    </button>
+        <button id="chat-toggle"
+            class="bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all group">
+            <i class="fas fa-comment-dots text-2xl group-hover:scale-110 transition-transform"></i>
+            <span
+                class="absolute right-full mr-4 bg-white text-slate-800 text-xs font-bold px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-sm ring-1 ring-black/5 whitespace-nowrap pointer-events-none md:hidden">
+                Asistente Virtual
+            </span>
+        </button>
+    </div>
 
     <!-- Chat Window -->
     <div id="chat-window"
