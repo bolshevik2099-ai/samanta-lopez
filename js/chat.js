@@ -54,12 +54,13 @@ function initChat() {
                 removeMessage(typingId);
                 appendMessage('bot', data.reply || data.message || 'Lo siento, no pude procesar tu solicitud.');
             } else {
-                throw new Error('Error en la comunicación');
+                console.error('Webhook Error:', response.status, response.statusText);
+                throw new Error(`Error en la comunicación: ${response.status}`);
             }
         } catch (error) {
             removeMessage(typingId);
-            appendMessage('bot', 'Hubo un problema al conectar con el asistente. Por favor, intenta más tarde.');
-            console.error('Chat Error:', error);
+            appendMessage('bot', 'Hubo un problema al conectar con el asistente (Es posible que el escenario de Make.com no esté ACTIVO).');
+            console.error('Chat Error Detail:', error);
         }
     });
 
