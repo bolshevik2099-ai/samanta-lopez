@@ -3,7 +3,7 @@
  * Conexión con Make.com Webhook
  */
 
-const MAKE_WEBHOOK_URL = 'TU_URL_DE_MAKE_AQUI'; // El usuario debe configurar esta URL
+const MAKE_WEBHOOK_URL = 'https://hook.us2.make.com/pg1ul97reeytpz6m7gf336drlm8a5ryi';
 
 function initChat() {
     const chatBtn = document.getElementById('chat-toggle');
