@@ -3,6 +3,16 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Verificar si estamos en una página protegida
+    const isLoginPage = window.location.pathname.endsWith('index.html') || window.location.pathname === '/';
+    const session = checkAuth();
+
+    if (!session && !isLoginPage) {
+        console.warn('Acceso denegado: Redirigiendo a inicio.');
+        window.location.href = 'index.html';
+        return;
+    }
+
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);

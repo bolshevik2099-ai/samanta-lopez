@@ -1,171 +1,338 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="scroll-smooth">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Procesa-T CRM</title>
+    <title>Transportes Samanta López - Soluciones Logísticas</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #ffffff;
         }
 
-        body {
+        .hero-gradient {
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+
+        .glass-nav {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .chat-window {
+            height: 500px;
+            width: 350px;
+            bottom: 90px;
+            right: 24px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: bottom right;
+        }
+
+        .chat-open {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .chat-closed {
+            transform: scale(0.9);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .staff-section {
+            background: radial-gradient(circle at top right, #334155, #0f172a);
         }
     </style>
 </head>
 
-<body class="min-h-screen flex items-center justify-center p-4">
-    <div class="max-w-md w-full glass-effect rounded-2xl shadow-2xl overflow-hidden">
-        <div class="p-8">
-            <div class="text-center mb-10">
-                <div
-                    class="bg-green-500 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/20">
-                    <i class="fas fa-truck-moving text-white text-3xl"></i>
-                </div>
-                <h1 class="text-3xl font-bold text-slate-800">Procesa-T</h1>
-                <p class="text-slate-500 mt-2">Control Logístico Samanta López</p>
+<body class="text-slate-900 overflow-x-hidden">
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 glass-nav py-4 px-6 md:px-12 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-500 p-2 rounded-lg shadow-lg">
+                <i class="fas fa-truck-moving text-white text-xl"></i>
             </div>
+            <span class="text-white font-bold text-xl tracking-tight">Samanta López</span>
+        </div>
+        <div class="hidden md:flex items-center gap-8 text-slate-300 font-medium text-sm uppercase tracking-widest">
+            <a href="#inicio" class="hover:text-blue-400 transition-colors">Inicio</a>
+            <a href="#servicios" class="hover:text-blue-400 transition-colors">Servicios</a>
+            <a href="#staff"
+                class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-full text-white transition-all border border-white/20">Acceso
+                Staff</a>
+        </div>
+    </nav>
 
-            <form id="login-form" class="space-y-6">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Usuario / Email</label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                            <i class="fas fa-user-circle"></i>
-                        </span>
-                        <input type="text" id="username" required
-                            class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                            placeholder="Introduce tu usuario">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Contraseña</label>
-                    <div class="relative">
-                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                            <i class="fas fa-lock"></i>
-                        </span>
-                        <input type="password" id="password" required
-                            class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                            placeholder="••••••••">
-                    </div>
-                </div>
-
-                <button type="submit" id="login-btn"
-                    class="w-full bg-slate-900 hover:bg-black text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
-                    <span>Entrar al Sistema</span>
-                    <i class="fas fa-arrow-right text-sm"></i>
-                </button>
-            </form>
-
-            <div id="error-msg" class="mt-6 text-center text-red-500 text-sm font-medium hidden">
-                <i class="fas fa-exclamation-circle mr-1"></i>
-                <span>Usuario o contraseña incorrectos</span>
-            </div>
+    <!-- Hero Section -->
+    <section id="inicio"
+        class="hero-gradient min-h-screen flex items-center pt-20 px-6 md:px-24 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-1/2 h-full opacity-10 pointer-events-none">
+            <i class="fas fa-globe-americas text-[40rem] text-white"></i>
         </div>
 
-        <div class="bg-slate-50/50 p-4 text-center border-t border-slate-100">
-            <p class="text-xs text-slate-400 tracking-wider uppercase font-semibold">Acceso Restringido</p>
-        </div>
-    </div>
-
-    <!-- Configuration Modal (Hidden by default) -->
-    <div id="setup-modal"
-        class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-[100] hidden">
-        <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 border border-slate-200">
-            <div class="text-center mb-6">
-                <div class="bg-amber-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-key text-amber-600"></i>
-                </div>
-                <h3 class="text-xl font-bold text-slate-800">Configuración Pendiente</h3>
-                <p class="text-sm text-slate-500 mt-2">Ingresa tus credenciales de AppSheet para continuar.</p>
-            </div>
-
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">App ID</label>
-                    <input type="text" id="setup-app-id"
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm"
-                        placeholder="Ej: 75c63586-...">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Access
-                        Key</label>
-                    <input type="password" id="setup-access-key"
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm"
-                        placeholder="Ej: V2-...">
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">URL Puente
-                        (GAS)</label>
-                    <input type="text" id="setup-bridge-url"
-                        class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none transition-all text-sm"
-                        placeholder="https://script.google.com/...">
-                </div>
-                <button onclick="handleSetup()"
-                    class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow-lg transition-all">
-                    Guardar Configuración
-                </button>
-            </div>
-            <p class="text-[10px] text-center text-slate-400 mt-6 leading-relaxed">
-                <i class="fas fa-info-circle mr-1"></i>
-                Tus llaves se guardarán localmente en este navegador.
+        <div class="max-w-3xl relative z-10">
+            <h1 class="text-5xl md:text-7xl font-bold text-white leading-tight mb-6">
+                Logística de <span class="text-blue-500">Alto Rendimiento</span> para el Agro.
+            </h1>
+            <p class="text-slate-400 text-lg md:text-xl mb-10 max-w-xl">
+                Liderando el transporte terrestre con eficiencia, tecnología y el compromiso de llevar tus productos a
+                tiempo, siempre.
             </p>
-            <button onclick="closeSetup()"
-                class="w-full mt-4 text-[10px] text-slate-300 hover:text-slate-500 uppercase tracking-widest font-bold transition-all">
-                Cerrar sin guardar
+            <div class="flex flex-wrap gap-4">
+                <a href="#servicios"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl shadow-xl shadow-blue-500/20 transition-all flex items-center gap-2">
+                    Nuestros Servicios <i class="fas fa-chevron-right text-xs"></i>
+                </a>
+                <a href="#staff"
+                    class="bg-white hover:bg-slate-100 text-slate-900 font-bold px-8 py-4 rounded-xl transition-all">
+                    Portal de Empleados
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section id="servicios" class="py-24 px-6 md:px-24 bg-slate-50">
+        <div class="text-center mb-16">
+            <h2 class="text-sm font-bold text-blue-600 uppercase tracking-widest mb-4">Lo que hacemos</h2>
+            <h3 class="text-4xl font-bold text-slate-800">Soluciones de Transporte</h3>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Service 1 -->
+            <div class="glass-card p-8 rounded-3xl hover:shadow-2xl transition-all group">
+                <div
+                    class="bg-blue-100 w-14 h-14 rounded-2xl flex items-center justify-center text-blue-600 mb-6 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                    <i class="fas fa-shipping-fast text-2xl"></i>
+                </div>
+                <h4 class="text-xl font-bold mb-4">Transporte Nacional</h4>
+                <p class="text-slate-600">Cobertura total en territorio nacional con monitoreo constante GPS.</p>
+            </div>
+
+            <!-- Service 2 -->
+            <div class="glass-card p-8 rounded-3xl hover:shadow-2xl transition-all group">
+                <div
+                    class="bg-green-100 w-14 h-14 rounded-2xl flex items-center justify-center text-green-600 mb-6 group-hover:bg-green-600 group-hover:text-white transition-all">
+                    <i class="fas fa-gas-pump text-2xl"></i>
+                </div>
+                <h4 class="text-xl font-bold mb-4">Gestión de Insumos</h4>
+                <p class="text-slate-600">Control estricto de consumo de combustible para máxima rentabilidad.</p>
+            </div>
+
+            <!-- Service 3 -->
+            <div class="glass-card p-8 rounded-3xl hover:shadow-2xl transition-all group">
+                <div
+                    class="bg-amber-100 w-14 h-14 rounded-2xl flex items-center justify-center text-amber-600 mb-6 group-hover:bg-amber-600 group-hover:text-white transition-all">
+                    <i class="fas fa-shield-alt text-2xl"></i>
+                </div>
+                <h4 class="text-xl font-bold mb-4">Seguridad Total</h4>
+                <p class="text-slate-600">Protocolos de seguridad avanzados para la protección de tu carga.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Staff Access Section -->
+    <section id="staff" class="staff-section py-24 px-6 md:px-24 flex flex-col md:flex-row items-center gap-16">
+        <div class="md:w-1/2">
+            <h2 class="text-sm font-bold text-blue-400 uppercase tracking-widest mb-4">Exclusivo Staff</h2>
+            <h3 class="text-4xl font-bold text-white mb-6">Procesa-T CRM</h3>
+            <p class="text-slate-400 text-lg mb-8">
+                Accede al sistema de gestión interna para conductores y administración. Registra gastos, revisa rutas y
+                controla KPIs.
+            </p>
+            <div class="flex items-center gap-4 text-slate-500 text-sm">
+                <span class="flex items-center gap-2"><i class="fas fa-check-circle text-blue-500"></i> Roles
+                    definidos</span>
+                <span class="flex items-center gap-2"><i class="fas fa-check-circle text-blue-500"></i> Datos en tiempo
+                    real</span>
+            </div>
+        </div>
+
+        <div class="md:w-1/2 w-full max-w-md">
+            <!-- Login Form (Original Logic Integrated) -->
+            <div class="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl relative">
+                <div class="text-center mb-10">
+                    <h4 class="text-2xl font-bold text-slate-800">Iniciar Sesión</h4>
+                    <p class="text-slate-500 text-sm mt-1">Suministra tus credenciales de acceso</p>
+                </div>
+
+                <form id="login-form" class="space-y-6">
+                    <div>
+                        <label
+                            class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Usuario</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                <i class="fas fa-user"></i>
+                            </span>
+                            <input type="text" id="username" required
+                                class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                                placeholder="Tu nombre de usuario">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label
+                            class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Contraseña</label>
+                        <div class="relative">
+                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                <i class="fas fa-lock"></i>
+                            </span>
+                            <input type="password" id="password" required
+                                class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm"
+                                placeholder="••••••••">
+                        </div>
+                    </div>
+
+                    <button type="submit" id="login-btn"
+                        class="w-full bg-slate-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3">
+                        <span>Entrar al Portal</span>
+                        <i class="fas fa-arrow-right text-xs"></i>
+                    </button>
+                </form>
+
+                <div id="error-msg"
+                    class="mt-6 text-center text-red-500 text-xs font-bold hidden bg-red-50 py-3 rounded-xl border border-red-100">
+                    <i class="fas fa-exclamation-circle mr-1"></i>
+                    <span>Credenciales no válidas</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 py-12 px-6 md:px-24 border-t border-white/5">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-8">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-500 p-2 rounded-lg">
+                    <i class="fas fa-truck-moving text-white text-lg"></i>
+                </div>
+                <span class="text-white font-bold text-lg">Samanta López</span>
+            </div>
+            <p class="text-slate-500 text-sm">© 2026 Autotransportes Samanta López. Todos los derechos reservados.</p>
+            <div class="flex items-center gap-6 text-slate-400">
+                <a href="#" class="hover:text-white transition-colors"><i class="fab fa-facebook-f"></i></a>
+                <a href="#" class="hover:text-white transition-colors"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="hover:text-white transition-colors"><i class="fab fa-linkedin-in"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Floating Chat Button -->
+    <button id="chat-toggle"
+        class="fixed bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all z-[100] group">
+        <i class="fas fa-comment-dots text-2xl group-hover:scale-110 transition-transform"></i>
+        <span
+            class="absolute right-16 bg-white text-slate-800 text-xs font-bold px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-sm ring-1 ring-black/5 whitespace-nowrap pointer-events-none">
+            Asistente Virtual
+        </span>
+    </button>
+
+    <!-- Chat Window -->
+    <div id="chat-window"
+        class="fixed z-[100] chat-window hidden glass-card rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+        <!-- Header -->
+        <div class="bg-slate-900 text-white p-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-slate-900 rounded-full">
+                    </div>
+                </div>
+                <div>
+                    <h5 class="font-bold text-sm">Asistente Samanta</h5>
+                    <p class="text-[10px] text-slate-400">En línea ahora</p>
+                </div>
+            </div>
+            <button id="chat-close" class="text-slate-400 hover:text-white transition-colors">
+                <i class="fas fa-times"></i>
             </button>
         </div>
+
+        <!-- Messages -->
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-white/50">
+            <div class="flex justify-start">
+                <div
+                    class="max-w-[80%] bg-slate-100 text-slate-800 rounded-2xl px-4 py-2 text-sm shadow-sm ring-1 ring-slate-900/5">
+                    ¡Hola! Soy el asistente virtual de Samanta López. ¿En qué puedo ayudarte hoy?
+                </div>
+            </div>
+        </div>
+
+        <!-- Input -->
+        <form id="chat-form" class="p-4 bg-white border-t border-slate-100">
+            <div class="relative">
+                <input type="text" id="chat-input"
+                    class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-4 pr-12 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    placeholder="Escribe tu mensaje...">
+                <button type="submit"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-blue-600 hover:bg-blue-50 w-8 h-8 rounded-xl flex items-center justify-center transition-all">
+                    <i class="fas fa-paper-plane text-sm"></i>
+                </button>
+            </div>
+        </form>
     </div>
 
-    <!-- Botón de Configuración Manual (Flotante) -->
+    <!-- Hidden Configuration Trigger (Cog) -->
     <button onclick="openSetup()"
-        class="fixed bottom-6 right-6 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white/50 hover:text-white w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-xl z-50 border border-white/10"
-        title="Configurar API">
+        class="fixed bottom-24 right-6 text-slate-300 hover:text-slate-500 transition-all opacity-0 hover:opacity-100 z-50">
         <i class="fas fa-cog"></i>
     </button>
 
+    <!-- Configuration Modal (Keep original logic) -->
+    <div id="setup-modal"
+        class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-[200] hidden">
+        <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 border border-slate-200">
+            <div class="text-center mb-6">
+                <i class="fas fa-key text-amber-500 text-3xl mb-4"></i>
+                <h3 class="text-xl font-bold text-slate-800">Parámetros de API</h3>
+            </div>
+            <div class="space-y-4">
+                <input type="text" id="setup-app-id"
+                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                    placeholder="App ID">
+                <input type="password" id="setup-access-key"
+                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                    placeholder="Access Key">
+                <input type="text" id="setup-bridge-url"
+                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                    placeholder="URL Puente (GAS)">
+                <button onclick="handleSetup()"
+                    class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow-lg transition-all">Guardar</button>
+            </div>
+            <button onclick="closeSetup()"
+                class="w-full mt-4 text-[10px] text-slate-400 uppercase tracking-widest font-bold">Cerrar</button>
+        </div>
+    </div>
+
     <script src="./js/config.js"></script>
     <script src="./js/auth.js"></script>
+    <script src="./js/chat.js"></script>
     <script>
-        // Verificar configuración al cargar
-        document.addEventListener('DOMContentLoaded', () => {
-            if (!isConfigValid()) {
-                openSetup();
-            }
-        });
-
-        function openSetup() {
-            document.getElementById('setup-modal').classList.remove('hidden');
-            document.getElementById('login-form').classList.add('opacity-30', 'pointer-events-none');
-
-            // Pre-llenar si ya existen
-            document.getElementById('setup-app-id').value = localStorage.getItem('APPSHEET_APP_ID') || '';
-            document.getElementById('setup-access-key').value = localStorage.getItem('APPSHEET_ACCESS_KEY') || '';
-            document.getElementById('setup-bridge-url').value = localStorage.getItem('GAS_BRIDGE_URL') || '';
-        }
-
-        function closeSetup() {
-            document.getElementById('setup-modal').classList.add('hidden');
-            document.getElementById('login-form').classList.remove('opacity-30', 'pointer-events-none');
-        }
-
+        function openSetup() { document.getElementById('setup-modal').classList.remove('hidden'); }
+        function closeSetup() { document.getElementById('setup-modal').classList.add('hidden'); }
         function handleSetup() {
             const appId = document.getElementById('setup-app-id').value;
             const accessKey = document.getElementById('setup-access-key').value;
             const bridgeUrl = document.getElementById('setup-bridge-url').value;
-
             if (appId && accessKey) {
                 localStorage.setItem('GAS_BRIDGE_URL', bridgeUrl.trim());
                 saveAppSheetCredentials(appId, accessKey);
-            } else {
-                alert('App ID y Access Key son obligatorios.');
+                closeSetup();
+                location.reload();
             }
         }
     </script>
