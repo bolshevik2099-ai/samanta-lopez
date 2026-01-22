@@ -294,6 +294,8 @@ async function enviarViaje(e) {
             Registrado_Por: session.nombre
         };
 
+        console.log('Enviando Viaje:', formData);
+
         const response = await fetch('/api/appsheet', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -305,18 +307,20 @@ async function enviarViaje(e) {
         });
 
         const result = await response.json();
+        console.log('Respuesta AppSheet:', result);
 
-        if (response.ok && result.Success !== false) {
-            alert('✅ ¡Viaje registrado con éxito en AppSheet!');
+        if (response.ok && result && result.Success !== false) {
+            alert('✅ REGISTRO EXITOSO (v1.2)\n\nAppSheet confirmó el viaje. Si NO aparece en el Excel, revisa que los nombres de las columnas coincidan.');
             e.target.reset();
+            // Resetear fecha a hoy tras limpiar el form
+            document.getElementById('V_Fecha').value = new Date().toLocaleDateString('en-CA');
             if (typeof updateDashboardByPeriod === 'function') updateDashboardByPeriod();
         } else {
-            const errorDetail = result.ErrorDescription || result.error || 'Error desconocido';
-            alert('❌ Error de AppSheet: ' + errorDetail);
-            console.error('Error result:', result);
+            const errorDetail = result.ErrorDescription || result.error || JSON.stringify(result);
+            alert('❌ ERROR DE APPSHEET:\n\n' + errorDetail);
         }
     } catch (err) {
-        alert('❌ Error de red o sistema: ' + err.message);
+        alert('❌ ERROR CRÍTICO:\n\n' + err.message);
     }
     finally { btn.disabled = false; btn.innerHTML = originalText; }
 }
