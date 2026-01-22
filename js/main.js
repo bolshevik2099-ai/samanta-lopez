@@ -13,19 +13,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Inicializar Formularios
     const gastoForm = document.getElementById('gasto-form');
-    if (gastoForm) {
-        gastoForm.addEventListener('submit', enviarGasto);
-    }
+    if (gastoForm) gastoForm.addEventListener('submit', enviarGasto);
 
     const viajeForm = document.getElementById('viaje-form');
-    if (viajeForm) {
-        viajeForm.addEventListener('submit', enviarViaje);
-    }
+    if (viajeForm) viajeForm.addEventListener('submit', enviarViaje);
 
-    // Inicializar dashboard si estamos en la vista admin
+    // Inicializar Dashboard Histórico (si existe la tabla)
     if (document.getElementById('pizarra-operaciones')) {
         initAdminDashboard();
+    }
+
+    // Inicializar Dashboard Embebido (AppSheet Iframe)
+    if (document.getElementById('dashboard-container')) {
+        loadDashboardIframe();
     }
 });
 
@@ -281,3 +283,77 @@ function checkAuth() {
     const session = localStorage.getItem('crm_session');
     return session ? JSON.parse(session) : null;
 }
+
+// --- DASHBOARD EMBED LOGIC ---
+
+function openConfigModal() {
+    const modal = document.getElementById('config-modal');
+    const input = document.getElementById('dashboard-url-input');
+    input.value = localStorage.getItem('APPSHEET_DASHBOARD_URL') || '';
+    modal.classList.remove('hidden');
+}
+
+function closeConfigModal() {
+    document.getElementById('config-modal').classList.add('hidden');
+}
+
+function saveDashboardUrl() {
+    const url = document.getElementById('dashboard-url-input').value.trim();
+    if (url) {
+        localStorage.setItem('APPSHEET_DASHBOARD_URL', url);
+        loadDashboardIframe();
+        closeConfigModal();
+        alert('Configuración guardada correctamente.');
+    }
+}
+
+function loadDashboardIframe() {
+    const container = document.getElementById('dashboard-container');
+    const emptyMsg = document.getElementById('empty-dashboard');
+    const loader = document.getElementById('iframe-loader');
+    const url = localStorage.getItem('APPSHEET_DASHBOARD_URL');
+
+    if (!url) {
+        if (container) container.innerHTML = '';
+        if (emptyMsg) emptyMsg.classList.remove('hidden');
+        if (loader) loader.classList.add('hidden');
+        return;
+    }
+
+    if (emptyMsg) emptyMsg.classList.add('hidden');
+    if (loader) loader.classList.remove('hidden');
+
+    // Limpiar y crear iframe
+    container.innerHTML = `
+        <iframe 
+            id="dashboard-iframe"
+            src="${url}" 
+            class="w-full h-full border-none"
+            allow="geolocation; microphone; camera"
+            onload="document.getElementById('iframe-loader').classList.add('hidden')"
+        ></iframe>
+    `;
+}
+
+function reloadIframe() {
+    const iframe = document.getElementById('dashboard-iframe');
+    if (iframe) {
+        const loader = document.getElementById('iframe-loader');
+        if (loader) loader.classList.remove('hidden');
+        iframe.src = iframe.src;
+    }
+}
+
+function toggleFullScreen() {
+    const container = document.getElementById('dashboard-container').parentElement;
+    if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(err => {
+            alert(`Error al intentar modo pantalla completa: ${err.message}`);
+        });
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+}
+

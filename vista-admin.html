@@ -38,7 +38,11 @@
                 class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all">
                 <i class="fas fa-file-invoice-dollar w-5"></i> Registrar Gasto
             </button>
-            <div class="pt-10">
+            <button onclick="openConfigModal()"
+                class="w-full text-left p-3 rounded-lg flex items-center gap-3 hover:bg-slate-800 transition-all text-slate-400 mt-4 border-t border-slate-800 pt-6">
+                <i class="fas fa-cog w-5"></i> Configuración
+            </button>
+            <div class="pt-4">
                 <button onclick="logout()"
                     class="w-full text-left p-3 rounded-lg flex items-center gap-3 text-red-400 hover:bg-red-500/10 transition-all text-sm">
                     <i class="fas fa-sign-out-alt w-5"></i> Cerrar Sesión
@@ -53,7 +57,11 @@
         <section id="section-dashboard" class="content-section">
             <header class="mb-10 flex justify-between items-center">
                 <div>
-                    <h2 class="text-3xl font-bold text-slate-800">Panel Administrativo</h2>
+                    <h2 class="text-3xl font-bold text-slate-800 flex items-center gap-3">
+                        Panel Administrativo
+                        <span
+                            class="text-[10px] bg-slate-200 text-slate-500 px-2 py-0.5 rounded-full font-mono uppercase tracking-widest">v1.1</span>
+                    </h2>
                     <p class="text-slate-500">Bienvenido de nuevo, <span id="admin-name"
                             class="font-semibold text-slate-800">Cargando...</span></p>
                 </div>
@@ -100,16 +108,78 @@
                 </div>
             </div>
 
-            <div class="mt-10 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div class="p-6 border-b border-slate-100">
-                    <h3 class="font-bold text-slate-800">Operaciones Recientes</h3>
+            <div class="mt-10 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden relative group">
+                <div
+                    class="p-4 border-b border-slate-100 flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-10">
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-table text-blue-500"></i> Tablero General (Virtual Columns)
+                    </h3>
+                    <div class="flex gap-2">
+                        <button onclick="toggleFullScreen()" title="Pantalla Completa"
+                            class="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
+                            <i class="fas fa-expand-arrows-alt"></i>
+                        </button>
+                        <button onclick="reloadIframe()" title="Recargar"
+                            class="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="p-20 text-center text-slate-300">
-                    <i class="fas fa-database text-5xl mb-4 opacity-20"></i>
-                    <p>Módulo de visualización en desarrollo</p>
+
+                <div id="iframe-loader"
+                    class="absolute inset-0 z-20 bg-white flex flex-col items-center justify-center gap-4 transition-opacity duration-300">
+                    <div class="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">Cargando Tablero...</p>
+                </div>
+
+                <div id="dashboard-container" class="w-full aspect-video md:aspect-[21/9] min-h-[600px] bg-slate-50">
+                    <!-- El iframe se cargará dinámicamente -->
+                </div>
+
+                <div id="empty-dashboard" class="hidden p-20 text-center text-slate-300">
+                    <i class="fas fa-link-slash text-5xl mb-4 opacity-20"></i>
+                    <p class="mb-4">No se ha configurado el link del tablero.</p>
+                    <button onclick="openConfigModal()" class="text-blue-500 font-bold hover:underline">Configurar
+                        Ahora</button>
                 </div>
             </div>
         </section>
+
+        <!-- Config Modal -->
+        <div id="config-modal"
+            class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <div
+                class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+                <div class="p-8 border-b border-slate-100 flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-slate-800">Configuración de Dashboard</h3>
+                    <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-600">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="p-8 space-y-6">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Link del
+                            Navegador (Browser Link)</label>
+                        <textarea id="dashboard-url-input" rows="3" placeholder="https://www.appsheet.com/start/..."
+                            class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none resize-none text-sm"></textarea>
+                        <p class="mt-2 text-xs text-slate-400">Pega aquí el link que obtuviste de Share > Links >
+                            Browser Link.</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex gap-3">
+                        <i class="fas fa-info-circle text-blue-500 mt-1"></i>
+                        <p class="text-xs text-blue-700 leading-relaxed">Este link permitirá visualizar las columnas
+                            virtuales y el tablero interactivo de AppSheet directamente aquí.</p>
+                    </div>
+                </div>
+                <div class="p-8 bg-slate-50 flex gap-3">
+                    <button onclick="closeConfigModal()"
+                        class="flex-1 px-6 py-4 font-bold text-slate-500 hover:bg-slate-200 rounded-2xl transition-all">Cancelar</button>
+                    <button onclick="saveDashboardUrl()"
+                        class="flex-1 px-6 py-4 font-bold bg-blue-600 text-white hover:bg-blue-700 rounded-2xl shadow-lg shadow-blue-500/20 transition-all">Guardar
+                        Cambios</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Viajes Section -->
         <section id="section-viajes" class="content-section hidden max-w-4xl">
