@@ -74,8 +74,17 @@ async function fetchAppSheetData(tableName) {
             })
         });
         const result = await response.json();
-        return Array.isArray(result) ? result : [];
+        console.log(`Datos de ${tableName}:`, result);
+
+        // AppSheet result can be an array or an object with specific structure
+        if (Array.isArray(result)) return result;
+        if (result && result.Rows) return result.Rows;
+        if (result && result.Rows === undefined && result.Success === false) {
+            console.error(`Error AppSheet en ${tableName}:`, result.ErrorDescription || 'Acceso denegado');
+        }
+        return [];
     } catch (e) {
+        console.error(`Error de red en ${tableName}:`, e);
         return [];
     }
 }
