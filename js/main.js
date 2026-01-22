@@ -45,22 +45,52 @@ async function updateDashboardByPeriod() {
     const end = document.getElementById('filter-end').value;
     const loader = document.getElementById('chart-loader');
 
+    if (!isConfigValid()) {
+        alert('⚠️ Error: Falta configuración de AppSheet. Haz clic en el engranaje abajo a la derecha en la página de inicio para configurar tu App ID y Access Key.');
+        return;
+    }
+
     if (loader) loader.classList.remove('hidden');
 
     try {
-        if (!isConfigValid()) return;
+        console.log('Cargando datos para el periodo:', start, 'al', end);
 
         // Fetch de datos maestros
         const [viajesRaw, gastosRaw] = await Promise.all([
-            fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIA_MAESTRO' || 'REG_VIAJES'),
+            fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES'),
             fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS')
         ]);
 
-        // Filtro por fecha (YYYY-MM-DD)
-        const filterByDate = (rows, s, e) => rows.filter(r => r.Fecha >= s && r.Fecha <= e);
+        console.log('Respuesta Viajes (total):', viajesRaw.length);
+        console.log('Respuesta Gastos (total):', gastosRaw.length);
 
-        const viajes = filterByDate(viajesRaw || [], start, end);
-        const gastos = filterByDate(gastosRaw || [], start, end);
+        // Helper para normalizar fechas de AppSheet (vienen como MM/DD/YYYY en es-MX o YYYY-MM-DD)
+        const parseDate = (d) => {
+            if (!d) return null;
+            if (d.includes('/')) {
+                const parts = d.split('/'); // DD/MM/YYYY o MM/DD/YYYY
+                // Detectar si es DD/MM o MM/DD (AppSheet suele usar MM/DD/YYYY o DD/MM/YYYY según el locale)
+                if (parseInt(parts[0]) > 12) {
+                    // DD/MM/YYYY -> YYYY-MM-DD
+                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                } else {
+                    // MM/DD/YYYY -> YYYY-MM-DD
+                    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                }
+            }
+            return d; // Asumimos YYYY-MM-DD
+        };
+
+        const filterByDate = (rows, s, e) => rows.filter(r => {
+            const rowDate = parseDate(r.Fecha);
+            return rowDate && rowDate >= s && rowDate <= e;
+        });
+
+        const viajes = filterByDate(viajesRaw, start, end);
+        const gastos = filterByDate(gastosRaw, start, end);
+
+        console.log('Viajes filtrados:', viajes.length);
+        console.log('Gastos filtrados:', gastos.length);
 
         // Agregaciones
         const totalVenta = viajes.reduce((acc, v) => acc + (parseFloat(v.Monto_Flete) || 0), 0);
@@ -96,9 +126,14 @@ function renderPeriodTable(viajes, gastos) {
     if (!tableBody) return;
 
     const combined = [
-        ...viajes.map(v => ({ type: 'venta', date: v.Fecha, detail: v.ID_Viaje, amount: v.Monto_Flete })),
-        ...gastos.map(g => ({ type: 'gasto', date: g.Fecha, detail: g.Concepto, amount: g.Monto }))
+        ...viajes.map(v => ({ type: 'venta', date: v.Fecha, detail: v.ID_Viaje || 'Sin ID', amount: v.Monto_Flete })),
+        ...gastos.map(g => ({ type: 'gasto', date: g.Fecha, detail: g.Concepto || 'Gasto', amount: g.Monto }))
     ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 15);
+
+    if (combined.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="2" class="p-8 text-center text-slate-400 italic">No se encontraron datos en este rango de fechas.</td></tr>';
+        return;
+    }
 
     tableBody.innerHTML = combined.map(op => `
         <tr class="hover:bg-slate-50 transition-colors">
@@ -108,11 +143,11 @@ function renderPeriodTable(viajes, gastos) {
             </td>
             <td class="px-6 py-3 text-right">
                 <span class="text-xs font-bold ${op.type === 'venta' ? 'text-blue-600' : 'text-red-500'}">
-                    ${op.type === 'venta' ? '+' : '-'}${new Intl.NumberFormat('es-MX').format(op.amount)}
+                    ${op.type === 'venta' ? '+' : '-'}${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(op.amount)}
                 </span>
             </td>
         </tr>
-    `).join('') || '<tr><td colspan="2" class="p-8 text-center text-slate-400 italic">Sin datos</td></tr>';
+    `).join('');
 }
 
 function renderChart(viajes, gastos) {
@@ -134,6 +169,12 @@ function renderChart(viajes, gastos) {
     const labels = Object.keys(timeline).sort();
     const vData = labels.map(l => timeline[l].v);
     const gData = labels.map(l => timeline[l].g);
+
+    if (labels.length === 0) {
+        console.warn('Sin datos para la gráfica');
+        if (mainChart) mainChart.destroy();
+        return;
+    }
 
     if (mainChart) mainChart.destroy();
 
@@ -188,9 +229,15 @@ async function fetchAppSheetData(tableName) {
             })
         });
         const result = await response.json();
-        return Array.isArray(result) ? result : (result.Rows || []);
+
+        if (result && (result.Rows || Array.isArray(result))) {
+            return Array.isArray(result) ? result : result.Rows;
+        } else {
+            console.error(`Error en respuesta de ${tableName}:`, result);
+            return [];
+        }
     } catch (e) {
-        console.error(`Error en ${tableName}:`, e);
+        console.error(`Error de red en ${tableName}:`, e);
         return [];
     }
 }
