@@ -50,6 +50,12 @@ async function updateDashboardByPeriod() {
         return;
     }
 
+    const statusEl = document.getElementById('conn-status');
+    if (statusEl) {
+        statusEl.innerText = 'Consultando...';
+        statusEl.className = 'text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest animate-pulse';
+    }
+
     if (loader) loader.classList.remove('hidden');
 
     try {
@@ -60,6 +66,18 @@ async function updateDashboardByPeriod() {
             fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES'),
             fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS')
         ]);
+
+        if (viajesRaw.length === 0 && gastosRaw.length === 0) {
+            if (statusEl) {
+                statusEl.innerText = 'Sin Datos';
+                statusEl.className = 'text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+            }
+        } else {
+            if (statusEl) {
+                statusEl.innerText = 'Conectado';
+                statusEl.className = 'text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+            }
+        }
 
         console.log('Respuesta Viajes (total):', viajesRaw.length);
         console.log('Respuesta Gastos (total):', gastosRaw.length);
@@ -111,6 +129,11 @@ async function updateDashboardByPeriod() {
 
     } catch (error) {
         console.error('Error al actualizar dashboard:', error);
+        if (statusEl) {
+            statusEl.innerText = 'Error API';
+            statusEl.className = 'text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+        alert('❌ Error al conectar con AppSheet:\n' + error.message + '\n\nVerifica tus credenciales en el inicio.');
     } finally {
         if (loader) loader.classList.add('hidden');
     }
