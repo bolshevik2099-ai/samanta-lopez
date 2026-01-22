@@ -290,8 +290,8 @@ async function enviarViaje(e) {
             Monto_Flete: parseFloat(getVal('V_Monto_Flete')) || 0,
             Estatus_Viaje: getVal('V_Estatus_Viaje'),
             Comision_Chofer: parseFloat(getVal('V_Comision_Chofer')) || 0,
-            Estatus_Pago: getVal('V_Estatus_Pago'),
-            Registrado_Por: session.nombre
+            Estatus_Pago: getVal('V_Estatus_Pago')
+            // Se eliminó Registrado_Por porque no existe en la tabla de AppSheet
         };
 
         console.log('Enviando Viaje:', formData);
@@ -310,7 +310,7 @@ async function enviarViaje(e) {
         console.log('Respuesta AppSheet:', result);
 
         if (response.ok && result && result.Success !== false) {
-            alert('✅ REGISTRO EXITOSO (v1.2)\n\nAppSheet confirmó el viaje. Si NO aparece en el Excel, revisa que los nombres de las columnas coincidan.');
+            alert('✅ REGISTRO EXITOSO (v1.3)\n\n¡Perfecto! AppSheet ya aceptó los datos.');
             e.target.reset();
             // Resetear fecha a hoy tras limpiar el form
             document.getElementById('V_Fecha').value = new Date().toLocaleDateString('en-CA');
