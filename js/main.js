@@ -304,12 +304,20 @@ async function enviarViaje(e) {
             })
         });
 
-        if (response.ok) {
-            alert('¡Viaje registrado!');
+        const result = await response.json();
+
+        if (response.ok && result.Success !== false) {
+            alert('✅ ¡Viaje registrado con éxito en AppSheet!');
             e.target.reset();
-            updateDashboardByPeriod();
+            if (typeof updateDashboardByPeriod === 'function') updateDashboardByPeriod();
+        } else {
+            const errorDetail = result.ErrorDescription || result.error || 'Error desconocido';
+            alert('❌ Error de AppSheet: ' + errorDetail);
+            console.error('Error result:', result);
         }
-    } catch (err) { alert('Error: ' + err.message); }
+    } catch (err) {
+        alert('❌ Error de red o sistema: ' + err.message);
+    }
     finally { btn.disabled = false; btn.innerHTML = originalText; }
 }
 
@@ -344,18 +352,26 @@ async function enviarGasto(e) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                table: APPSHEET_CONFIG.tableName,
+                table: APPSHEET_CONFIG.tableName || 'REG_GASTOS',
                 action: 'Add', rows: [formData],
                 appId: APPSHEET_CONFIG.appId, accessKey: APPSHEET_CONFIG.accessKey
             })
         });
 
-        if (response.ok) {
-            alert('¡Gasto registrado!');
+        const result = await response.json();
+
+        if (response.ok && result.Success !== false) {
+            alert('✅ ¡Gasto registrado con éxito!');
             e.target.reset();
-            updateDashboardByPeriod();
+            if (typeof updateDashboardByPeriod === 'function') updateDashboardByPeriod();
+        } else {
+            const errorDetail = result.ErrorDescription || result.error || 'Error desconocido';
+            alert('❌ Error de AppSheet al guardar gasto: ' + errorDetail);
+            console.error('Error result (gasto):', result);
         }
-    } catch (err) { alert('Error: ' + err.message); }
+    } catch (err) {
+        alert('❌ Error de red al guardar gasto: ' + err.message);
+    }
     finally { btn.disabled = false; btn.innerHTML = originalText; }
 }
 
