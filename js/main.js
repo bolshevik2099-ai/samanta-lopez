@@ -310,7 +310,7 @@ async function enviarViaje(e) {
         console.log('Respuesta AppSheet:', result);
 
         if (response.ok && result && result.Success !== false) {
-            alert('✅ REGISTRO EXITOSO (v1.3)\n\n¡Perfecto! AppSheet ya aceptó los datos.');
+            alert('✅ REGISTRO EXITOSO (v1.4)\n\n¡Perfecto! AppSheet ya aceptó los datos.');
             e.target.reset();
             // Resetear fecha a hoy tras limpiar el form
             document.getElementById('V_Fecha').value = new Date().toLocaleDateString('en-CA');
