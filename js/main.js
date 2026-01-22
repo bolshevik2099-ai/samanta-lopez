@@ -22,7 +22,117 @@ document.addEventListener('DOMContentLoaded', () => {
     if (viajeForm) {
         viajeForm.addEventListener('submit', enviarViaje);
     }
+
+    // Inicializar dashboard si estamos en la vista admin
+    if (document.getElementById('pizarra-operaciones')) {
+        initAdminDashboard();
+    }
 });
+
+async function initAdminDashboard() {
+    const loader = document.getElementById('loader-operaciones');
+    const tableBody = document.getElementById('pizarra-operaciones');
+
+    try {
+        if (!isConfigValid()) return;
+
+        if (loader) loader.classList.remove('hidden');
+        if (tableBody) tableBody.innerHTML = '';
+
+        const today = new Date().toLocaleDateString('en-CA');
+
+        // Fetch de Viajes y Gastos en paralelo para eficiencia
+        const [viajesRes, gastosRes] = await Promise.all([
+            fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES'),
+            fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS')
+        ]);
+
+        const viajes = (viajesRes || []).filter(v => v.Fecha === today);
+        const gastos = (gastosRes || []).filter(g => g.Fecha === today);
+
+        updateKPIs(viajes, gastos);
+        renderPizarra(viajes, gastos);
+
+    } catch (error) {
+        console.error('Error al cargar dashboard:', error);
+    } finally {
+        if (loader) loader.classList.add('hidden');
+    }
+}
+
+async function fetchAppSheetData(tableName) {
+    try {
+        const response = await fetch('/api/appsheet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                table: tableName,
+                action: 'Find',
+                appId: APPSHEET_CONFIG.appId,
+                accessKey: APPSHEET_CONFIG.accessKey,
+                Properties: { Locale: 'es-MX' }
+            })
+        });
+        const result = await response.json();
+        return Array.isArray(result) ? result : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function updateKPIs(viajes, gastos) {
+    const venta = viajes.reduce((acc, v) => acc + (parseFloat(v.Monto_Flete) || 0), 0);
+    const gasto = gastos.reduce((acc, g) => acc + (parseFloat(g.Monto) || 0), 0);
+    const ganancia = venta - gasto;
+
+    const fmt = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
+
+    if (document.getElementById('stat-venta')) document.getElementById('stat-venta').innerText = fmt(venta);
+    if (document.getElementById('stat-gasto')) document.getElementById('stat-gasto').innerText = fmt(gasto);
+    if (document.getElementById('stat-ganancia')) {
+        const el = document.getElementById('stat-ganancia');
+        el.innerText = fmt(ganancia);
+        el.className = `text-2xl font-bold ${ganancia >= 0 ? 'text-slate-800' : 'text-red-600'}`;
+    }
+}
+
+function renderPizarra(viajes, gastos) {
+    const tableBody = document.getElementById('pizarra-operaciones');
+    if (!tableBody) return;
+
+    // Combinar y ordenar por fecha (aunque sean de hoy)
+    const combined = [
+        ...viajes.map(v => ({ type: 'venta', date: v.Fecha, detail: `${v.ID_Viaje} - ${v.Cliente}`, amount: v.Monto_Flete, cat: 'Viaje' })),
+        ...gastos.map(g => ({ type: 'gasto', date: g.Fecha, detail: `${g.Concepto} (${g.ID_Unidad})`, amount: g.Monto, cat: 'Gasto' }))
+    ];
+
+    if (combined.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-slate-400 italic">No hay operaciones hoy.</td></tr>';
+        return;
+    }
+
+    combined.forEach(op => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50/50 transition-colors";
+        tr.innerHTML = `
+            <td class="px-6 py-4 text-xs font-medium text-slate-500">${op.date}</td>
+            <td class="px-6 py-4">
+                <div class="text-sm font-bold text-slate-800">${op.detail}</div>
+            </td>
+            <td class="px-6 py-4">
+                <span class="text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide ${op.type === 'venta' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}">
+                    ${op.cat}
+                </span>
+            </td>
+            <td class="px-6 py-4 text-right">
+                <span class="text-sm font-bold ${op.type === 'venta' ? 'text-green-600' : 'text-red-500'}">
+                    ${op.type === 'venta' ? '+' : '-'}${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(op.amount)}
+                </span>
+            </td>
+        `;
+        tableBody.appendChild(tr);
+    });
+}
 
 async function enviarViaje(e) {
     e.preventDefault();
