@@ -13,7 +13,8 @@ const APPSHEET_CONFIG = {
 
     // Configuración de Tablas
     tableName: 'REG_GASTOS',
-    tableUsuarios: 'Usuarios'
+    tableUsuarios: 'Usuarios',
+    tableViajes: 'REG_VIAJES'
 };
 
 /**
