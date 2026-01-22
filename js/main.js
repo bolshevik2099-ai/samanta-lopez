@@ -1,6 +1,5 @@
-/**
- * Procesa-T CRM - Lógica de Formulario de Gastos
- */
+
+let mainChart = null; // Instancia global para el gráfico
 
 document.addEventListener('DOMContentLoaded', () => {
     // Verificar sesión al cargar
@@ -20,46 +19,159 @@ document.addEventListener('DOMContentLoaded', () => {
     const viajeForm = document.getElementById('viaje-form');
     if (viajeForm) viajeForm.addEventListener('submit', enviarViaje);
 
-    // Inicializar Dashboard Histórico (si existe la tabla)
-    if (document.getElementById('pizarra-operaciones')) {
-        initAdminDashboard();
-    }
-
-    // Inicializar Dashboard Embebido (AppSheet Iframe)
-    if (document.getElementById('dashboard-container')) {
-        loadDashboardIframe();
+    // Inicializar Dashboard Nativo por API
+    if (document.getElementById('period-table-body')) {
+        setupDateFilters();
+        updateDashboardByPeriod();
     }
 });
 
-async function initAdminDashboard() {
-    const loader = document.getElementById('loader-operaciones');
-    const tableBody = document.getElementById('pizarra-operaciones');
+function setupDateFilters() {
+    const startInput = document.getElementById('filter-start');
+    const endInput = document.getElementById('filter-end');
+    if (!startInput || !endInput) return;
+
+    const today = new Date();
+    // Default: Últimos 30 días
+    const lastMonth = new Date();
+    lastMonth.setDate(today.getDate() - 30);
+
+    startInput.value = lastMonth.toISOString().split('T')[0];
+    endInput.value = today.toISOString().split('T')[0];
+}
+
+async function updateDashboardByPeriod() {
+    const start = document.getElementById('filter-start').value;
+    const end = document.getElementById('filter-end').value;
+    const loader = document.getElementById('chart-loader');
+
+    if (loader) loader.classList.remove('hidden');
 
     try {
         if (!isConfigValid()) return;
 
-        if (loader) loader.classList.remove('hidden');
-        if (tableBody) tableBody.innerHTML = '';
-
-        const today = new Date().toLocaleDateString('en-CA');
-
-        // Fetch de Viajes y Gastos en paralelo para eficiencia
-        const [viajesRes, gastosRes] = await Promise.all([
-            fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES'),
+        // Fetch de datos maestros
+        const [viajesRaw, gastosRaw] = await Promise.all([
+            fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIA_MAESTRO' || 'REG_VIAJES'),
             fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS')
         ]);
 
-        const viajes = (viajesRes || []).filter(v => v.Fecha === today);
-        const gastos = (gastosRes || []).filter(g => g.Fecha === today);
+        // Filtro por fecha (YYYY-MM-DD)
+        const filterByDate = (rows, s, e) => rows.filter(r => r.Fecha >= s && r.Fecha <= e);
 
-        updateKPIs(viajes, gastos);
-        renderPizarra(viajes, gastos);
+        const viajes = filterByDate(viajesRaw || [], start, end);
+        const gastos = filterByDate(gastosRaw || [], start, end);
+
+        // Agregaciones
+        const totalVenta = viajes.reduce((acc, v) => acc + (parseFloat(v.Monto_Flete) || 0), 0);
+        const totalGasto = gastos.reduce((acc, g) => acc + (parseFloat(g.Monto) || 0), 0);
+        const totalGanancia = totalVenta - totalGasto;
+
+        // Actualizar Tarjetas UI
+        const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+
+        safeSetText('period-venta', fmt(totalVenta));
+        safeSetText('period-gasto', fmt(totalGasto));
+        safeSetText('period-ganancia', fmt(totalGanancia));
+        safeSetText('period-label', `Periodo: ${start} al ${end}`);
+
+        // Renderizar Tabla y Gráfico
+        renderPeriodTable(viajes, gastos);
+        renderChart(viajes, gastos);
 
     } catch (error) {
-        console.error('Error al cargar dashboard:', error);
+        console.error('Error al actualizar dashboard:', error);
     } finally {
         if (loader) loader.classList.add('hidden');
     }
+}
+
+function safeSetText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = text;
+}
+
+function renderPeriodTable(viajes, gastos) {
+    const tableBody = document.getElementById('period-table-body');
+    if (!tableBody) return;
+
+    const combined = [
+        ...viajes.map(v => ({ type: 'venta', date: v.Fecha, detail: v.ID_Viaje, amount: v.Monto_Flete })),
+        ...gastos.map(g => ({ type: 'gasto', date: g.Fecha, detail: g.Concepto, amount: g.Monto }))
+    ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 15);
+
+    tableBody.innerHTML = combined.map(op => `
+        <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-3">
+                <div class="text-[10px] text-slate-400 font-mono">${op.date}</div>
+                <div class="text-sm font-bold text-slate-800 truncate max-w-[150px]">${op.detail}</div>
+            </td>
+            <td class="px-6 py-3 text-right">
+                <span class="text-xs font-bold ${op.type === 'venta' ? 'text-blue-600' : 'text-red-500'}">
+                    ${op.type === 'venta' ? '+' : '-'}${new Intl.NumberFormat('es-MX').format(op.amount)}
+                </span>
+            </td>
+        </tr>
+    `).join('') || '<tr><td colspan="2" class="p-8 text-center text-slate-400 italic">Sin datos</td></tr>';
+}
+
+function renderChart(viajes, gastos) {
+    const canvas = document.getElementById('mainChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    // Agrupar por fecha para la gráfica
+    const timeline = {};
+    viajes.forEach(v => {
+        timeline[v.Fecha] = timeline[v.Fecha] || { v: 0, g: 0 };
+        timeline[v.Fecha].v += parseFloat(v.Monto_Flete) || 0;
+    });
+    gastos.forEach(g => {
+        timeline[g.Fecha] = timeline[g.Fecha] || { v: 0, g: 0 };
+        timeline[g.Fecha].g += parseFloat(g.Monto) || 0;
+    });
+
+    const labels = Object.keys(timeline).sort();
+    const vData = labels.map(l => timeline[l].v);
+    const gData = labels.map(l => timeline[l].g);
+
+    if (mainChart) mainChart.destroy();
+
+    mainChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Ventas',
+                    data: vData,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Gastos',
+                    data: gData,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 6 } }
+            },
+            scales: {
+                y: { grid: { display: false }, ticks: { callback: v => '$' + v.toLocaleString() } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
 }
 
 async function fetchAppSheetData(tableName) {
@@ -76,94 +188,27 @@ async function fetchAppSheetData(tableName) {
             })
         });
         const result = await response.json();
-        console.log(`Datos de ${tableName}:`, result);
-
-        // AppSheet result can be an array or an object with specific structure
-        if (Array.isArray(result)) return result;
-        if (result && result.Rows) return result.Rows;
-        if (result && result.Rows === undefined && result.Success === false) {
-            console.error(`Error AppSheet en ${tableName}:`, result.ErrorDescription || 'Acceso denegado');
-        }
-        return [];
+        return Array.isArray(result) ? result : (result.Rows || []);
     } catch (e) {
-        console.error(`Error de red en ${tableName}:`, e);
+        console.error(`Error en ${tableName}:`, e);
         return [];
     }
 }
 
-function updateKPIs(viajes, gastos) {
-    const venta = viajes.reduce((acc, v) => acc + (parseFloat(v.Monto_Flete) || 0), 0);
-    const gasto = gastos.reduce((acc, g) => acc + (parseFloat(g.Monto) || 0), 0);
-    const ganancia = venta - gasto;
-
-    const fmt = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
-
-    if (document.getElementById('stat-venta')) document.getElementById('stat-venta').innerText = fmt(venta);
-    if (document.getElementById('stat-gasto')) document.getElementById('stat-gasto').innerText = fmt(gasto);
-    if (document.getElementById('stat-ganancia')) {
-        const el = document.getElementById('stat-ganancia');
-        el.innerText = fmt(ganancia);
-        el.className = `text-2xl font-bold ${ganancia >= 0 ? 'text-slate-800' : 'text-red-600'}`;
-    }
-}
-
-function renderPizarra(viajes, gastos) {
-    const tableBody = document.getElementById('pizarra-operaciones');
-    if (!tableBody) return;
-
-    // Combinar y ordenar por fecha (aunque sean de hoy)
-    const combined = [
-        ...viajes.map(v => ({ type: 'venta', date: v.Fecha, detail: `${v.ID_Viaje} - ${v.Cliente}`, amount: v.Monto_Flete, cat: 'Viaje' })),
-        ...gastos.map(g => ({ type: 'gasto', date: g.Fecha, detail: `${g.Concepto} (${g.ID_Unidad})`, amount: g.Monto, cat: 'Gasto' }))
-    ];
-
-    if (combined.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="4" class="px-6 py-10 text-center text-slate-400 italic">No hay operaciones hoy.</td></tr>';
-        return;
-    }
-
-    combined.forEach(op => {
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-50/50 transition-colors";
-        tr.innerHTML = `
-            <td class="px-6 py-4 text-xs font-medium text-slate-500">${op.date}</td>
-            <td class="px-6 py-4">
-                <div class="text-sm font-bold text-slate-800">${op.detail}</div>
-            </td>
-            <td class="px-6 py-4">
-                <span class="text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wide ${op.type === 'venta' ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}">
-                    ${op.cat}
-                </span>
-            </td>
-            <td class="px-6 py-4 text-right">
-                <span class="text-sm font-bold ${op.type === 'venta' ? 'text-green-600' : 'text-red-500'}">
-                    ${op.type === 'venta' ? '+' : '-'}${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(op.amount)}
-                </span>
-            </td>
-        `;
-        tableBody.appendChild(tr);
-    });
-}
-
+// Funciones de Formulario (Mantenidas)
 async function enviarViaje(e) {
     e.preventDefault();
     const session = checkAuth();
     if (!session) return;
-
     const btn = e.target.querySelector('button[type="submit"]');
     const originalText = btn.innerHTML;
 
     try {
-        if (!isConfigValid()) {
-            alert('Configuración de AppSheet no encontrada.');
-            return;
-        }
-
+        if (!isConfigValid()) return alert('Error de Configuración');
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
 
-        const getVal = (id) => document.getElementById(id) ? document.getElementById(id).value : '';
-
+        const getVal = (id) => document.getElementById(id)?.value || '';
         const formData = {
             ID_Viaje: getVal('V_ID_Viaje'),
             Fecha: getVal('V_Fecha'),
@@ -176,7 +221,7 @@ async function enviarViaje(e) {
             Estatus_Viaje: getVal('V_Estatus_Viaje'),
             Comision_Chofer: parseFloat(getVal('V_Comision_Chofer')) || 0,
             Estatus_Pago: getVal('V_Estatus_Pago'),
-            Registrado_Por: session.nombre || session.userID
+            Registrado_Por: session.nombre
         };
 
         const response = await fetch('/api/appsheet', {
@@ -184,176 +229,68 @@ async function enviarViaje(e) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 table: APPSHEET_CONFIG.tableViajes || 'REG_VIAJES',
-                action: 'Add',
-                rows: [formData],
-                appId: APPSHEET_CONFIG.appId,
-                accessKey: APPSHEET_CONFIG.accessKey
+                action: 'Add', rows: [formData],
+                appId: APPSHEET_CONFIG.appId, accessKey: APPSHEET_CONFIG.accessKey
             })
         });
 
-        const result = await response.json();
-
-        if (response.ok && result.Success !== false) {
-            alert('¡Viaje registrado con éxito!');
+        if (response.ok) {
+            alert('¡Viaje registrado!');
             e.target.reset();
-            // Reset date to today after reset
-            const dateInput = document.getElementById('V_Fecha');
-            if (dateInput) dateInput.value = new Date().toLocaleDateString('en-CA');
-        } else {
-            const errorDetail = result.ErrorDescription || result.error || 'Error desconocido';
-            throw new Error(errorDetail);
+            updateDashboardByPeriod();
         }
-
-    } catch (error) {
-        console.error('Error al enviar viaje:', error);
-        alert('Error al registrar viaje: ' + error.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }
+    } catch (err) { alert('Error: ' + err.message); }
+    finally { btn.disabled = false; btn.innerHTML = originalText; }
 }
 
 async function enviarGasto(e) {
     e.preventDefault();
-
     const session = checkAuth();
     if (!session) return;
-
     const btn = e.target.querySelector('button[type="submit"]');
     const originalText = btn.innerHTML;
 
     try {
-        if (!isConfigValid()) {
-            alert('Configuración de AppSheet no encontrada.');
-            return;
-        }
-
+        if (!isConfigValid()) return alert('Configuración no válida');
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
 
-        const getVal = (id) => document.getElementById(id) ? document.getElementById(id).value : '';
-        const tipoPago = document.querySelector('input[name="Tipo_Pago"]:checked');
+        const getVal = (id) => document.getElementById(id)?.value || '';
+        const tipoPago = document.querySelector('input[name="Tipo_Pago"]:checked')?.value || 'Efectivo';
 
         const formData = {
-            ID_Chofer: getVal('ID_Chofer') || session.userID, // Use input if exists (admin view), otherwise session
+            ID_Chofer: getVal('ID_Chofer') || session.userID,
             ID_Viaje: getVal('ID_Viaje'),
             ID_Unidad: getVal('ID_Unidad'),
             Concepto: getVal('Concepto'),
             Monto: parseFloat(getVal('Monto')) || 0,
-            Tipo_Pago: tipoPago ? tipoPago.value : 'Efectivo',
+            Tipo_Pago: tipoPago,
             Kmts_Actuales: parseInt(getVal('Kmts_Actuales')) || 0,
             Litros_Rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
-            Fecha: new Date().toLocaleDateString('en-CA') // Formato YYYY-MM-DD
+            Fecha: new Date().toLocaleDateString('en-CA')
         };
 
-        // Enviar a través del Proxy de Vercel
         const response = await fetch('/api/appsheet', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                table: APPSHEET_CONFIG.tableName, // REG_GASTOS
-                action: 'Add',
-                rows: [formData],
-                appId: APPSHEET_CONFIG.appId,
-                accessKey: APPSHEET_CONFIG.accessKey
+                table: APPSHEET_CONFIG.tableName,
+                action: 'Add', rows: [formData],
+                appId: APPSHEET_CONFIG.appId, accessKey: APPSHEET_CONFIG.accessKey
             })
         });
 
-        const result = await response.json();
-
-        if (response.ok && result.Success !== false) {
-            alert('¡Gasto registrado con éxito!');
+        if (response.ok) {
+            alert('¡Gasto registrado!');
             e.target.reset();
-        } else {
-            const errorDetail = result.ErrorDescription || result.error || 'Error desconocido';
-            throw new Error(errorDetail);
+            updateDashboardByPeriod();
         }
-
-    } catch (error) {
-        console.error('Error al enviar gasto:', error);
-        alert('Error al registrar gasto: ' + error.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }
+    } catch (err) { alert('Error: ' + err.message); }
+    finally { btn.disabled = false; btn.innerHTML = originalText; }
 }
 
-// Auxiliar para checkAuth (aunque ya esté en auth.js, por si acaso se cargan por separado)
 function checkAuth() {
     const session = localStorage.getItem('crm_session');
     return session ? JSON.parse(session) : null;
-}
-
-// --- DASHBOARD EMBED LOGIC ---
-
-function openConfigModal() {
-    const modal = document.getElementById('config-modal');
-    const input = document.getElementById('dashboard-url-input');
-    input.value = localStorage.getItem('APPSHEET_DASHBOARD_URL') || '';
-    modal.classList.remove('hidden');
-}
-
-function closeConfigModal() {
-    document.getElementById('config-modal').classList.add('hidden');
-}
-
-function saveDashboardUrl() {
-    const url = document.getElementById('dashboard-url-input').value.trim();
-    if (url) {
-        localStorage.setItem('APPSHEET_DASHBOARD_URL', url);
-        loadDashboardIframe();
-        closeConfigModal();
-        alert('Configuración guardada correctamente.');
-    }
-}
-
-function loadDashboardIframe() {
-    const container = document.getElementById('dashboard-container');
-    const emptyMsg = document.getElementById('empty-dashboard');
-    const loader = document.getElementById('iframe-loader');
-    const url = localStorage.getItem('APPSHEET_DASHBOARD_URL');
-
-    if (!url) {
-        if (container) container.innerHTML = '';
-        if (emptyMsg) emptyMsg.classList.remove('hidden');
-        if (loader) loader.classList.add('hidden');
-        return;
-    }
-
-    if (emptyMsg) emptyMsg.classList.add('hidden');
-    if (loader) loader.classList.remove('hidden');
-
-    // Limpiar y crear iframe
-    container.innerHTML = `
-        <iframe 
-            id="dashboard-iframe"
-            src="${url}" 
-            class="w-full h-full border-none"
-            allow="geolocation; microphone; camera"
-            onload="document.getElementById('iframe-loader').classList.add('hidden')"
-        ></iframe>
-    `;
-}
-
-function reloadIframe() {
-    const iframe = document.getElementById('dashboard-iframe');
-    if (iframe) {
-        const loader = document.getElementById('iframe-loader');
-        if (loader) loader.classList.remove('hidden');
-        iframe.src = iframe.src;
-    }
-}
-
-function toggleFullScreen() {
-    const container = document.getElementById('dashboard-container').parentElement;
-    if (!document.fullscreenElement) {
-        container.requestFullscreen().catch(err => {
-            alert(`Error al intentar modo pantalla completa: ${err.message}`);
-        });
-    } else {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        }
-    }
 }
 
