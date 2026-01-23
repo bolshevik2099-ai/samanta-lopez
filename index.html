@@ -352,22 +352,98 @@
         </div>
     </div>
 
-    <script src="./js/config.js?v=3.8"></script>
-    <script src="./js/auth_v3.6.js?v=3.8" defer></script>
-    <script src="./js/chat.js?v=3.8"></script>
+    <!-- CORE LOGIC INLINED TO BEAT CACHE -->
+    <script src="./js/config.js?v=3.9"></script>
+    <script src="./js/chat.js?v=3.9"></script>
     <script>
+        // --- LÓGICA DE AUTH TOTALMENTE INTEGRADA (v3.9) ---
+
+        async function handleLogin(e) {
+            if (e) e.preventDefault();
+            const userVal = document.getElementById('username').value.trim();
+            const passVal = document.getElementById('password').value.trim();
+            const loginBtn = document.getElementById('login-btn');
+            const errorMsg = document.getElementById('error-msg');
+            const originalText = loginBtn.innerHTML;
+
+            try {
+                loginBtn.disabled = true;
+                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando...';
+                errorMsg.classList.add('hidden');
+
+                const response = await fetch('/api/appsheet', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'login',
+                        username: userVal,
+                        password: passVal,
+                        bridgeUrl: APPSHEET_CONFIG.bridgeUrl
+                    })
+                });
+
+                const data = await response.json();
+                console.log('Respuesta v3.9:', data);
+
+                if (data && data.success && data.user) {
+                    const sessionData = {
+                        userID: data.user.ID_Contacto || data.user.Usuario,
+                        nombre: data.user.Usuario,
+                        rol: data.user.Rol,
+                        timestamp: new Date().getTime()
+                    };
+                    localStorage.setItem('crm_session', JSON.stringify(sessionData));
+
+                    const routes = {
+                        'chofer': 'vista-chofer.html',
+                        'admin': 'vista-admin.html',
+                        'superadmin': 'vista-superadmin.html',
+                        'super admin': 'vista-superadmin.html'
+                    };
+                    const target = routes[String(data.user.Rol).trim().toLowerCase()];
+                    window.location.href = target || 'index.html';
+                } else {
+                    const failMsg = data.error || 'Credenciales inválidas';
+                    alert(`❌ ERROR DE ACCESO (v3.9):\n\n${failMsg}\n\nSi el error es "Usuario o contraseña...", revisa tu script GAS.`);
+                    errorMsg.classList.remove('hidden');
+                    errorMsg.querySelector('span').innerText = failMsg;
+                }
+            } catch (err) {
+                alert('Error de conexión: ' + err.message);
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = originalText;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('login-form');
+            if (form) form.addEventListener('submit', handleLogin);
+        });
+
+        // Configuración
         function openSetup() { document.getElementById('setup-modal').classList.remove('hidden'); }
         function closeSetup() { document.getElementById('setup-modal').classList.add('hidden'); }
         function handleSetup() {
-            const appId = document.getElementById('setup-app-id').value;
-            const accessKey = document.getElementById('setup-access-key').value;
+            const appId = document.getElementById('setup-app-id').value || 'dummy';
+            const accessKey = document.getElementById('setup-access-key').value || 'dummy';
             const bridgeUrl = document.getElementById('setup-bridge-url').value;
-            if (appId && accessKey) {
+            if (bridgeUrl) {
                 localStorage.setItem('GAS_BRIDGE_URL', bridgeUrl.trim());
-                saveAppSheetCredentials(appId, accessKey);
-                closeSetup();
+                localStorage.setItem('APPSHEET_APP_ID', appId);
+                localStorage.setItem('APPSHEET_ACCESS_KEY', accessKey);
                 location.reload();
             }
+        }
+
+        function checkAuth() {
+            const session = localStorage.getItem('crm_session');
+            return session ? JSON.parse(session) : null;
+        }
+
+        function logout() {
+            localStorage.removeItem('crm_session');
+            window.location.href = 'index.html';
         }
     </script>
 </body>
