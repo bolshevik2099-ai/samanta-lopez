@@ -9,7 +9,8 @@ const APPSHEET_CONFIG = {
     // Intentar leer de localStorage (persistente en el navegador)
     appId: localStorage.getItem('APPSHEET_APP_ID') || '',
     accessKey: localStorage.getItem('APPSHEET_ACCESS_KEY') || '',
-    bridgeUrl: localStorage.getItem('GAS_BRIDGE_URL') || '',
+    // URL del Puente GAS provista por el usuario
+    bridgeUrl: localStorage.getItem('GAS_BRIDGE_URL') || 'https://script.google.com/macros/s/AKfycbyZom0VOyWN7zNiI8X_VpzHVVI_g6stDKhxbBErcPTard_THUsDCUmnbrtfsCw0IGOg8g/exec',
 
     // Configuración de Tablas
     tableName: 'REG_GASTOS',

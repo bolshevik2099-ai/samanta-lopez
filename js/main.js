@@ -268,9 +268,8 @@ async function fetchAppSheetData(tableName) {
             body: JSON.stringify({
                 table: tableName,
                 action: 'Find',
-                appId: APPSHEET_CONFIG.appId,
-                accessKey: APPSHEET_CONFIG.accessKey,
-                Properties: { Locale: 'es-MX' }
+                // Envia la URL del puente configurada en config.js
+                bridgeUrl: APPSHEET_CONFIG.bridgeUrl
             })
         });
         const result = await response.json();
@@ -332,8 +331,9 @@ async function enviarViaje(e) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 table: APPSHEET_CONFIG.tableViajes || 'REG_VIAJES',
-                action: 'Add', rows: [formData],
-                appId: APPSHEET_CONFIG.appId, accessKey: APPSHEET_CONFIG.accessKey
+                action: 'Add',
+                rows: [formData],
+                bridgeUrl: APPSHEET_CONFIG.bridgeUrl
             })
         });
 
@@ -416,8 +416,9 @@ async function enviarGasto(e) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 table: APPSHEET_CONFIG.tableName || 'REG_GASTOS',
-                action: 'Add', rows: [formData],
-                appId: APPSHEET_CONFIG.appId, accessKey: APPSHEET_CONFIG.accessKey
+                action: 'Add',
+                rows: [formData],
+                bridgeUrl: APPSHEET_CONFIG.bridgeUrl
             })
         });
 
