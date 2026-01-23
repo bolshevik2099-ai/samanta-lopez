@@ -270,10 +270,10 @@ async function fetchAppSheetData(tableName) {
                 action: 'Find',
                 appId: APPSHEET_CONFIG.appId,
                 accessKey: APPSHEET_CONFIG.accessKey,
-                Properties: {
-                    Locale: 'es-MX',
-                    Selector: `Filter('${tableName}', true)` // Selector MUST be inside Properties
-                }
+                appId: APPSHEET_CONFIG.appId,
+                accessKey: APPSHEET_CONFIG.accessKey,
+                Properties: { Locale: 'es-MX' },
+                Selector: "true" // Expression evaluating to Yes/No. "true" selects all.
             })
         });
         const result = await response.json();
@@ -339,7 +339,7 @@ async function enviarViaje(e) {
         console.log('Respuesta AppSheet:', result);
 
         if (response.ok && result && result.Success !== false) {
-            alert('✅ REGISTRO EXITOSO (v3.0)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
+            alert('✅ REGISTRO EXITOSO (v3.1)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
             e.target.reset();
             e.target.reset();
             // Resetear fecha a hoy tras limpiar el form
@@ -422,7 +422,7 @@ async function enviarGasto(e) {
         const result = await response.json();
 
         if (response.ok && result && result.Success !== false) {
-            alert('✅ GASTO REGISTRADO (v3.0)\n\nSe han guardado todos los campos incluyendo fotos y kilometraje.');
+            alert('✅ GASTO REGISTRADO (v3.1)\n\nSe han guardado todos los campos incluyendo fotos y kilometraje.');
             e.target.reset();
             // Reset IDs and dates
             if (document.getElementById('Fecha')) document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
