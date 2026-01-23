@@ -386,9 +386,12 @@ async function enviarGasto(e) {
 
         const result = await response.json();
 
-        if (response.ok && result.Success !== false) {
-            alert('✅ ¡Gasto registrado con éxito!');
+        if (response.ok && result && result.Success !== false) {
+            alert('✅ GASTO REGISTRADO (v1.6)\n\nSe han guardado todos los campos incluyendo fotos y kilometraje.');
             e.target.reset();
+            // Reset IDs and dates
+            if (document.getElementById('Fecha')) document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
+            if (document.getElementById('ID_Gasto')) document.getElementById('ID_Gasto').value = 'G-' + Date.now().toString().slice(-6);
             if (typeof updateDashboardByPeriod === 'function') updateDashboardByPeriod();
         } else {
             const errorDetail = result.ErrorDescription || result.error || 'Error desconocido';
