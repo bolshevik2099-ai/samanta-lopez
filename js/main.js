@@ -1,6 +1,10 @@
 
 let mainChart = null; // Instancia global para el gráfico
 
+// Variables Globales de Datos (para búsqueda)
+let allTripsData = [];
+let allExpensesData = [];
+
 document.addEventListener('DOMContentLoaded', () => {
     // Verificar sesión al cargar
     const session = checkAuth();
@@ -24,6 +28,23 @@ document.addEventListener('DOMContentLoaded', () => {
         setupDateFilters();
         updateDashboardByPeriod();
     }
+
+    // Sidebar: Carga de Listados
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            const navId = e.currentTarget.id.replace('nav-', '');
+            if (navId === 'viajes') loadTripsList();
+            if (navId === 'gastos') loadExpensesList();
+        });
+    });
+
+    // Eventos de Búsqueda
+    document.getElementById('search-viajes')?.addEventListener('input', (e) => {
+        filterTrips(e.target.value);
+    });
+    document.getElementById('search-gastos')?.addEventListener('input', (e) => {
+        filterExpenses(e.target.value);
+    });
 });
 
 function setupDateFilters() {
@@ -310,11 +331,16 @@ async function enviarViaje(e) {
         console.log('Respuesta AppSheet:', result);
 
         if (response.ok && result && result.Success !== false) {
-            alert('✅ REGISTRO EXITOSO (v1.6)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
+            alert('✅ REGISTRO EXITOSO (v1.7)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
             e.target.reset();
             // Resetear fecha a hoy tras limpiar el form
             document.getElementById('V_Fecha').value = new Date().toLocaleDateString('en-CA');
-            if (typeof updateDashboardByPeriod === 'function') updateDashboardByPeriod();
+
+            // Volver a la lista y refrescar (Si estamos en Admin)
+            if (document.getElementById('viajes-list-view')) {
+                toggleSectionView('viajes', 'list');
+                loadTripsList();
+            }
         } else {
             const errorDetail = result.ErrorDescription || result.error || JSON.stringify(result);
             alert('❌ ERROR DE APPSHEET:\n\n' + errorDetail);
@@ -387,12 +413,15 @@ async function enviarGasto(e) {
         const result = await response.json();
 
         if (response.ok && result && result.Success !== false) {
-            alert('✅ GASTO REGISTRADO (v1.6)\n\nSe han guardado todos los campos incluyendo fotos y kilometraje.');
+            alert('✅ GASTO REGISTRADO (v1.7)\n\nSe han guardado todos los campos incluyendo fotos y kilometraje.');
             e.target.reset();
             // Reset IDs and dates
             if (document.getElementById('Fecha')) document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
             if (document.getElementById('ID_Gasto')) document.getElementById('ID_Gasto').value = 'G-' + Date.now().toString().slice(-6);
-            if (typeof updateDashboardByPeriod === 'function') updateDashboardByPeriod();
+
+            // Volver a la lista y refrescar
+            toggleSectionView('gastos', 'list');
+            loadExpensesList();
         } else {
             const errorDetail = result.ErrorDescription || result.error || 'Error desconocido';
             alert('❌ Error de AppSheet al guardar gasto: ' + errorDetail);
@@ -407,5 +436,239 @@ async function enviarGasto(e) {
 function checkAuth() {
     const session = localStorage.getItem('crm_session');
     return session ? JSON.parse(session) : null;
+}
+
+// --- LÓGICA DE LISTADOS Y BÚSQUEDA ---
+
+function toggleSectionView(section, view) {
+    const listView = document.getElementById(`${section}-list-view`);
+    const formView = document.getElementById(`${section}-form-view`);
+    if (!listView || !formView) return;
+
+    if (view === 'list') {
+        listView.classList.remove('hidden');
+        formView.classList.add('hidden');
+    } else {
+        listView.classList.add('hidden');
+        formView.classList.remove('hidden');
+    }
+}
+
+async function loadTripsList() {
+    const loader = document.getElementById('trips-loader');
+    const tbody = document.getElementById('trips-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
+
+    allTripsData = await fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES');
+
+    if (loader) loader.classList.add('hidden');
+    renderTripsTable(allTripsData);
+}
+
+function renderTripsTable(data) {
+    const tbody = document.getElementById('trips-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(v => `
+        <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-4">
+                <div class="font-bold text-slate-800 text-sm">${v.ID_Viaje}</div>
+                <div class="text-[10px] text-slate-400 font-mono">${v.Fecha}</div>
+            </td>
+            <td class="px-6 py-4">
+                <div class="text-sm font-semibold text-slate-700">${v.Cliente}</div>
+                <div class="text-[10px] text-slate-400 uppercase tracking-tight">${v.Origen} ➔ ${v.Destino}</div>
+            </td>
+            <td class="px-6 py-4 text-xs text-slate-600">
+                <div><i class="fas fa-truck text-xs mr-1 text-slate-300"></i> ${v.ID_Unidad}</div>
+                <div><i class="fas fa-user text-xs mr-1 text-slate-300"></i> ${v.ID_Chofer}</div>
+            </td>
+            <td class="px-6 py-4 text-right font-mono font-bold text-slate-700 text-sm">
+                $${parseFloat(v.Monto_Flete).toLocaleString()}
+            </td>
+            <td class="px-6 py-4">
+                <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase ${v.Estatus_Viaje === 'Terminado' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
+                    ${v.Estatus_Viaje}
+                </span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterTrips(query) {
+    const q = query.toLowerCase();
+    const filtered = allTripsData.filter(v =>
+        String(v.ID_Viaje).toLowerCase().includes(q) ||
+        String(v.Cliente).toLowerCase().includes(q) ||
+        String(v.ID_Chofer).toLowerCase().includes(q) ||
+        String(v.ID_Unidad).toLowerCase().includes(q)
+    );
+    renderTripsTable(filtered);
+}
+
+async function loadExpensesList() {
+    const loader = document.getElementById('expenses-loader');
+    const tbody = document.getElementById('expenses-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
+
+    allExpensesData = await fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS');
+
+    if (loader) loader.classList.add('hidden');
+    renderExpensesTable(allExpensesData);
+}
+
+function renderExpensesTable(data) {
+    const tbody = document.getElementById('expenses-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(g => `
+        <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-4">
+                <div class="font-bold text-slate-800 text-sm">${g.ID_Gasto || 'N/A'}</div>
+                <div class="text-[10px] text-slate-400 font-mono">${g.Fecha}</div>
+            </td>
+            <td class="px-6 py-4">
+                <div class="text-sm font-semibold text-slate-700">Viaje: ${g.ID_Viaje}</div>
+                <div class="text-[10px] text-slate-400">Unidad: ${g.ID_Unidad}</div>
+            </td>
+            <td class="px-6 py-4 text-sm text-slate-600">
+                <div class="font-bold text-slate-800 text-sm">${g.Concepto}</div>
+                <div class="text-[10px] text-slate-400">Chofer: ${g.ID_Chofer}</div>
+            </td>
+            <td class="px-6 py-4 text-right font-mono font-bold text-red-600 text-sm">
+                $${parseFloat(g.Monto).toLocaleString()}
+            </td>
+            <td class="px-6 py-4 text-[10px] text-slate-500 font-mono">
+                ${g.Kmts_Recorridos} km
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterExpenses(query) {
+    const q = query.toLowerCase();
+    const filtered = allExpensesData.filter(g =>
+        String(g.ID_Viaje).toLowerCase().includes(q) ||
+        String(g.Concepto).toLowerCase().includes(q) ||
+        String(g.ID_Chofer).toLowerCase().includes(q) ||
+        String(g.ID_Unidad).toLowerCase().includes(q)
+    );
+    renderExpensesTable(filtered);
+}
+
+// --- LÓGICA DE LISTADOS Y BÚSQUEDA ---
+
+function toggleSectionView(section, view) {
+    const listView = document.getElementById(`${section}-list-view`);
+    const formView = document.getElementById(`${section}-form-view`);
+    if (view === 'list') {
+        listView.classList.remove('hidden');
+        formView.classList.add('hidden');
+    } else {
+        listView.classList.add('hidden');
+        formView.classList.remove('hidden');
+    }
+}
+
+async function loadTripsList() {
+    const loader = document.getElementById('trips-loader');
+    const tbody = document.getElementById('trips-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
+
+    allTripsData = await fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES');
+
+    if (loader) loader.classList.add('hidden');
+    renderTripsTable(allTripsData);
+}
+
+function renderTripsTable(data) {
+    const tbody = document.getElementById('trips-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(v => `
+        <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-4">
+                <div class="font-bold text-slate-800">${v.ID_Viaje}</div>
+                <div class="text-[10px] text-slate-400 font-mono">${v.Fecha}</div>
+            </td>
+            <td class="px-6 py-4">
+                <div class="text-sm font-semibold text-slate-700">${v.Cliente}</div>
+                <div class="text-xs text-slate-400">${v.Origen} → ${v.Destino}</div>
+            </td>
+            <td class="px-6 py-4 text-sm text-slate-600">
+                <div><i class="fas fa-truck text-xs mr-1"></i> ${v.ID_Unidad}</div>
+                <div><i class="fas fa-user text-xs mr-1"></i> ${v.ID_Chofer}</div>
+            </td>
+            <td class="px-6 py-4 text-right font-mono font-bold text-slate-700">
+                $${parseFloat(v.Monto_Flete).toLocaleString()}
+            </td>
+            <td class="px-6 py-4">
+                <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase ${v.Estatus_Viaje === 'Terminado' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
+                    ${v.Estatus_Viaje}
+                </span>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterTrips(query) {
+    const q = query.toLowerCase();
+    const filtered = allTripsData.filter(v =>
+        String(v.ID_Viaje).toLowerCase().includes(q) ||
+        String(v.Cliente).toLowerCase().includes(q) ||
+        String(v.ID_Chofer).toLowerCase().includes(q) ||
+        String(v.ID_Unidad).toLowerCase().includes(q)
+    );
+    renderTripsTable(filtered);
+}
+
+async function loadExpensesList() {
+    const loader = document.getElementById('expenses-loader');
+    const tbody = document.getElementById('expenses-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
+
+    allExpensesData = await fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS');
+
+    if (loader) loader.classList.add('hidden');
+    renderExpensesTable(allExpensesData);
+}
+
+function renderExpensesTable(data) {
+    const tbody = document.getElementById('expenses-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(g => `
+        <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-4">
+                <div class="font-bold text-slate-800">${g.ID_Gasto || 'N/A'}</div>
+                <div class="text-[10px] text-slate-400 font-mono">${g.Fecha}</div>
+            </td>
+            <td class="px-6 py-4">
+                <div class="text-sm font-semibold text-slate-700">Viaje: ${g.ID_Viaje}</div>
+                <div class="text-xs text-slate-400">Unidad: ${g.ID_Unidad}</div>
+            </td>
+            <td class="px-6 py-4 text-sm text-slate-600">
+                <div class="font-bold text-slate-800">${g.Concepto}</div>
+                <div class="text-xs text-slate-400">Chofer: ${g.ID_Chofer}</div>
+            </td>
+            <td class="px-6 py-4 text-right font-mono font-bold text-red-600">
+                $${parseFloat(g.Monto).toLocaleString()}
+            </td>
+            <td class="px-6 py-4 text-sm text-slate-500 font-mono">
+                ${g.Kmts_Recorridos} km
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterExpenses(query) {
+    const q = query.toLowerCase();
+    const filtered = allExpensesData.filter(g =>
+        String(g.ID_Viaje).toLowerCase().includes(q) ||
+        String(g.Concepto).toLowerCase().includes(q) ||
+        String(g.ID_Chofer).toLowerCase().includes(q) ||
+        String(g.ID_Unidad).toLowerCase().includes(q)
+    );
+    renderExpensesTable(filtered);
 }
 
