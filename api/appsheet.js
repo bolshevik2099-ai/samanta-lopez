@@ -1,7 +1,3 @@
-/**
- * Vercel Proxy para AppSheet + GAS Bridge (Versión con Diagnóstico)
- */
-
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Método no permitido' });
@@ -10,10 +6,9 @@ export default async function handler(req, res) {
     const { table, action, rows, bridgeUrl } = req.body;
 
     // Prioridad: URL enviada por el front > Variable de Entorno > AppSheet directo
-    // NOTA: Para este caso, vamos a forzar el uso del Bridge si está disponible, ya que AppSheet está fallando.
     const effectiveBridgeUrl = bridgeUrl || process.env.GAS_BRIDGE_URL || 'https://script.google.com/macros/s/AKfycbyZom0VOyWN7zNiI8X_VpzHVVI_g6stDKhxbBErcPTard_THUsDCUmnbrtfsCw0IGOg8g/exec';
 
-    // --- MODO: PROXY A GAS BRIDGE ---
+    // --- MODO: PROXY A GAS BRIDGE (Prioritario) ---
     if (effectiveBridgeUrl) {
         try {
             console.log('Proxy: Redirigiendo a GAS Bridge:', effectiveBridgeUrl);
@@ -40,7 +35,6 @@ export default async function handler(req, res) {
                 gasData = JSON.parse(text);
             } catch (e) {
                 console.error('GAS Bridge devolvió HTML/Texto, no JSON:', text.substring(0, 150));
-                // A veces Google devuelve redirecciones o errores HTML
                 return res.status(502).json({
                     error: 'Error de respuesta del script de Google',
                     details: 'Posiblemente URL incorrecta o permisos insuficientes.',
@@ -56,5 +50,36 @@ export default async function handler(req, res) {
         }
     }
 
-    // --- FALLBACK: APPSHEET API ESTÁNDAR (Si no hay bridge) ---
+    // --- FALLBACK: APPSHEET API ESTÁNDAR (Legacy) ---
     const APPSHEET_APP_ID = req.body.appId || process.env.APPSHEET_APP_ID;
+    const APPSHEET_ACCESS_KEY = req.body.accessKey || process.env.APPSHEET_ACCESS_KEY;
+
+    if (!APPSHEET_APP_ID || !APPSHEET_ACCESS_KEY) {
+        return res.status(400).json({ error: 'Configuración de AppSheet faltante' });
+    }
+
+    const apiUrl = `https://api.appsheet.com/api/v1/apps/${APPSHEET_APP_ID}/tables/${table}/Action`;
+
+    try {
+        const payload = {
+            Action: action,
+            Properties: req.body.Properties || {}
+        };
+        if (rows && rows.length > 0) payload.Rows = rows;
+
+        const appsheetResponse = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'ApplicationAccessKey': APPSHEET_ACCESS_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await appsheetResponse.json();
+        return res.status(200).json(data);
+    } catch (error) {
+        console.error('AppSheet Proxy Error:', error);
+        return res.status(500).json({ error: 'Error al contactar con AppSheet' });
+    }
+}
