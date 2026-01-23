@@ -55,17 +55,20 @@ export default async function handler(req, res) {
     const apiUrl = `https://api.appsheet.com/api/v1/apps/${APPSHEET_APP_ID}/tables/${table}/Action`;
 
     try {
+        const payload = {
+            Action: action,
+            Properties: req.body.Properties || {}
+        };
+        if (rows && rows.length > 0) payload.Rows = rows;
+        if (req.body.Selector) payload.Selector = req.body.Selector;
+
         const appsheetResponse = await fetch(apiUrl, {
             method: 'POST',
             headers: {
                 'ApplicationAccessKey': APPSHEET_ACCESS_KEY,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                Action: action,
-                Properties: { Locale: 'es-MX' },
-                Rows: rows || []
-            })
+            body: JSON.stringify(payload)
         });
 
         const data = await appsheetResponse.json();
