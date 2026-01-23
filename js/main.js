@@ -151,10 +151,11 @@ async function updateDashboardByPeriod() {
     } catch (error) {
         console.error('Error al actualizar dashboard:', error);
         if (statusEl) {
-            statusEl.innerText = 'Error API';
+            statusEl.innerText = 'Error: ' + error.message;
             statusEl.className = 'text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+            statusEl.title = error.message; // Tooltip con detalle
         }
-        alert('❌ Error al conectar con AppSheet:\n' + error.message + '\n\nVerifica tus credenciales en el inicio.');
+        // No alertar en carga inicial para no ser intrusivo, solo mostrar en status
     } finally {
         if (loader) loader.classList.add('hidden');
     }
@@ -278,12 +279,12 @@ async function fetchAppSheetData(tableName) {
         if (result && (result.Rows || Array.isArray(result))) {
             return Array.isArray(result) ? result : result.Rows;
         } else {
-            console.error(`Error en respuesta de ${tableName}:`, result);
-            return [];
+            // Si hay error, lo lanzamos para verlo en la UI
+            throw new Error(result.error || result.ErrorDescription || 'Respuesta inválida de AppSheet');
         }
     } catch (e) {
-        console.error(`Error de red en ${tableName}:`, e);
-        return [];
+        console.error(`Error en ${tableName}:`, e);
+        throw e; // Re-lanzar para manejarlo arriba
     }
 }
 
