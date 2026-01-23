@@ -310,7 +310,7 @@ async function enviarViaje(e) {
         console.log('Respuesta AppSheet:', result);
 
         if (response.ok && result && result.Success !== false) {
-            alert('✅ REGISTRO EXITOSO (v1.5)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
+            alert('✅ REGISTRO EXITOSO (v1.6)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
             e.target.reset();
             // Resetear fecha a hoy tras limpiar el form
             document.getElementById('V_Fecha').value = new Date().toLocaleDateString('en-CA');
@@ -340,16 +340,38 @@ async function enviarGasto(e) {
         const getVal = (id) => document.getElementById(id)?.value || '';
         const tipoPago = document.querySelector('input[name="Tipo_Pago"]:checked')?.value || 'Efectivo';
 
+        // Helper para convertir imagen a base64
+        const fileToBase64 = (file) => new Promise((resolve, reject) => {
+            if (!file) return resolve('');
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+
+        const ticketFile = document.getElementById('Ticket_Foto')?.files[0];
+        const tacoFile = document.getElementById('Foto_tacometro')?.files[0];
+
+        const [ticketBase64, tacoBase64] = await Promise.all([
+            fileToBase64(ticketFile),
+            fileToBase64(tacoFile)
+        ]);
+
         const formData = {
-            ID_Chofer: getVal('ID_Chofer') || session.userID,
+            ID_Gasto: getVal('ID_Gasto'),
             ID_Viaje: getVal('ID_Viaje'),
             ID_Unidad: getVal('ID_Unidad'),
+            Fecha: getVal('Fecha') || new Date().toISOString().split('T')[0],
             Concepto: getVal('Concepto'),
             Monto: parseFloat(getVal('Monto')) || 0,
             Tipo_Pago: tipoPago,
+            ID_Chofer: getVal('ID_Chofer') || session.userID,
+            Kmts_Anteriores: parseInt(getVal('Kmts_Anteriores')) || 0,
             Kmts_Actuales: parseInt(getVal('Kmts_Actuales')) || 0,
+            Kmts_Recorridos: parseInt(getVal('Kmts_Recorridos')) || 0,
             Litros_Rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
-            Fecha: new Date().toLocaleDateString('en-CA')
+            Ticket_Foto: ticketBase64,
+            Foto_tacometro: tacoBase64
         };
 
         const response = await fetch('/api/appsheet', {
