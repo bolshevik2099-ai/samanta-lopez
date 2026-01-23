@@ -331,7 +331,7 @@ async function enviarViaje(e) {
         console.log('Respuesta AppSheet:', result);
 
         if (response.ok && result && result.Success !== false) {
-            alert('✅ REGISTRO EXITOSO (v1.7)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
+            alert('✅ REGISTRO EXITOSO (v1.9)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
             e.target.reset();
             // Resetear fecha a hoy tras limpiar el form
             document.getElementById('V_Fecha').value = new Date().toLocaleDateString('en-CA');
@@ -413,7 +413,7 @@ async function enviarGasto(e) {
         const result = await response.json();
 
         if (response.ok && result && result.Success !== false) {
-            alert('✅ GASTO REGISTRADO (v1.7)\n\nSe han guardado todos los campos incluyendo fotos y kilometraje.');
+            alert('✅ GASTO REGISTRADO (v1.9)\n\nSe han guardado todos los campos incluyendo fotos y kilometraje.');
             e.target.reset();
             // Reset IDs and dates
             if (document.getElementById('Fecha')) document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
