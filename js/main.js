@@ -279,8 +279,12 @@ async function fetchAppSheetData(tableName) {
         if (result && (result.Rows || Array.isArray(result))) {
             return Array.isArray(result) ? result : result.Rows;
         } else {
-            // Si hay error, lo lanzamos para verlo en la UI
-            throw new Error(result.error || result.ErrorDescription || 'Respuesta inválida de AppSheet');
+            // Mensaje de error detallado
+            const msg = result.Message || result.error || result.ErrorDescription;
+            if (msg) throw new Error(msg);
+
+            // Si no hay mensaje claro, mostrar todo el objeto para debug
+            throw new Error('Respuesta extraña: ' + JSON.stringify(result));
         }
     } catch (e) {
         console.error(`Error en ${tableName}:`, e);
@@ -333,7 +337,7 @@ async function enviarViaje(e) {
         console.log('Respuesta AppSheet:', result);
 
         if (response.ok && result && result.Success !== false) {
-            alert('✅ REGISTRO EXITOSO (v2.2)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
+            alert('✅ REGISTRO EXITOSO (v2.5)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
             e.target.reset();
             // Resetear fecha a hoy tras limpiar el form
             document.getElementById('V_Fecha').value = new Date().toLocaleDateString('en-CA');
@@ -415,7 +419,7 @@ async function enviarGasto(e) {
         const result = await response.json();
 
         if (response.ok && result && result.Success !== false) {
-            alert('✅ GASTO REGISTRADO (v2.2)\n\nSe han guardado todos los campos incluyendo fotos y kilometraje.');
+            alert('✅ GASTO REGISTRADO (v2.5)\n\nSe han guardado todos los campos incluyendo fotos y kilometraje.');
             e.target.reset();
             // Reset IDs and dates
             if (document.getElementById('Fecha')) document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
