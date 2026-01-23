@@ -128,7 +128,7 @@ async function handleLogin(e) {
             debugMsg += `\n[Intento 2 - Lectura Directa]: No se encontró coincidencia en la lista de usuarios.`;
 
             console.warn(debugMsg);
-            alert(`⚠️ DEPURACIÓN (v3.7 FINAL):\n${debugMsg}\n\nVerifica:\n1. Que la hoja se llame "Usuarios".\n2. Que las columnas sean "Usuario", "Password", "Rol".\n3. Que la URL del script sea correcta.`);
+            alert(`⚠️ DEPURACIÓN (v3.8):\n${debugMsg}\n\nVerifica:\n1. Que la hoja se llame "Usuarios".\n2. Que las columnas sean "Usuario", "Password", "Rol".\n3. Que la URL del script sea correcta.`);
 
             errorMsg.classList.remove('hidden');
             const span = errorMsg.querySelector('span');
