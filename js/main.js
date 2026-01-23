@@ -332,149 +332,145 @@ async function enviarViaje(e) {
         console.log('Respuesta AppSheet:', result);
 
         if (response.ok && result && result.Success !== false) {
-            if (response.ok && result && result.Success !== false) {
-                alert('✅ REGISTRO EXITOSO (v2.1)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
-                e.target.reset();
-                e.target.reset();
-                // Resetear fecha a hoy tras limpiar el form
-                document.getElementById('V_Fecha').value = new Date().toLocaleDateString('en-CA');
+            alert('✅ REGISTRO EXITOSO (v2.2)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
+            e.target.reset();
+            // Resetear fecha a hoy tras limpiar el form
+            document.getElementById('V_Fecha').value = new Date().toLocaleDateString('en-CA');
 
-                // Volver a la lista y refrescar (Si estamos en Admin)
-                if (document.getElementById('viajes-list-view')) {
-                    toggleSectionView('viajes', 'list');
-                    loadTripsList();
-                }
-            } else {
-                const errorDetail = result.ErrorDescription || result.error || JSON.stringify(result);
-                alert('❌ ERROR DE APPSHEET:\n\n' + errorDetail);
+            // Volver a la lista y refrescar (Si estamos en Admin)
+            if (document.getElementById('viajes-list-view')) {
+                toggleSectionView('viajes', 'list');
+                loadTripsList();
             }
-        } catch (err) {
-            alert('❌ ERROR CRÍTICO:\n\n' + err.message);
+        } else {
+            const errorDetail = result.ErrorDescription || result.error || JSON.stringify(result);
+            alert('❌ ERROR DE APPSHEET:\n\n' + errorDetail);
         }
-        finally { btn.disabled = false; btn.innerHTML = originalText; }
+    } catch (err) {
+        alert('❌ ERROR CRÍTICO:\n\n' + err.message);
     }
+    finally { btn.disabled = false; btn.innerHTML = originalText; }
+}
 
 async function enviarGasto(e) {
-        e.preventDefault();
-        const session = checkAuth();
-        if (!session) return;
-        const btn = e.target.querySelector('button[type="submit"]');
-        const originalText = btn.innerHTML;
+    e.preventDefault();
+    const session = checkAuth();
+    if (!session) return;
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
 
-        try {
-            if (!isConfigValid()) return alert('Configuración no válida');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+    try {
+        if (!isConfigValid()) return alert('Configuración no válida');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
 
-            const getVal = (id) => document.getElementById(id)?.value || '';
-            const tipoPago = document.querySelector('input[name="Tipo_Pago"]:checked')?.value || 'Efectivo';
+        const getVal = (id) => document.getElementById(id)?.value || '';
+        const tipoPago = document.querySelector('input[name="Tipo_Pago"]:checked')?.value || 'Efectivo';
 
-            // Helper para convertir imagen a base64
-            const fileToBase64 = (file) => new Promise((resolve, reject) => {
-                if (!file) return resolve('');
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
+        // Helper para convertir imagen a base64
+        const fileToBase64 = (file) => new Promise((resolve, reject) => {
+            if (!file) return resolve('');
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
 
-            const ticketFile = document.getElementById('Ticket_Foto')?.files[0];
-            const tacoFile = document.getElementById('Foto_tacometro')?.files[0];
+        const ticketFile = document.getElementById('Ticket_Foto')?.files[0];
+        const tacoFile = document.getElementById('Foto_tacometro')?.files[0];
 
-            const [ticketBase64, tacoBase64] = await Promise.all([
-                fileToBase64(ticketFile),
-                fileToBase64(tacoFile)
-            ]);
+        const [ticketBase64, tacoBase64] = await Promise.all([
+            fileToBase64(ticketFile),
+            fileToBase64(tacoFile)
+        ]);
 
-            const formData = {
-                ID_Gasto: getVal('ID_Gasto'),
-                ID_Viaje: getVal('ID_Viaje'),
-                ID_Unidad: getVal('ID_Unidad'),
-                Fecha: getVal('Fecha') || new Date().toISOString().split('T')[0],
-                Concepto: getVal('Concepto'),
-                Monto: parseFloat(getVal('Monto')) || 0,
-                Tipo_Pago: tipoPago,
-                ID_Chofer: getVal('ID_Chofer') || session.userID,
-                Kmts_Anteriores: parseInt(getVal('Kmts_Anteriores')) || 0,
-                Kmts_Actuales: parseInt(getVal('Kmts_Actuales')) || 0,
-                Kmts_Recorridos: parseInt(getVal('Kmts_Recorridos')) || 0,
-                Litros_Rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
-                Ticket_Foto: ticketBase64,
-                Foto_tacometro: tacoBase64
-            };
+        const formData = {
+            ID_Gasto: getVal('ID_Gasto'),
+            ID_Viaje: getVal('ID_Viaje'),
+            ID_Unidad: getVal('ID_Unidad'),
+            Fecha: getVal('Fecha') || new Date().toISOString().split('T')[0],
+            Concepto: getVal('Concepto'),
+            Monto: parseFloat(getVal('Monto')) || 0,
+            Tipo_Pago: tipoPago,
+            ID_Chofer: getVal('ID_Chofer') || session.userID,
+            Kmts_Anteriores: parseInt(getVal('Kmts_Anteriores')) || 0,
+            Kmts_Actuales: parseInt(getVal('Kmts_Actuales')) || 0,
+            Kmts_Recorridos: parseInt(getVal('Kmts_Recorridos')) || 0,
+            Litros_Rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
+            Ticket_Foto: ticketBase64,
+            Foto_tacometro: tacoBase64
+        };
 
-            const response = await fetch('/api/appsheet', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    table: APPSHEET_CONFIG.tableName || 'REG_GASTOS',
-                    action: 'Add', rows: [formData],
-                    appId: APPSHEET_CONFIG.appId, accessKey: APPSHEET_CONFIG.accessKey
-                })
-            });
+        const response = await fetch('/api/appsheet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                table: APPSHEET_CONFIG.tableName || 'REG_GASTOS',
+                action: 'Add', rows: [formData],
+                appId: APPSHEET_CONFIG.appId, accessKey: APPSHEET_CONFIG.accessKey
+            })
+        });
 
-            const result = await response.json();
+        const result = await response.json();
 
-            if (response.ok && result && result.Success !== false) {
-                if (response.ok && result && result.Success !== false) {
-                    alert('✅ GASTO REGISTRADO (v2.1)\n\nSe han guardado todos los campos incluyendo fotos y kilometraje.');
-                    e.target.reset();
-                    e.target.reset();
-                    // Reset IDs and dates
-                    if (document.getElementById('Fecha')) document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
-                    if (document.getElementById('ID_Gasto')) document.getElementById('ID_Gasto').value = 'G-' + Date.now().toString().slice(-6);
+        if (response.ok && result && result.Success !== false) {
+            alert('✅ GASTO REGISTRADO (v2.2)\n\nSe han guardado todos los campos incluyendo fotos y kilometraje.');
+            e.target.reset();
+            // Reset IDs and dates
+            if (document.getElementById('Fecha')) document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
+            if (document.getElementById('ID_Gasto')) document.getElementById('ID_Gasto').value = 'G-' + Date.now().toString().slice(-6);
 
-                    // Volver a la lista y refrescar
-                    toggleSectionView('gastos', 'list');
-                    loadExpensesList();
-                } else {
-                    const errorDetail = result.ErrorDescription || result.error || 'Error desconocido';
-                    alert('❌ Error de AppSheet al guardar gasto: ' + errorDetail);
-                    console.error('Error result (gasto):', result);
-                }
-            } catch (err) {
-                alert('❌ Error de red al guardar gasto: ' + err.message);
-            }
-            finally { btn.disabled = false; btn.innerHTML = originalText; }
+            // Volver a la lista y refrescar
+            toggleSectionView('gastos', 'list');
+            loadExpensesList();
+        } else {
+            const errorDetail = result.ErrorDescription || result.error || 'Error desconocido';
+            alert('❌ Error de AppSheet al guardar gasto: ' + errorDetail);
+            console.error('Error result (gasto):', result);
         }
+    } catch (err) {
+        alert('❌ Error de red al guardar gasto: ' + err.message);
+    }
+    finally { btn.disabled = false; btn.innerHTML = originalText; }
+}
 
 function checkAuth() {
-            const session = localStorage.getItem('crm_session');
-            return session ? JSON.parse(session) : null;
-        }
+    const session = localStorage.getItem('crm_session');
+    return session ? JSON.parse(session) : null;
+}
 
-        // --- LÓGICA DE LISTADOS Y BÚSQUEDA ---
+// --- LÓGICA DE LISTADOS Y BÚSQUEDA ---
 
-        function toggleSectionView(section, view) {
-            const listView = document.getElementById(`${section}-list-view`);
-            const formView = document.getElementById(`${section}-form-view`);
-            if (!listView || !formView) return;
+function toggleSectionView(section, view) {
+    const listView = document.getElementById(`${section}-list-view`);
+    const formView = document.getElementById(`${section}-form-view`);
+    if (!listView || !formView) return;
 
-            if (view === 'list') {
-                listView.classList.remove('hidden');
-                formView.classList.add('hidden');
-            } else {
-                listView.classList.add('hidden');
-                formView.classList.remove('hidden');
-            }
-        }
+    if (view === 'list') {
+        listView.classList.remove('hidden');
+        formView.classList.add('hidden');
+    } else {
+        listView.classList.add('hidden');
+        formView.classList.remove('hidden');
+    }
+}
 
-        async function loadTripsList() {
-            const loader = document.getElementById('trips-loader');
-            const tbody = document.getElementById('trips-table-body');
-            if (loader) loader.classList.remove('hidden');
-            if (tbody) tbody.innerHTML = '';
+async function loadTripsList() {
+    const loader = document.getElementById('trips-loader');
+    const tbody = document.getElementById('trips-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-            allTripsData = await fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES');
+    allTripsData = await fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES');
 
-            if (loader) loader.classList.add('hidden');
-            renderTripsTable(allTripsData);
-        }
+    if (loader) loader.classList.add('hidden');
+    renderTripsTable(allTripsData);
+}
 
-        function renderTripsTable(data) {
-            const tbody = document.getElementById('trips-table-body');
-            if (!tbody) return;
-            tbody.innerHTML = data.map(v => `
+function renderTripsTable(data) {
+    const tbody = document.getElementById('trips-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(v => `
         <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4">
                 <div class="font-bold text-slate-800 text-sm">${v.ID_Viaje}</div>
@@ -498,35 +494,35 @@ function checkAuth() {
             </td>
         </tr>
     `).join('');
-        }
+}
 
-        function filterTrips(query) {
-            const q = query.toLowerCase();
-            const filtered = allTripsData.filter(v =>
-                String(v.ID_Viaje).toLowerCase().includes(q) ||
-                String(v.Cliente).toLowerCase().includes(q) ||
-                String(v.ID_Chofer).toLowerCase().includes(q) ||
-                String(v.ID_Unidad).toLowerCase().includes(q)
-            );
-            renderTripsTable(filtered);
-        }
+function filterTrips(query) {
+    const q = query.toLowerCase();
+    const filtered = allTripsData.filter(v =>
+        String(v.ID_Viaje).toLowerCase().includes(q) ||
+        String(v.Cliente).toLowerCase().includes(q) ||
+        String(v.ID_Chofer).toLowerCase().includes(q) ||
+        String(v.ID_Unidad).toLowerCase().includes(q)
+    );
+    renderTripsTable(filtered);
+}
 
-        async function loadExpensesList() {
-            const loader = document.getElementById('expenses-loader');
-            const tbody = document.getElementById('expenses-table-body');
-            if (loader) loader.classList.remove('hidden');
-            if (tbody) tbody.innerHTML = '';
+async function loadExpensesList() {
+    const loader = document.getElementById('expenses-loader');
+    const tbody = document.getElementById('expenses-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-            allExpensesData = await fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS');
+    allExpensesData = await fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS');
 
-            if (loader) loader.classList.add('hidden');
-            renderExpensesTable(allExpensesData);
-        }
+    if (loader) loader.classList.add('hidden');
+    renderExpensesTable(allExpensesData);
+}
 
-        function renderExpensesTable(data) {
-            const tbody = document.getElementById('expenses-table-body');
-            if (!tbody) return;
-            tbody.innerHTML = data.map(g => `
+function renderExpensesTable(data) {
+    const tbody = document.getElementById('expenses-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(g => `
         <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4">
                 <div class="font-bold text-slate-800 text-sm">${g.ID_Gasto || 'N/A'}</div>
@@ -548,49 +544,49 @@ function checkAuth() {
             </td>
         </tr>
     `).join('');
-        }
+}
 
-        function filterExpenses(query) {
-            const q = query.toLowerCase();
-            const filtered = allExpensesData.filter(g =>
-                String(g.ID_Viaje).toLowerCase().includes(q) ||
-                String(g.Concepto).toLowerCase().includes(q) ||
-                String(g.ID_Chofer).toLowerCase().includes(q) ||
-                String(g.ID_Unidad).toLowerCase().includes(q)
-            );
-            renderExpensesTable(filtered);
-        }
+function filterExpenses(query) {
+    const q = query.toLowerCase();
+    const filtered = allExpensesData.filter(g =>
+        String(g.ID_Viaje).toLowerCase().includes(q) ||
+        String(g.Concepto).toLowerCase().includes(q) ||
+        String(g.ID_Chofer).toLowerCase().includes(q) ||
+        String(g.ID_Unidad).toLowerCase().includes(q)
+    );
+    renderExpensesTable(filtered);
+}
 
-        // --- LÓGICA DE LISTADOS Y BÚSQUEDA ---
+// --- LÓGICA DE LISTADOS Y BÚSQUEDA ---
 
-        function toggleSectionView(section, view) {
-            const listView = document.getElementById(`${section}-list-view`);
-            const formView = document.getElementById(`${section}-form-view`);
-            if (view === 'list') {
-                listView.classList.remove('hidden');
-                formView.classList.add('hidden');
-            } else {
-                listView.classList.add('hidden');
-                formView.classList.remove('hidden');
-            }
-        }
+function toggleSectionView(section, view) {
+    const listView = document.getElementById(`${section}-list-view`);
+    const formView = document.getElementById(`${section}-form-view`);
+    if (view === 'list') {
+        listView.classList.remove('hidden');
+        formView.classList.add('hidden');
+    } else {
+        listView.classList.add('hidden');
+        formView.classList.remove('hidden');
+    }
+}
 
-        async function loadTripsList() {
-            const loader = document.getElementById('trips-loader');
-            const tbody = document.getElementById('trips-table-body');
-            if (loader) loader.classList.remove('hidden');
-            if (tbody) tbody.innerHTML = '';
+async function loadTripsList() {
+    const loader = document.getElementById('trips-loader');
+    const tbody = document.getElementById('trips-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-            allTripsData = await fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES');
+    allTripsData = await fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES');
 
-            if (loader) loader.classList.add('hidden');
-            renderTripsTable(allTripsData);
-        }
+    if (loader) loader.classList.add('hidden');
+    renderTripsTable(allTripsData);
+}
 
-        function renderTripsTable(data) {
-            const tbody = document.getElementById('trips-table-body');
-            if (!tbody) return;
-            tbody.innerHTML = data.map(v => `
+function renderTripsTable(data) {
+    const tbody = document.getElementById('trips-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(v => `
         <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4">
                 <div class="font-bold text-slate-800">${v.ID_Viaje}</div>
@@ -614,35 +610,35 @@ function checkAuth() {
             </td>
         </tr>
     `).join('');
-        }
+}
 
-        function filterTrips(query) {
-            const q = query.toLowerCase();
-            const filtered = allTripsData.filter(v =>
-                String(v.ID_Viaje).toLowerCase().includes(q) ||
-                String(v.Cliente).toLowerCase().includes(q) ||
-                String(v.ID_Chofer).toLowerCase().includes(q) ||
-                String(v.ID_Unidad).toLowerCase().includes(q)
-            );
-            renderTripsTable(filtered);
-        }
+function filterTrips(query) {
+    const q = query.toLowerCase();
+    const filtered = allTripsData.filter(v =>
+        String(v.ID_Viaje).toLowerCase().includes(q) ||
+        String(v.Cliente).toLowerCase().includes(q) ||
+        String(v.ID_Chofer).toLowerCase().includes(q) ||
+        String(v.ID_Unidad).toLowerCase().includes(q)
+    );
+    renderTripsTable(filtered);
+}
 
-        async function loadExpensesList() {
-            const loader = document.getElementById('expenses-loader');
-            const tbody = document.getElementById('expenses-table-body');
-            if (loader) loader.classList.remove('hidden');
-            if (tbody) tbody.innerHTML = '';
+async function loadExpensesList() {
+    const loader = document.getElementById('expenses-loader');
+    const tbody = document.getElementById('expenses-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-            allExpensesData = await fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS');
+    allExpensesData = await fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS');
 
-            if (loader) loader.classList.add('hidden');
-            renderExpensesTable(allExpensesData);
-        }
+    if (loader) loader.classList.add('hidden');
+    renderExpensesTable(allExpensesData);
+}
 
-        function renderExpensesTable(data) {
-            const tbody = document.getElementById('expenses-table-body');
-            if (!tbody) return;
-            tbody.innerHTML = data.map(g => `
+function renderExpensesTable(data) {
+    const tbody = document.getElementById('expenses-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(g => `
         <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4">
                 <div class="font-bold text-slate-800">${g.ID_Gasto || 'N/A'}</div>
@@ -664,16 +660,16 @@ function checkAuth() {
             </td>
         </tr>
     `).join('');
-        }
+}
 
-        function filterExpenses(query) {
-            const q = query.toLowerCase();
-            const filtered = allExpensesData.filter(g =>
-                String(g.ID_Viaje).toLowerCase().includes(q) ||
-                String(g.Concepto).toLowerCase().includes(q) ||
-                String(g.ID_Chofer).toLowerCase().includes(q) ||
-                String(g.ID_Unidad).toLowerCase().includes(q)
-            );
-            renderExpensesTable(filtered);
-        }
+function filterExpenses(query) {
+    const q = query.toLowerCase();
+    const filtered = allExpensesData.filter(g =>
+        String(g.ID_Viaje).toLowerCase().includes(q) ||
+        String(g.Concepto).toLowerCase().includes(q) ||
+        String(g.ID_Chofer).toLowerCase().includes(q) ||
+        String(g.ID_Unidad).toLowerCase().includes(q)
+    );
+    renderExpensesTable(filtered);
+}
 
