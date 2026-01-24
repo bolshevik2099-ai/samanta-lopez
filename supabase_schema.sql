@@ -5,6 +5,8 @@
 DROP TABLE IF EXISTS public.reg_gastos CASCADE;
 DROP TABLE IF EXISTS public.reg_viajes CASCADE;
 DROP TABLE IF EXISTS public.usuarios CASCADE;
+DROP TABLE IF EXISTS public.cat_choferes CASCADE; -- Añadido para la nueva tabla
+DROP TABLE IF EXISTS public.cat_unidades CASCADE; -- Añadido para la nueva tabla
 
 -- 2. Crear Tabla de Usuarios
 CREATE TABLE public.usuarios (
@@ -16,7 +18,17 @@ CREATE TABLE public.usuarios (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Crear Tabla de Viajes
+-- 3. Crear Tabla de Choferes
+CREATE TABLE public.cat_choferes (
+    id_chofer TEXT PRIMARY KEY,
+    nombre TEXT NOT NULL,
+    licencia TEXT,
+    telefono TEXT,
+    id_unidad TEXT, -- Unidad asignada
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. Crear Tabla de Viajes
 CREATE TABLE public.reg_viajes (
     id_viaje TEXT PRIMARY KEY,
     fecha DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -32,11 +44,11 @@ CREATE TABLE public.reg_viajes (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Crear Tabla de Gastos
+-- 5. Crear Tabla de Gastos
 CREATE TABLE public.reg_gastos (
     id_gasto TEXT PRIMARY KEY,
     id_viaje TEXT, -- Removida FK para flexibilidad tipo Excel/AppSheet
-    id_unit_eco TEXT, -- Corregido para coincidir con lo que el código podría esperar (opcional)
+    id_unidad TEXT, -- Corregido para coincidir con lo que el código podría esperar (opcional)
     fecha DATE NOT NULL DEFAULT CURRENT_DATE,
     concepto TEXT,
     monto NUMERIC(12,2) DEFAULT 0,
@@ -51,10 +63,23 @@ CREATE TABLE public.reg_gastos (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 6. Tabla de Unidades
+CREATE TABLE public.cat_unidades (
+    id_unidad TEXT PRIMARY KEY,
+    nombre_unidad TEXT,
+    placas TEXT,
+    modelo TEXT,
+    marca TEXT,
+    id_chofer TEXT, -- Chofer asignado
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Habilitar RLS
 ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reg_viajes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reg_gastos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cat_choferes ENABLE ROW LEVEL SECURITY; -- Añadido para la nueva tabla
+ALTER TABLE public.cat_unidades ENABLE ROW LEVEL SECURITY; -- Añadido para la nueva tabla
 
 -- Políticas (Permisivas)
 CREATE POLICY "Allow public read" ON public.reg_viajes FOR SELECT USING (true);

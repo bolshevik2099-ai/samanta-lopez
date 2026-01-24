@@ -528,18 +528,18 @@ function renderCatalogTable(type, data) {
 
     const config = {
         'choferes': {
-            headers: ['ID', 'Nombre', 'Licencia', 'Teléfono'],
+            headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada'],
             row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_chofer}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre}</td>
                        <td class="px-6 py-4 text-slate-500">${d.licencia || '-'}</td>
-                       <td class="px-6 py-4 text-slate-500">${d.telefono || '-'}</td>`
+                       <td class="px-6 py-4 text-blue-600 font-bold">${d.id_unidad || '<span class="text-slate-300 font-normal">Sin asignar</span>'}</td>`
         },
         'unidades': {
-            headers: ['ID', 'Unidad', 'Placas', 'Modelo/Marca'],
+            headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado'],
             row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_unidad}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre_unidad}</td>
                        <td class="px-6 py-4 text-slate-500">${d.placas || '-'}</td>
-                       <td class="px-6 py-4 text-slate-500">${d.modelo} / ${d.marca}</td>`
+                       <td class="px-6 py-4 text-green-600 font-bold">${d.id_chofer || '<span class="text-slate-300 font-normal">Sin asignar</span>'}</td>`
         },
         'clientes': {
             headers: ['Nombre', 'RFC/Razón Social', 'Contacto'],
@@ -579,14 +579,16 @@ function showCatalogForm() {
             { id: 'C_ID', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01' },
             { id: 'C_Nombre', label: 'Nombre Completo', type: 'text', placeholder: 'Nombre Apellido' },
             { id: 'C_Licencia', label: 'Num. Licencia', type: 'text', placeholder: 'LIC-000' },
-            { id: 'C_Telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+            { id: 'C_Telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
+            { id: 'C_Unidad', label: 'Unidad Asignada (ID ECO)', type: 'text', placeholder: 'ECO-01' }
         ],
         'unidades': [
             { id: 'U_ID', label: 'ID Unidad (ECO)', type: 'text', placeholder: 'ECO-01' },
             { id: 'U_Nombre', label: 'Nombre/Alias', type: 'text', placeholder: 'Kenworth T680' },
             { id: 'U_Placas', label: 'Placas', type: 'text', placeholder: '00-AA-00' },
             { id: 'U_Modelo', label: 'Modelo', type: 'text', placeholder: '2024' },
-            { id: 'U_Marca', label: 'Marca', type: 'text', placeholder: 'Freightliner' }
+            { id: 'U_Marca', label: 'Marca', type: 'text', placeholder: 'Freightliner' },
+            { id: 'U_Chofer', label: 'Chofer Asignado (ID)', type: 'text', placeholder: 'CHO-01' }
         ],
         'clientes': [
             { id: 'CL_ID', label: 'ID Cliente (Opcional)', type: 'text', placeholder: 'CLI-01' },
@@ -636,10 +638,23 @@ document.addEventListener('DOMContentLoaded', () => {
             let table = '';
 
             if (currentCatalog === 'choferes') {
-                data = { id_chofer: getVal('C_ID'), nombre: getVal('C_Nombre'), licencia: getVal('C_Licencia'), telefono: getVal('C_Telefono') };
+                data = {
+                    id_chofer: getVal('C_ID'),
+                    nombre: getVal('C_Nombre'),
+                    licencia: getVal('C_Licencia'),
+                    telefono: getVal('C_Telefono'),
+                    id_unidad: getVal('C_Unidad')
+                };
                 table = DB_CONFIG.tableChoferes;
             } else if (currentCatalog === 'unidades') {
-                data = { id_unidad: getVal('U_ID'), nombre_unidad: getVal('U_Nombre'), placas: getVal('U_Placas'), modelo: getVal('U_Modelo'), marca: getVal('U_Marca') };
+                data = {
+                    id_unidad: getVal('U_ID'),
+                    nombre_unidad: getVal('U_Nombre'),
+                    placas: getVal('U_Placas'),
+                    modelo: getVal('U_Modelo'),
+                    marca: getVal('U_Marca'),
+                    id_chofer: getVal('U_Chofer')
+                };
                 table = DB_CONFIG.tableUnidades;
             } else if (currentCatalog === 'clientes') {
                 data = { id_cliente: getVal('CL_ID') || 'CLI-' + Date.now(), nombre_cliente: getVal('CL_Nombre'), razon_social: getVal('CL_Razon'), rfc: getVal('CL_RFC'), contacto_nombre: getVal('CL_Contacto'), email: getVal('CL_Email'), telefono: getVal('CL_Tel') };
