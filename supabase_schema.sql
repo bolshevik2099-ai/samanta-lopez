@@ -1,4 +1,4 @@
--- Tablas para CRM Procesa-T (Migración desde AppSheet)
+-- Tablas para CRM Procesa-T (Migración nativa SQL)
 
 -- 1. Tabla de Usuarios
 CREATE TABLE IF NOT EXISTS public.usuarios (
@@ -12,36 +12,36 @@ CREATE TABLE IF NOT EXISTS public.usuarios (
 
 -- 2. Tabla de Viajes
 CREATE TABLE IF NOT EXISTS public.reg_viajes (
-    "ID_Viaje" TEXT PRIMARY KEY,
-    "Fecha" DATE NOT NULL DEFAULT CURRENT_DATE,
-    "ID_Unidad" TEXT,
-    "ID_Chofer" TEXT,
-    "Cliente" TEXT,
-    "Origen" TEXT,
-    "Destino" TEXT,
-    "Monto_Flete" NUMERIC(12,2) DEFAULT 0,
-    "Estatus_Viaje" TEXT DEFAULT 'Pendiente',
-    "Comision_Chofer" NUMERIC(12,2) DEFAULT 0,
-    "Estatus_Pago" TEXT DEFAULT 'Pendiente',
+    id_viaje TEXT PRIMARY KEY,
+    fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+    id_unidad TEXT,
+    id_chofer TEXT,
+    cliente TEXT,
+    origen TEXT,
+    destino TEXT,
+    monto_flete NUMERIC(12,2) DEFAULT 0,
+    estatus_viaje TEXT DEFAULT 'Pendiente',
+    comision_chofer NUMERIC(12,2) DEFAULT 0,
+    estatus_pago TEXT DEFAULT 'Pendiente',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 3. Tabla de Gastos
 CREATE TABLE IF NOT EXISTS public.reg_gastos (
-    "ID_Gasto" TEXT PRIMARY KEY,
-    "ID_Viaje" TEXT REFERENCES public.reg_viajes("ID_Viaje") ON DELETE SET NULL,
-    "ID_Unidad" TEXT,
-    "Fecha" DATE NOT NULL DEFAULT CURRENT_DATE,
-    "Concepto" TEXT,
-    "Monto" NUMERIC(12,2) DEFAULT 0,
-    "Tipo_Pago" TEXT DEFAULT 'Efectivo',
-    "ID_Chofer" TEXT,
-    "Kmts_Anteriores" INTEGER DEFAULT 0,
-    "Kmts_Actuales" INTEGER DEFAULT 0,
-    "Kmts_Recorridos" INTEGER DEFAULT 0,
-    "Litros_Rellenados" NUMERIC(10,2) DEFAULT 0,
-    "Ticket_Foto" TEXT, 
-    "Foto_tacometro" TEXT,
+    id_gasto TEXT PRIMARY KEY,
+    id_viaje TEXT REFERENCES public.reg_viajes(id_viaje) ON DELETE SET NULL,
+    id_unidad TEXT,
+    fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+    concepto TEXT,
+    monto NUMERIC(12,2) DEFAULT 0,
+    tipo_pago TEXT DEFAULT 'Efectivo',
+    id_chofer TEXT,
+    kmts_anteriores INTEGER DEFAULT 0,
+    kmts_actuales INTEGER DEFAULT 0,
+    kmts_recorridos INTEGER DEFAULT 0,
+    litros_rellenados NUMERIC(10,2) DEFAULT 0,
+    ticket_foto TEXT, 
+    foto_tacometro TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -50,7 +50,7 @@ ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reg_viajes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reg_gastos ENABLE ROW LEVEL SECURITY;
 
--- Políticas
+-- Políticas (Permisivas para desarrollo)
 CREATE POLICY "Allow public read" ON public.reg_viajes FOR SELECT USING (true);
 CREATE POLICY "Allow public insert" ON public.reg_viajes FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public read" ON public.reg_gastos FOR SELECT USING (true);

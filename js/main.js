@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const ids = ['user-name-display', 'display-chofer', 'admin-name', 'user-display'];
         ids.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.innerText = session.nombre || session.Usuario || 'Usuario';
+            if (el) el.innerText = session.nombre || session.usuario || 'Usuario';
         });
     }
 
@@ -116,7 +116,7 @@ async function updateDashboardByPeriod() {
         };
 
         const filterByDate = (rows, s, e) => rows.filter(r => {
-            const rowDate = parseDate(r.Fecha);
+            const rowDate = parseDate(r.fecha);
             return rowDate && rowDate >= s && rowDate <= e;
         });
 
@@ -127,8 +127,8 @@ async function updateDashboardByPeriod() {
         console.log('Gastos filtrados:', gastos.length);
 
         // Agregaciones
-        const totalVenta = viajes.reduce((acc, v) => acc + (parseFloat(v.Monto_Flete) || 0), 0);
-        const totalGasto = gastos.reduce((acc, g) => acc + (parseFloat(g.Monto) || 0), 0);
+        const totalVenta = viajes.reduce((acc, v) => acc + (parseFloat(v.monto_flete) || 0), 0);
+        const totalGasto = gastos.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
         const totalGanancia = totalVenta - totalGasto;
 
         // Actualizar Tarjetas UI
@@ -166,8 +166,8 @@ function renderPeriodTable(viajes, gastos) {
     if (!tableBody) return;
 
     const combined = [
-        ...viajes.map(v => ({ type: 'venta', date: v.Fecha, detail: v.ID_Viaje || 'Sin ID', amount: v.Monto_Flete })),
-        ...gastos.map(g => ({ type: 'gasto', date: g.Fecha, detail: g.Concepto || 'Gasto', amount: g.Monto }))
+        ...viajes.map(v => ({ type: 'venta', date: v.fecha, detail: v.id_viaje || 'Sin ID', amount: v.monto_flete })),
+        ...gastos.map(g => ({ type: 'gasto', date: g.fecha, detail: g.concepto || 'Gasto', amount: g.monto }))
     ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 15);
 
     if (combined.length === 0) {
@@ -198,12 +198,12 @@ function renderChart(viajes, gastos) {
     // Agrupar por fecha para la gráfica
     const timeline = {};
     viajes.forEach(v => {
-        timeline[v.Fecha] = timeline[v.Fecha] || { v: 0, g: 0 };
-        timeline[v.Fecha].v += parseFloat(v.Monto_Flete) || 0;
+        timeline[v.fecha] = timeline[v.fecha] || { v: 0, g: 0 };
+        timeline[v.fecha].v += parseFloat(v.monto_flete) || 0;
     });
     gastos.forEach(g => {
-        timeline[g.Fecha] = timeline[g.Fecha] || { v: 0, g: 0 };
-        timeline[g.Fecha].g += parseFloat(g.Monto) || 0;
+        timeline[g.fecha] = timeline[g.fecha] || { v: 0, g: 0 };
+        timeline[g.fecha].g += parseFloat(g.monto) || 0;
     });
 
     const labels = Object.keys(timeline).sort();
@@ -283,17 +283,17 @@ async function enviarViaje(e) {
 
         const getVal = (id) => document.getElementById(id)?.value || '';
         const formData = {
-            ID_Viaje: getVal('V_ID_Viaje'),
-            Fecha: getVal('V_Fecha'),
-            ID_Unidad: getVal('V_ID_Unidad'),
-            ID_Chofer: getVal('V_ID_Chofer'),
-            Cliente: getVal('V_Cliente'),
-            Origen: getVal('V_Origen'),
-            Destino: getVal('V_Destino'),
-            Monto_Flete: parseFloat(getVal('V_Monto_Flete')) || 0,
-            Estatus_Viaje: getVal('V_Estatus_Viaje'),
-            Comision_Chofer: parseFloat(getVal('V_Comision_Chofer')) || 0,
-            Estatus_Pago: getVal('V_Estatus_Pago')
+            id_viaje: getVal('V_ID_Viaje'),
+            fecha: getVal('V_Fecha'),
+            id_unidad: getVal('V_ID_Unidad'),
+            id_chofer: getVal('V_ID_Chofer'),
+            cliente: getVal('V_Cliente'),
+            origen: getVal('V_Origen'),
+            destino: getVal('V_Destino'),
+            monto_flete: parseFloat(getVal('V_Monto_Flete')) || 0,
+            estatus_viaje: getVal('V_Estatus_Viaje'),
+            comision_chofer: parseFloat(getVal('V_Comision_Chofer')) || 0,
+            estatus_pago: getVal('V_Estatus_Pago')
         };
 
         console.log('Insertando Viaje en Supabase:', formData);
@@ -351,20 +351,20 @@ async function enviarGasto(e) {
         ]);
 
         const formData = {
-            ID_Gasto: getVal('ID_Gasto'),
-            ID_Viaje: getVal('ID_Viaje'),
-            ID_Unidad: getVal('ID_Unidad'),
-            Fecha: getVal('Fecha') || new Date().toISOString().split('T')[0],
-            Concepto: getVal('Concepto'),
-            Monto: parseFloat(getVal('Monto')) || 0,
-            Tipo_Pago: tipoPago,
-            ID_Chofer: getVal('ID_Chofer') || session.userID,
-            Kmts_Anteriores: parseInt(getVal('Kmts_Anteriores')) || 0,
-            Kmts_Actuales: parseInt(getVal('Kmts_Actuales')) || 0,
-            Kmts_Recorridos: parseInt(getVal('Kmts_Recorridos')) || 0,
-            Litros_Rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
-            Ticket_Foto: ticketBase64,
-            Foto_tacometro: tacoBase64
+            id_gasto: getVal('ID_Gasto'),
+            id_viaje: getVal('ID_Viaje'),
+            id_unidad: getVal('ID_Unidad'),
+            fecha: getVal('Fecha') || new Date().toISOString().split('T')[0],
+            concepto: getVal('Concepto'),
+            monto: parseFloat(getVal('Monto')) || 0,
+            tipo_pago: tipoPago,
+            id_chofer: getVal('ID_Chofer') || session.userID,
+            kmts_anteriores: parseInt(getVal('Kmts_Anteriores')) || 0,
+            kmts_actuales: parseInt(getVal('Kmts_Actuales')) || 0,
+            kmts_recorridos: parseInt(getVal('Kmts_Recorridos')) || 0,
+            litros_rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
+            ticket_foto: ticketBase64,
+            foto_tacometro: tacoBase64
         };
 
         const { error } = await window.supabaseClient
@@ -430,23 +430,23 @@ function renderTripsTable(data) {
     tbody.innerHTML = data.map(v => `
         <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4">
-                <div class="font-bold text-slate-800 text-sm">${v.ID_Viaje}</div>
-                <div class="text-[10px] text-slate-400 font-mono">${v.Fecha}</div>
+                <div class="font-bold text-slate-800 text-sm">${v.id_viaje}</div>
+                <div class="text-[10px] text-slate-400 font-mono">${v.fecha}</div>
             </td>
             <td class="px-6 py-4">
-                <div class="text-sm font-semibold text-slate-700">${v.Cliente}</div>
-                <div class="text-[10px] text-slate-400 uppercase tracking-tight">${v.Origen} ➔ ${v.Destino}</div>
+                <div class="text-sm font-semibold text-slate-700">${v.cliente}</div>
+                <div class="text-[10px] text-slate-400 uppercase tracking-tight">${v.origen} ➔ ${v.destino}</div>
             </td>
             <td class="px-6 py-4 text-xs text-slate-600">
-                <div><i class="fas fa-truck text-xs mr-1 text-slate-300"></i> ${v.ID_Unidad}</div>
-                <div><i class="fas fa-user text-xs mr-1 text-slate-300"></i> ${v.ID_Chofer}</div>
+                <div><i class="fas fa-truck text-xs mr-1 text-slate-300"></i> ${v.id_unidad}</div>
+                <div><i class="fas fa-user text-xs mr-1 text-slate-300"></i> ${v.id_chofer}</div>
             </td>
             <td class="px-6 py-4 text-right font-mono font-bold text-slate-700 text-sm">
-                $${parseFloat(v.Monto_Flete).toLocaleString()}
+                $${parseFloat(v.monto_flete).toLocaleString()}
             </td>
             <td class="px-6 py-4">
-                <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase ${v.Estatus_Viaje === 'Terminado' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
-                    ${v.Estatus_Viaje}
+                <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase ${v.estatus_viaje === 'Terminado' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
+                    ${v.estatus_viaje}
                 </span>
             </td>
         </tr>
@@ -482,22 +482,22 @@ function renderExpensesTable(data) {
     tbody.innerHTML = data.map(g => `
         <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4">
-                <div class="font-bold text-slate-800 text-sm">${g.ID_Gasto || 'N/A'}</div>
-                <div class="text-[10px] text-slate-400 font-mono">${g.Fecha}</div>
+                <div class="font-bold text-slate-800 text-sm">${g.id_gasto || 'N/A'}</div>
+                <div class="text-[10px] text-slate-400 font-mono">${g.fecha}</div>
             </td>
             <td class="px-6 py-4">
-                <div class="text-sm font-semibold text-slate-700">Viaje: ${g.ID_Viaje}</div>
-                <div class="text-[10px] text-slate-400">Unidad: ${g.ID_Unidad}</div>
+                <div class="text-sm font-semibold text-slate-700">Viaje: ${g.id_viaje}</div>
+                <div class="text-[10px] text-slate-400">Unidad: ${g.id_unidad}</div>
             </td>
             <td class="px-6 py-4 text-sm text-slate-600">
-                <div class="font-bold text-slate-800 text-sm">${g.Concepto}</div>
-                <div class="text-[10px] text-slate-400">Chofer: ${g.ID_Chofer}</div>
+                <div class="font-bold text-slate-800 text-sm">${g.concepto}</div>
+                <div class="text-[10px] text-slate-400">Chofer: ${g.id_chofer}</div>
             </td>
             <td class="px-6 py-4 text-right font-mono font-bold text-red-600 text-sm">
-                $${parseFloat(g.Monto).toLocaleString()}
+                $${parseFloat(g.monto).toLocaleString()}
             </td>
             <td class="px-6 py-4 text-[10px] text-slate-500 font-mono">
-                ${g.Kmts_Recorridos} km
+                ${g.kmts_recorridos} km
             </td>
         </tr>
     `).join('');
@@ -506,10 +506,10 @@ function renderExpensesTable(data) {
 function filterExpenses(query) {
     const q = query.toLowerCase();
     const filtered = allExpensesData.filter(g =>
-        String(g.ID_Viaje).toLowerCase().includes(q) ||
-        String(g.Concepto).toLowerCase().includes(q) ||
-        String(g.ID_Chofer).toLowerCase().includes(q) ||
-        String(g.ID_Unidad).toLowerCase().includes(q)
+        String(g.id_viaje).toLowerCase().includes(q) ||
+        String(g.concepto).toLowerCase().includes(q) ||
+        String(g.id_chofer).toLowerCase().includes(q) ||
+        String(g.id_unidad).toLowerCase().includes(q)
     );
     renderExpensesTable(filtered);
 }
