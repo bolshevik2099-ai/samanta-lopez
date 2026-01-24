@@ -5,41 +5,18 @@
  * Las llaves se leen de localStorage por seguridad en despliegues estáticos.
  */
 
-const APPSHEET_CONFIG = {
-    // Intentar leer de localStorage (persistente en el navegador)
-    appId: localStorage.getItem('APPSHEET_APP_ID') || '',
-    accessKey: localStorage.getItem('APPSHEET_ACCESS_KEY') || '',
-    // URL del Puente GAS provista por el usuario
-    bridgeUrl: localStorage.getItem('GAS_BRIDGE_URL') || 'https://script.google.com/macros/s/AKfycbyZom0VOyWN7zNiI8X_VpzHVVI_g6stDKhxbBErcPTard_THUsDCUmnbrtfsCw0IGOg8g/exec',
-
-    // Configuración de Tablas
-    tableName: 'REG_GASTOS',
-    tableUsuarios: 'Usuarios',
-    tableViajes: 'REG_VIAJES'
+const DB_CONFIG = {
+    // Configuración de Tablas (Supabase)
+    tableGastos: 'reg_gastos',
+    tableUsuarios: 'usuarios',
+    tableViajes: 'reg_viajes'
 };
 
-/**
- * Guarda las credenciales en localStorage y recarga la página
- */
-function saveAppSheetCredentials(appId, accessKey) {
-    if (!appId || !accessKey) {
-        alert('Por favor, ingresa tanto el App ID como la Access Key.');
-        return;
-    }
+const SUPABASE_CONFIG = {
+    url: 'https://mjaiggtclxycjarfeewd.supabase.co',
+    anonKey: 'sb_publishable_uCvLBKSsOn-NNpdVmyq-yA_RX0NFll-'
+};
 
-    localStorage.setItem('APPSHEET_APP_ID', appId.trim());
-    localStorage.setItem('APPSHEET_ACCESS_KEY', accessKey.trim());
-
-    alert('Configuración guardada correctamente.');
-    window.location.reload();
-}
-
-/**
- * Verifica si la configuración es válida
- */
-function isConfigValid() {
-    return APPSHEET_CONFIG.appId !== '' && APPSHEET_CONFIG.accessKey !== '';
-}
 
 /* 
 Referencia de Tablas:

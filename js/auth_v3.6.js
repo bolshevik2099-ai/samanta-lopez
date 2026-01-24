@@ -30,79 +30,30 @@ async function handleLogin(e) {
     const originalText = loginBtn.innerHTML;
 
     try {
-        if (!isConfigValid()) {
-            alert('Configuración incompleta. Usa el icono de engranaje para configurar.');
-            return;
-        }
-
         loginBtn.disabled = true;
         loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando...';
         errorMsg.classList.add('hidden');
 
         let foundUser = null;
-        let bridgeUsed = false;
-        let bridgeError = null;
 
-        // --- MÉTODO 1: GOOGLE SHEETS BRIDGE (Prioritario) ---
-        if (APPSHEET_CONFIG.bridgeUrl && APPSHEET_CONFIG.bridgeUrl.includes('script.google.com')) {
-            bridgeUsed = true;
-            console.log('Intentando login vía Proxy -> GAS Bridge...');
-            try {
-                const response = await fetch('/api/appsheet', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'login',
-                        username: userVal,
-                        password: passVal,
-                        bridgeUrl: APPSHEET_CONFIG.bridgeUrl
-                    })
-                });
+        // --- MÉTODO: SUPABASE (SQL) ---
+        console.log('Intentando login vía Supabase...');
+        try {
+            const { data, error } = await window.supabaseClient
+                .from(DB_CONFIG.tableUsuarios)
+                .select('*')
+                .eq('Usuario', userVal)
+                .eq('Password', passVal)
+                .single();
 
-                const bridgeData = await response.json();
-                console.log('Respuesta cruda del Bridge:', bridgeData);
-
-                if (response.ok && bridgeData && bridgeData.success && bridgeData.user) {
-                    foundUser = bridgeData.user;
-                    console.log('Usuario encontrado vía Bridge:', foundUser);
-                } else if (bridgeData && bridgeData.success === false) {
-                    bridgeError = bridgeData.error || "Credenciales no válidas en el Excel.";
-                }
-            } catch (err) {
-                console.error('Error en fetch Bridge:', err);
-                bridgeError = err.message;
+            if (data && !error) {
+                foundUser = data;
+                console.log('Usuario encontrado en Supabase:', foundUser);
+            } else {
+                console.warn('Supabase no encontró al usuario o credenciales incorrectas.');
             }
-        }
-
-        // --- MÉTODO 2: APPSHEET DIRECTO (Fallback) ---
-        if (!foundUser) {
-            console.log('Intentando login vía AppSheet directo...');
-            const response = await fetch('/api/appsheet', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    table: APPSHEET_CONFIG.tableUsuarios,
-                    action: 'Find',
-                    rows: [],
-                    appId: APPSHEET_CONFIG.appId,
-                    accessKey: APPSHEET_CONFIG.accessKey
-                })
-            });
-
-            const responseData = await response.json();
-
-            if (response.ok && responseData.Success !== false) {
-                let users = [];
-                if (Array.isArray(responseData.RowValues)) users = responseData.RowValues;
-                else if (Array.isArray(responseData.Rows)) users = responseData.Rows;
-
-                if (users.length > 0) {
-                    foundUser = users.find(u =>
-                        String(u.Usuario).trim() === userVal &&
-                        String(u.Password).trim() === passVal
-                    );
-                }
-            }
+        } catch (err) {
+            console.error('Error en fetch Supabase Auth:', err);
         }
 
         // --- RESULTADO ---
@@ -116,23 +67,14 @@ async function handleLogin(e) {
             };
             localStorage.setItem('crm_session', JSON.stringify(sessionData));
 
-            // Pequeña pausa para asegurar que el localStorage se guarde
             setTimeout(() => {
                 redirectByRol(foundUser.Rol);
             }, 100);
 
         } else {
-            // Debugging detallado para el usuario
-            let debugMsg = 'No se pudo iniciar sesión.\n';
-            if (bridgeUsed) debugMsg += `\n[Intento 1 - Puente]: ${bridgeError || 'Falló sin error específico'}`;
-            debugMsg += `\n[Intento 2 - Lectura Directa]: No se encontró coincidencia en la lista de usuarios.`;
-
-            console.warn(debugMsg);
-            alert(`⚠️ DEPURACIÓN (v3.8):\n${debugMsg}\n\nVerifica:\n1. Que la hoja se llame "Usuarios".\n2. Que las columnas sean "Usuario", "Password", "Rol".\n3. Que la URL del script sea correcta.`);
-
             errorMsg.classList.remove('hidden');
             const span = errorMsg.querySelector('span');
-            if (span) span.innerText = 'Credenciales incorrectos (Revisa alertas).';
+            if (span) span.innerText = 'Credenciales incorrectas.';
         }
 
     } catch (error) {
@@ -146,7 +88,7 @@ async function handleLogin(e) {
 
 function redirectByRol(rol) {
     if (!rol) {
-        alert("Error: El usuario no tiene un Rol asignado en el Excel.");
+        alert("Error: El usuario no tiene un Rol asignado.");
         window.location.href = 'index.html';
         return;
     }

@@ -69,7 +69,7 @@
 
 <body class="text-slate-900 overflow-x-hidden">
     <!-- VERSION DEBUG LABEL -->
-    <div class="fixed top-0 left-0 bg-pink-600 text-white font-bold px-3 py-1 z-[9999] rounded-br-lg shadow-lg">v3.8
+    <div class="fixed top-0 left-0 bg-pink-600 text-white font-bold px-3 py-1 z-[9999] rounded-br-lg shadow-lg">v4.0
     </div>
 
     <!-- Navigation -->
@@ -354,6 +354,8 @@
 
     <!-- CORE LOGIC INLINED TO BEAT CACHE -->
     <script src="./js/config.js?v=3.9"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase-client.js"></script>
     <script src="./js/chat.js?v=3.9"></script>
     <script>
         // --- LÓGICA DE AUTH TOTALMENTE INTEGRADA (v3.9) ---
@@ -371,25 +373,25 @@
                 loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando...';
                 errorMsg.classList.add('hidden');
 
-                const response = await fetch('/api/appsheet', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'login',
-                        username: userVal,
-                        password: passVal,
-                        bridgeUrl: APPSHEET_CONFIG.bridgeUrl
-                    })
-                });
+                let foundUser = null;
 
-                const data = await response.json();
-                console.log('Respuesta v3.9:', data);
+                // 1. Supabase Check (EXCLUSIVO)
+                try {
+                    const { data, error } = await window.supabaseClient
+                        .from(APPSHEET_CONFIG.tableUsuarios)
+                        .select('*')
+                        .eq('Usuario', userVal)
+                        .eq('Password', passVal)
+                        .single();
 
-                if (data && data.success && data.user) {
+                    if (data && !error) foundUser = data;
+                } catch (sErr) { console.error('Supabase login error:', sErr); }
+
+                if (foundUser) {
                     const sessionData = {
-                        userID: data.user.ID_Contacto || data.user.Usuario,
-                        nombre: data.user.Usuario,
-                        rol: data.user.Rol,
+                        userID: foundUser.ID_Contacto || foundUser.Usuario,
+                        nombre: foundUser.Usuario,
+                        rol: foundUser.Rol,
                         timestamp: new Date().getTime()
                     };
                     localStorage.setItem('crm_session', JSON.stringify(sessionData));
@@ -400,13 +402,10 @@
                         'superadmin': 'vista-superadmin.html',
                         'super admin': 'vista-superadmin.html'
                     };
-                    const target = routes[String(data.user.Rol).trim().toLowerCase()];
+                    const target = routes[String(foundUser.Rol).trim().toLowerCase()];
                     window.location.href = target || 'index.html';
                 } else {
-                    const failMsg = data.error || 'Credenciales inválidas';
-                    alert(`❌ ERROR DE ACCESO (v3.9):\n\n${failMsg}\n\nSi el error es "Usuario o contraseña...", revisa tu script GAS.`);
                     errorMsg.classList.remove('hidden');
-                    errorMsg.querySelector('span').innerText = failMsg;
                 }
             } catch (err) {
                 alert('Error de conexión: ' + err.message);

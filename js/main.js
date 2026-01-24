@@ -66,16 +66,11 @@ async function updateDashboardByPeriod() {
     const end = document.getElementById('filter-end').value;
     const loader = document.getElementById('chart-loader');
 
-    if (!isConfigValid()) {
-        alert('⚠️ Error: Falta configuración de AppSheet. Haz clic en el engranaje abajo a la derecha en la página de inicio para configurar tu App ID y Access Key.');
-        return;
-    }
-
     const statusEl = document.getElementById('conn-status');
-    if (statusEl) {
-        statusEl.innerText = 'Consultando...';
-        statusEl.className = 'text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest animate-pulse';
-    }
+    if (!statusEl) return;
+
+    statusEl.innerText = 'Consultando...';
+    statusEl.className = 'text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest animate-pulse';
 
     if (loader) loader.classList.remove('hidden');
 
@@ -84,8 +79,8 @@ async function updateDashboardByPeriod() {
 
         // Fetch de datos maestros
         const [viajesRaw, gastosRaw] = await Promise.all([
-            fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES'),
-            fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS')
+            fetchSupabaseData(DB_CONFIG.tableViajes),
+            fetchSupabaseData(DB_CONFIG.tableGastos)
         ]);
 
         if (viajesRaw.length === 0 && gastosRaw.length === 0) {
@@ -260,38 +255,17 @@ function renderChart(viajes, gastos) {
     });
 }
 
-async function fetchAppSheetData(tableName) {
+async function fetchSupabaseData(tableName) {
     try {
-        const response = await fetch('/api/appsheet', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                table: tableName,
-                action: 'Find',
-                // Envia la URL del puente configurada en config.js
-                bridgeUrl: APPSHEET_CONFIG.bridgeUrl
-            })
-        });
-        const result = await response.json();
+        const { data, error } = await window.supabaseClient
+            .from(tableName)
+            .select('*');
 
-        if (result && (result.Rows || Array.isArray(result))) {
-            return Array.isArray(result) ? result : result.Rows;
-        } else if (result && result.Success === true) {
-            // AppSheet devuelve Success:true y RowValues:null si no encuentra datos.
-            // Lo tratamos como una lista vacía en lugar de error.
-            console.log(`[AppSheet] Respuesta vacía válida en ${tableName}. Success: true, RowValues: null.`);
-            return [];
-        } else {
-            // Mensaje de error detallado
-            const msg = result.Message || result.error || result.ErrorDescription;
-            if (msg) throw new Error(msg);
-
-            // Si no hay mensaje claro, mostrar todo el objeto para debug
-            throw new Error('Respuesta extraña: ' + JSON.stringify(result));
-        }
+        if (error) throw error;
+        return data || [];
     } catch (e) {
-        console.error(`Error en ${tableName}:`, e);
-        throw e; // Re-lanzar para manejarlo arriba
+        console.error(`Error en Supabase (${tableName}):`, e);
+        throw e;
     }
 }
 
@@ -304,9 +278,8 @@ async function enviarViaje(e) {
     const originalText = btn.innerHTML;
 
     try {
-        if (!isConfigValid()) return alert('Error de Configuración');
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando en Supabase...';
 
         const getVal = (id) => document.getElementById(id)?.value || '';
         const formData = {
@@ -321,43 +294,27 @@ async function enviarViaje(e) {
             Estatus_Viaje: getVal('V_Estatus_Viaje'),
             Comision_Chofer: parseFloat(getVal('V_Comision_Chofer')) || 0,
             Estatus_Pago: getVal('V_Estatus_Pago')
-            // Se eliminó Registrado_Por porque no existe en la tabla de AppSheet
         };
 
-        console.log('Enviando Viaje:', formData);
+        console.log('Insertando Viaje en Supabase:', formData);
 
-        const response = await fetch('/api/appsheet', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                table: APPSHEET_CONFIG.tableViajes || 'REG_VIAJES',
-                action: 'Add',
-                rows: [formData],
-                bridgeUrl: APPSHEET_CONFIG.bridgeUrl
-            })
-        });
+        const { error } = await window.supabaseClient
+            .from(DB_CONFIG.tableViajes)
+            .insert([formData]);
 
-        const result = await response.json();
-        console.log('Respuesta AppSheet:', result);
+        if (error) throw error;
 
-        if (response.ok && result && result.Success !== false) {
-            alert('✅ REGISTRO EXITOSO (v3.2)\n\n¡Perfecto! AppSheet ya aceptó los datos con los estados correctos.');
-            e.target.reset();
-            e.target.reset();
-            // Resetear fecha a hoy tras limpiar el form
-            document.getElementById('V_Fecha').value = new Date().toLocaleDateString('en-CA');
+        alert('✅ REGISTRO EXITOSO EN SUPABASE\n\nEl viaje ha sido guardado correctamente.');
+        e.target.reset();
+        document.getElementById('V_Fecha').value = new Date().toLocaleDateString('en-CA');
 
-            // Volver a la lista y refrescar (Si estamos en Admin)
-            if (document.getElementById('viajes-list-view')) {
-                toggleSectionView('viajes', 'list');
-                loadTripsList();
-            }
-        } else {
-            const errorDetail = result.ErrorDescription || result.error || JSON.stringify(result);
-            alert('❌ ERROR DE APPSHEET:\n\n' + errorDetail);
+        if (document.getElementById('viajes-list-view')) {
+            toggleSectionView('viajes', 'list');
+            loadTripsList();
         }
     } catch (err) {
-        alert('❌ ERROR CRÍTICO:\n\n' + err.message);
+        console.error('Error enviando viaje:', err);
+        alert('❌ ERROR AL GUARDAR EN SUPABASE:\n\n' + (err.message || JSON.stringify(err)));
     }
     finally { btn.disabled = false; btn.innerHTML = originalText; }
 }
@@ -370,9 +327,8 @@ async function enviarGasto(e) {
     const originalText = btn.innerHTML;
 
     try {
-        if (!isConfigValid()) return alert('Configuración no válida');
         btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando en Supabase...';
 
         const getVal = (id) => document.getElementById(id)?.value || '';
         const tipoPago = document.querySelector('input[name="Tipo_Pago"]:checked')?.value || 'Efectivo';
@@ -411,36 +367,26 @@ async function enviarGasto(e) {
             Foto_tacometro: tacoBase64
         };
 
-        const response = await fetch('/api/appsheet', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                table: APPSHEET_CONFIG.tableName || 'REG_GASTOS',
-                action: 'Add',
-                rows: [formData],
-                bridgeUrl: APPSHEET_CONFIG.bridgeUrl
-            })
-        });
+        const { error } = await window.supabaseClient
+            .from(DB_CONFIG.tableGastos)
+            .insert([formData]);
 
-        const result = await response.json();
+        if (error) throw error;
 
-        if (response.ok && result && result.Success !== false) {
-            alert('✅ GASTO REGISTRADO (v3.2)\n\nSe han guardado todos los campos incluyendo fotos y kilometraje.');
-            e.target.reset();
-            // Reset IDs and dates
-            if (document.getElementById('Fecha')) document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
-            if (document.getElementById('ID_Gasto')) document.getElementById('ID_Gasto').value = 'G-' + Date.now().toString().slice(-6);
+        alert('✅ GASTO REGISTRADO EN SUPABASE\n\nSe han guardado todos los campos correctamente.');
+        e.target.reset();
+        if (document.getElementById('Fecha')) document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
+        if (document.getElementById('ID_Gasto')) document.getElementById('ID_Gasto').value = 'G-' + Date.now().toString().slice(-6);
 
-            // Volver a la lista y refrescar
+        if (document.getElementById('gastos-list-view')) {
             toggleSectionView('gastos', 'list');
             loadExpensesList();
-        } else {
-            const errorDetail = result.ErrorDescription || result.error || 'Error desconocido';
-            alert('❌ Error de AppSheet al guardar gasto: ' + errorDetail);
-            console.error('Error result (gasto):', result);
+        } else if (typeof showToast === 'function') {
+            showToast('Gasto registrado con éxito.');
         }
     } catch (err) {
-        alert('❌ Error de red al guardar gasto: ' + err.message);
+        console.error('Error enviando gasto:', err);
+        alert('❌ ERROR AL GUARDAR EN SUPABASE:\n\n' + (err.message || JSON.stringify(err)));
     }
     finally { btn.disabled = false; btn.innerHTML = originalText; }
 }
@@ -472,7 +418,7 @@ async function loadTripsList() {
     if (loader) loader.classList.remove('hidden');
     if (tbody) tbody.innerHTML = '';
 
-    allTripsData = await fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES');
+    allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
 
     if (loader) loader.classList.add('hidden');
     renderTripsTable(allTripsData);
@@ -524,7 +470,7 @@ async function loadExpensesList() {
     if (loader) loader.classList.remove('hidden');
     if (tbody) tbody.innerHTML = '';
 
-    allExpensesData = await fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS');
+    allExpensesData = await fetchSupabaseData(DB_CONFIG.tableGastos);
 
     if (loader) loader.classList.add('hidden');
     renderExpensesTable(allExpensesData);
@@ -588,7 +534,7 @@ async function loadTripsList() {
     if (loader) loader.classList.remove('hidden');
     if (tbody) tbody.innerHTML = '';
 
-    allTripsData = await fetchAppSheetData(APPSHEET_CONFIG.tableViajes || 'REG_VIAJES');
+    allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
 
     if (loader) loader.classList.add('hidden');
     renderTripsTable(allTripsData);
@@ -640,7 +586,7 @@ async function loadExpensesList() {
     if (loader) loader.classList.remove('hidden');
     if (tbody) tbody.innerHTML = '';
 
-    allExpensesData = await fetchAppSheetData(APPSHEET_CONFIG.tableName || 'REG_GASTOS');
+    allExpensesData = await fetchSupabaseData(DB_CONFIG.tableGastos);
 
     if (loader) loader.classList.add('hidden');
     renderExpensesTable(allExpensesData);

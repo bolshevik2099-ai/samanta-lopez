@@ -60,12 +60,13 @@
                     <h2 class="text-3xl font-bold text-slate-800 flex items-center gap-3">
                         Panel Administrativo
                         <span
-                            class="text-[10px] bg-pink-600 text-white px-2 py-0.5 rounded-full font-mono uppercase tracking-widest">v3.6</span>
+                            class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-mono uppercase tracking-widest">v5.0
+                            SQL</span>
                         <span class="text-[9px] text-slate-400 ml-2 font-mono" id="static-build-time">Build:
-                            17:45</span>
+                            SQL-Native</span>
                         <span class="text-[9px] text-slate-300 ml-2" id="build-time"></span>
                         <span id="conn-status"
-                            class="text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest animate-pulse">Consultando...</span>
+                            class="text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Conectado</span>
                     </h2>
                     <p class="text-slate-500">Bienvenido de nuevo, <span id="admin-name"
                             class="font-semibold text-slate-800">Cargando...</span></p>
@@ -456,6 +457,8 @@
 
     <script src="./js/auth_v3.6.js"></script>
     <script src="./js/config.js?v=3.6"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./js/supabase-client.js"></script>
     <script src="./js/main.js?v=3.6"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
