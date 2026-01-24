@@ -13,7 +13,8 @@ const DB_CONFIG = {
     tableChoferes: 'cat_choferes',
     tableUnidades: 'cat_unidades',
     tableClientes: 'cat_clientes',
-    tableProveedores: 'cat_proveedores'
+    tableProveedores: 'cat_proveedores',
+    tableCuentas: 'reg_cuentas'
 };
 
 const SUPABASE_CONFIG = {

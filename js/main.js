@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const viajeForm = document.getElementById('viaje-form');
     if (viajeForm) viajeForm.addEventListener('submit', enviarViaje);
 
+    const accountForm = document.getElementById('account-form');
+    if (accountForm) accountForm.addEventListener('submit', enviarCuenta);
+
     // Inicializar Dashboard Nativo por API
     if (document.getElementById('period-table-body')) {
         setupDateFilters();
@@ -436,7 +439,8 @@ async function initFormCatalogs() {
         'V_ID_Chofer': DB_CONFIG.tableChoferes,
         'V_Cliente': DB_CONFIG.tableClientes,
         'ID_Unidad': DB_CONFIG.tableUnidades,
-        'ID_Chofer': DB_CONFIG.tableChoferes
+        'ID_Chofer': DB_CONFIG.tableChoferes,
+        'acc-id-viaje-cta': DB_CONFIG.tableViajes
     };
 
     for (const [id, table] of Object.entries(selects)) {
@@ -499,8 +503,11 @@ function showSection(sectionId) {
     if (section) section.classList.remove('hidden');
     if (nav) nav.classList.add('active');
 
+    if (section) section.classList.remove('hidden');
+    if (nav) nav.classList.add('active');
+
     // Refrescar catálogos al entrar a secciones relevantes
-    if (sectionId === 'viajes' || sectionId === 'gastos') {
+    if (['viajes', 'gastos', 'tesoreria', 'liquidaciones'].includes(sectionId)) {
         initFormCatalogs();
     }
 }
@@ -517,6 +524,11 @@ function toggleSectionView(section, view) {
     } else {
         listView.classList.add('hidden');
         formView.classList.remove('hidden');
+    }
+
+    // Auto-reset forms on toggle if needed
+    if (view === 'form' && section === 'tesoreria') {
+        document.getElementById('account-form')?.reset();
     }
 }
 
@@ -553,9 +565,15 @@ function renderTripsTable(data) {
                 $${parseFloat(v.monto_flete).toLocaleString()}
             </td>
             <td class="px-6 py-4">
-                <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase ${v.estatus_viaje === 'Terminado' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
+                <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase ${v.estatus_viaje === 'Liquidado' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
                     ${v.estatus_viaje}
                 </span>
+            </td>
+            <td class="px-6 py-4">
+                <button onclick="prepareAdvance('${v.id_viaje}', '${v.id_chofer}')" title="Registrar Anticipo" 
+                    class="text-blue-500 hover:text-blue-700 transition-colors">
+                    <i class="fas fa-hand-holding-usd"></i>
+                </button>
             </td>
         </tr>
     `).join('');
@@ -837,5 +855,230 @@ function filterExpenses(query) {
         String(g.id_unit_eco).toLowerCase().includes(q)
     );
     renderExpensesTable(filtered);
+}
+
+// --- TESORERÍA LOGIC ---
+
+async function loadTreasuryList() {
+    const tbody = document.getElementById('treasury-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
+
+    const data = await fetchSupabaseData(DB_CONFIG.tableCuentas);
+
+    let favor = 0;
+    let contra = 0;
+
+    tbody.innerHTML = data.map(c => {
+        const isFavor = c.tipo === 'A Favor';
+        const monto = parseFloat(c.monto) || 0;
+        if (c.estatus !== 'Liquidado') {
+            if (isFavor) favor += monto;
+            else contra += monto;
+        }
+
+        return `
+            <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
+                <td class="px-6 py-4">
+                    <div class="font-bold text-slate-800 text-xs">${c.id_cuenta}</div>
+                    <div class="text-[10px] text-slate-400 font-mono">${c.fecha}</div>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isFavor ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}">
+                        ${c.tipo}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="text-sm font-semibold text-slate-800">${c.actor_nombre}</div>
+                    <div class="text-[10px] text-slate-400 italic">${c.concepto}</div>
+                </td>
+                <td class="px-6 py-4 font-bold text-slate-800">$${monto.toLocaleString()}</td>
+                <td class="px-6 py-4">
+                    <span class="text-[10px] font-bold ${c.estatus === 'Liquidado' ? 'text-green-500' : 'text-amber-500'}">
+                        ● ${c.estatus}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    ${c.estatus !== 'Liquidado' ? `<button onclick="markAccountLiquidated('${c.id_cuenta}')" class="text-xs text-blue-500 hover:underline">Liquidar</button>` : '-'}
+                </td>
+            </tr>
+        `;
+    }).join('') || '<tr><td colspan="6" class="p-10 text-center text-slate-400">No hay movimientos registrados</td></tr>';
+
+    document.getElementById('total-favor').innerText = `$${favor.toLocaleString()}`;
+    document.getElementById('total-contra').innerText = `$${contra.toLocaleString()}`;
+}
+
+function showAccountForm() { toggleSectionView('treasury', 'form'); }
+function hideAccountForm() { toggleSectionView('treasury', 'list'); }
+
+async function enviarCuenta(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const original = btn.innerText;
+
+    try {
+        btn.disabled = true;
+        btn.innerText = 'Guardando...';
+
+        const getVal = id => document.getElementById(id)?.value || '';
+        const data = {
+            id_cuenta: 'ACC-' + Date.now().toString().slice(-6),
+            fecha: new Date().toISOString().split('T')[0],
+            tipo: getVal('acc-tipo'),
+            actor_nombre: getVal('acc-actor'),
+            concepto: getVal('acc-concepto'),
+            monto: parseFloat(getVal('acc-monto')) || 0,
+            id_viaje: getVal('acc-id-viaje-cta') || null,
+            estatus: 'No Liquidado'
+        };
+
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
+        if (error) throw error;
+
+        alert('✅ Cuenta registrada con éxito.');
+        e.target.reset();
+        hideAccountForm();
+        loadTreasuryList();
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = original;
+    }
+}
+
+async function markAccountLiquidated(id) {
+    if (!confirm('¿Desea marcar esta cuenta como liquidada?')) return;
+    const { error } = await window.supabaseClient
+        .from(DB_CONFIG.tableCuentas)
+        .update({ estatus: 'Liquidado' })
+        .eq('id_cuenta', id);
+    if (error) alert('Error: ' + error.message);
+    else loadTreasuryList();
+}
+
+// --- LIQUIDACIONES LOGIC ---
+
+let selectedTripForSettlement = null;
+let currentExpenses = [];
+let currentDebts = [];
+
+async function loadSettlementTrips() {
+    const list = document.getElementById('liquidation-trip-list');
+    if (!list) return;
+    list.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin"></i></div>';
+
+    const trips = await fetchSupabaseData(DB_CONFIG.tableViajes);
+    // Filtrar viajes no liquidados
+    const pending = trips.filter(t => t.estatus_viaje !== 'Liquidado');
+
+    list.innerHTML = pending.map(t => `
+        <button onclick="loadSettlementDetail('${t.id_viaje}')" 
+            class="w-full text-left p-4 rounded-xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all flex justify-between items-center group">
+            <div>
+                <div class="font-black text-slate-800 truncate">${t.id_viaje}</div>
+                <div class="text-[10px] text-slate-400">${t.cliente} | ${t.fecha}</div>
+            </div>
+            <i class="fas fa-chevron-right text-slate-200 group-hover:text-blue-500 transition-all"></i>
+        </button>
+    `).join('') || '<p class="text-sm p-4 text-slate-400">No hay viajes pendientes.</p>';
+}
+
+async function loadSettlementDetail(id_viaje) {
+    selectedTripForSettlement = id_viaje;
+    const detail = document.getElementById('settlement-detail');
+    const empty = document.getElementById('settlement-empty');
+    if (!detail) return;
+
+    detail.classList.remove('hidden');
+    empty.classList.add('hidden');
+
+    // Cargar datos del viaje, gastos relacionados y deudas del chofer
+    const [tripArr, expenses, accounts] = await Promise.all([
+        window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_viaje', id_viaje).single(),
+        window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_viaje', id_viaje),
+        window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').eq('id_viaje', id_viaje).eq('estatus', 'No Liquidado')
+    ]);
+
+    const trip = tripArr.data;
+    currentExpenses = expenses.data || [];
+    currentDebts = accounts.data || [];
+
+    // Llenar UI
+    document.getElementById('set-trip-id').innerText = trip.id_viaje;
+    document.getElementById('set-trip-info').innerText = `${trip.cliente} | ${trip.origen} -> ${trip.destino} | Chofer: ${trip.id_chofer}`;
+    document.getElementById('set-flete').innerText = `$${parseFloat(trip.monto_flete).toLocaleString()}`;
+
+    // Gastos Operativos
+    const expList = document.getElementById('set-expenses-list');
+    let sumExp = 0;
+    expList.innerHTML = currentExpenses.map(g => {
+        sumExp += parseFloat(g.monto);
+        return `<div class="flex justify-between"><span>${g.concepto}</span><span class="font-mono">$${parseFloat(g.monto).toLocaleString()}</span></div>`;
+    }).join('') || '<span class="text-slate-400 italic">Sin gastos registrados</span>';
+    document.getElementById('set-sum-expenses').innerText = `$${sumExp.toLocaleString()}`;
+
+    // Anticipos/Deudas
+    const debtList = document.getElementById('set-debts-list');
+    let sumDebt = 0;
+    debtList.innerHTML = currentDebts.map(d => {
+        sumDebt += parseFloat(d.monto);
+        return `<div class="flex justify-between text-amber-700"><span>${d.concepto}</span><span class="font-mono">$${parseFloat(d.monto).toLocaleString()}</span></div>`;
+    }).join('') || '<span class="text-amber-400 italic">Sin deudas vinculadas</span>';
+    document.getElementById('set-sum-debts').innerText = `$${sumDebt.toLocaleString()}`;
+
+    // Totales finales
+    const comisionBruta = parseFloat(trip.comision_chofer) || 0;
+    const neto = comisionBruta - sumDebt;
+
+    document.getElementById('set-comm-bruta').innerText = `$${comisionBruta.toLocaleString()}`;
+    document.getElementById('set-retencion').innerText = `-$${sumDebt.toLocaleString()}`;
+    document.getElementById('set-pago-neto').innerText = `$${neto.toLocaleString()}`;
+}
+
+async function finalizeSettlement() {
+    if (!selectedTripForSettlement) return;
+    if (!confirm('¿Desea cerrar este viaje? Las deudas vinculadas se marcarán como liquidadas.')) return;
+
+    try {
+        // 1. Marcar deudas como liquidadas
+        if (currentDebts.length > 0) {
+            const ids = currentDebts.map(d => d.id_cuenta);
+            const { error: errAcc } = await window.supabaseClient.from(DB_CONFIG.tableCuentas).update({ estatus: 'Liquidado' }).in('id_cuenta', ids);
+            if (errAcc) throw errAcc;
+        }
+
+        // 2. Marcar viaje como pagado/terminado
+        const { error: errTrip } = await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_pago: 'Pagado', estatus_viaje: 'Liquidado' }).eq('id_viaje', selectedTripForSettlement);
+        if (errTrip) throw errTrip;
+
+        alert('✅ Liquidación completada con éxito.');
+        loadSettlementTrips();
+        document.getElementById('settlement-detail').classList.add('hidden');
+        document.getElementById('settlement-empty').classList.remove('hidden');
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+function prepareAdvance(tripId, driverId) {
+    showSection('tesoreria');
+    showAccountForm();
+
+    // Esperar un momento a que el DOM se actualice si es necesario
+    setTimeout(() => {
+        const selectTipo = document.getElementById('acc-tipo');
+        if (selectTipo) selectTipo.value = 'A Favor';
+
+        const inputActor = document.getElementById('acc-actor');
+        if (inputActor) inputActor.value = driverId;
+
+        const inputConcepto = document.getElementById('acc-concepto');
+        if (inputConcepto) inputConcepto.value = 'Anticipo para viaje ' + tripId;
+
+        const inputViaje = document.getElementById('acc-id-viaje-cta');
+        if (inputViaje) inputViaje.value = tripId;
+    }, 100);
 }
 

@@ -42,6 +42,14 @@
                 class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all">
                 <i class="fas fa-file-invoice-dollar w-5"></i> Gastos
             </button>
+            <button onclick="showSection('tesoreria'); loadTreasuryList();" id="nav-tesoreria"
+                class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all">
+                <i class="fas fa-university w-5"></i> Tesorería
+            </button>
+            <button onclick="showSection('liquidaciones'); loadSettlementTrips();" id="nav-liquidaciones"
+                class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all">
+                <i class="fas fa-file-contract w-5"></i> Liquidaciones
+            </button>
             <button onclick="showSection('catalogos'); loadCatalog('choferes');" id="nav-catalogos"
                 class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all">
                 <i class="fas fa-boxes w-5"></i> Catálogos
@@ -539,6 +547,192 @@
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tesorería Section -->
+        <section id="section-tesoreria" class="content-section hidden">
+            <header class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800">Tesorería (Cuentas por Cobrar/Pagar)</h2>
+                <p class="text-slate-500 text-sm">Registro de deudas, préstamos y pagos pendientes</p>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <p class="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Total a Favor</p>
+                    <p id="total-favor" class="text-2xl font-bold text-blue-600">$0.00</p>
+                </div>
+                <div class="bg-red-50 p-4 rounded-xl border border-red-100">
+                    <p class="text-[10px] font-bold text-red-400 uppercase tracking-widest">Total en Contra</p>
+                    <p id="total-contra" class="text-2xl font-bold text-red-600">$0.00</p>
+                </div>
+                <div class="md:col-span-2 flex items-end justify-end">
+                    <button onclick="showAccountForm()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center gap-2">
+                        <i class="fas fa-plus"></i> Nueva Deuda/Cta
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div id="treasury-list-view">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                            <tr>
+                                <th class="px-6 py-4">Fecha / ID</th>
+                                <th class="px-6 py-4">Tipo</th>
+                                <th class="px-6 py-4">Actor / Concepto</th>
+                                <th class="px-6 py-4">Monto</th>
+                                <th class="px-6 py-4">Estatus</th>
+                                <th class="px-6 py-4">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="treasury-table-body" class="text-sm divide-y divide-slate-50">
+                            <!-- Filas dinámicas -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Formulario de Cuenta/Deuda (Oculto por defecto) -->
+                <div id="treasury-form-view" class="hidden p-8 border-t border-slate-100 bg-slate-50/30">
+                    <h3 class="font-bold text-slate-800 mb-6">Registrar Nueva Cuenta</h3>
+                    <form id="account-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Tipo de Cuenta</label>
+                            <select id="acc-tipo" class="w-full p-3 rounded-lg border border-slate-200" required>
+                                <option value="A Favor">A Favor (Nos deben)</option>
+                                <option value="En Contra">En Contra (Debemos)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Actor (Chofer/Proveedor)</label>
+                            <input type="text" id="acc-actor" class="w-full p-3 rounded-lg border border-slate-200"
+                                placeholder="Ej: Juan Perez" required>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Concepto</label>
+                            <input type="text" id="acc-concepto" class="w-full p-3 rounded-lg border border-slate-200"
+                                placeholder="Ej: Prestamo personal / Pago factura" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Monto ($)</label>
+                            <input type="number" id="acc-monto" step="0.01"
+                                class="w-full p-3 rounded-lg border border-slate-200" required>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Vincular a Viaje
+                                (Opcional)</label>
+                            <input type="text" id="acc-id-viaje-cta"
+                                class="w-full p-3 rounded-lg border border-slate-200" placeholder="V-XXXX">
+                        </div>
+                        <div class="md:col-span-2 flex gap-3 pt-4">
+                            <button type="button" onclick="hideAccountForm()"
+                                class="flex-grow p-3 bg-slate-200 text-slate-600 font-bold rounded-lg">Cancelar</button>
+                            <button type="submit"
+                                class="flex-grow-[2] p-3 bg-blue-600 text-white font-bold rounded-lg shadow-lg">Guardar
+                                Cuenta</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- Liquidaciones Section -->
+        <section id="section-liquidaciones" class="content-section hidden">
+            <header class="mb-8">
+                <h2 class="text-2xl font-bold text-slate-800">Liquidación de Viajes</h2>
+                <p class="text-slate-500 text-sm">Cierre de cuentas por viaje realizado</p>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <!-- Columna Izquierda: Selección de Viaje -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 md:col-span-1">
+                    <h3 class="font-bold text-slate-700 mb-4 border-b pb-2">1. Seleccionar Viaje</h3>
+                    <div id="liquidation-trip-list" class="space-y-2 max-h-[600px] overflow-y-auto pr-2">
+                        <!-- Viajes pendientes de liquidar -->
+                        <p class="text-xs text-slate-400 italic">Cargando viajes...</p>
+                    </div>
+                </div>
+
+                <!-- Columna Derecha: Corte de Caja -->
+                <div class="md:col-span-3 space-y-6">
+                    <div id="settlement-detail"
+                        class="hidden bg-white p-8 rounded-2xl shadow-xl border-t-4 border-blue-600">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <h3 id="set-trip-id" class="text-2xl font-black text-slate-800">SELECCIONE VIAJE</h3>
+                                <p id="set-trip-info" class="text-sm text-slate-500 italic">Cargando detalles...</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase">Flete Total</span>
+                                <p id="set-flete" class="text-xl font-bold text-slate-800">$0.00</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <!-- Desglose de Operación -->
+                            <div class="space-y-4">
+                                <h4 class="font-bold text-slate-400 text-[10px] uppercase tracking-widest">Gastos
+                                    Operativos (Chofer)</h4>
+                                <div id="set-expenses-list"
+                                    class="space-y-2 text-sm bg-slate-50 p-4 rounded-xl min-h-[100px]">
+                                    <!-- Gastos registrados -->
+                                </div>
+                                <div class="flex justify-between font-bold text-slate-700 px-2">
+                                    <span>Suma Gastos:</span>
+                                    <span id="set-sum-expenses">$0.00</span>
+                                </div>
+                            </div>
+
+                            <!-- Desglose de Deudas/Cuentas -->
+                            <div class="space-y-4">
+                                <h4 class="font-bold text-slate-400 text-[10px] uppercase tracking-widest">
+                                    Deudas/Anticipos Pendientes</h4>
+                                <div id="set-debts-list"
+                                    class="space-y-2 text-sm bg-amber-50 p-4 rounded-xl min-h-[100px] border border-amber-100">
+                                    <!-- Deudas a favor de la empresa -->
+                                </div>
+                                <div class="flex justify-between font-bold text-amber-700 px-2">
+                                    <span>Suma Anticipos:</span>
+                                    <span id="set-sum-debts">$0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel de Resultado Final -->
+                        <div class="mt-10 pt-8 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="bg-slate-50 p-4 rounded-xl">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase">Comisión Bruta</span>
+                                <p id="set-comm-bruta" class="text-xl font-bold text-slate-700">$0.00</p>
+                            </div>
+                            <div class="bg-red-50 p-4 rounded-xl">
+                                <span class="text-[10px] font-bold text-red-400 uppercase">Retenciones (Deuda)</span>
+                                <p id="set-retencion" class="text-xl font-bold text-red-600">-$0.00</p>
+                            </div>
+                            <div class="bg-green-600 p-4 rounded-xl text-white shadow-lg shadow-green-200">
+                                <span class="text-[10px] font-bold text-green-100 uppercase">PAGO NETO CHOFER</span>
+                                <p id="set-pago-neto" class="text-2xl font-black">$0.00</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-8">
+                            <button onclick="finalizeSettlement()"
+                                class="w-full py-4 bg-slate-800 hover:bg-black text-white font-bold rounded-xl transition-all shadow-xl flex items-center justify-center gap-3">
+                                <i class="fas fa-check-circle text-green-400"></i> FINALIZAR LIQUIDACIÓN Y CERRAR
+                                CUENTAS
+                            </button>
+                            <p class="text-center text-[10px] text-slate-400 mt-2 italic">* Esto marcará las deudas
+                                seleccionadas como LIQUIDADAS.</p>
+                        </div>
+                    </div>
+
+                    <!-- Placeholder si no hay seleccionado -->
+                    <div id="settlement-empty"
+                        class="bg-white p-20 rounded-2xl border-2 border-dashed border-slate-200 text-center text-slate-300">
+                        <i class="fas fa-file-invoice-dollar text-6xl mb-4"></i>
+                        <p class="font-bold">Seleccione un viaje de la lista para calcular el corte.</p>
+                    </div>
                 </div>
             </div>
         </section>
