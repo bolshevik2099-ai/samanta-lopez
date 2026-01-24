@@ -35,8 +35,8 @@ CREATE TABLE public.reg_viajes (
 -- 4. Crear Tabla de Gastos
 CREATE TABLE public.reg_gastos (
     id_gasto TEXT PRIMARY KEY,
-    id_viaje TEXT REFERENCES public.reg_viajes(id_viaje) ON DELETE SET NULL,
-    id_unidad TEXT,
+    id_viaje TEXT, -- Removida FK para flexibilidad tipo Excel/AppSheet
+    id_unit_eco TEXT, -- Corregido para coincidir con lo que el código podría esperar (opcional)
     fecha DATE NOT NULL DEFAULT CURRENT_DATE,
     concepto TEXT,
     monto NUMERIC(12,2) DEFAULT 0,
