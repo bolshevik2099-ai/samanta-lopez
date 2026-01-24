@@ -298,11 +298,17 @@ async function enviarViaje(e) {
 
         console.log('Insertando Viaje en Supabase:', formData);
 
-        const { error } = await window.supabaseClient
+        const { data, error, status, statusText } = await window.supabaseClient
             .from(DB_CONFIG.tableViajes)
             .insert([formData]);
 
-        if (error) throw error;
+        console.log('Respuesta insert Viaje:', { data, error, status, statusText });
+
+        if (error) {
+            console.error('Error Supabase insert:', error);
+            alert(`❌ ERROR DE SUPABASE [${status}]:\n${error.message}\n\nDetalle: ${error.details || 'Ninguno'}\nSugerencia: Revisa si la tabla 'reg_viajes' tiene las columnas en minúsculas.`);
+            return;
+        }
 
         alert('✅ REGISTRO EXITOSO EN SUPABASE\n\nEl viaje ha sido guardado correctamente.');
         e.target.reset();
@@ -367,11 +373,17 @@ async function enviarGasto(e) {
             foto_tacometro: tacoBase64
         };
 
-        const { error } = await window.supabaseClient
+        const { data, error, status, statusText } = await window.supabaseClient
             .from(DB_CONFIG.tableGastos)
             .insert([formData]);
 
-        if (error) throw error;
+        console.log('Respuesta insert Gasto:', { data, error, status, statusText });
+
+        if (error) {
+            console.error('Error Supabase insert:', error);
+            alert(`❌ ERROR DE SUPABASE [${status}]:\n${error.message}\n\nDetalle: ${error.details || 'Ninguno'}\nSugerencia: Revisa si la tabla 'reg_gastos' tiene las columnas en minúsculas.`);
+            return;
+        }
 
         alert('✅ GASTO REGISTRADO EN SUPABASE\n\nSe han guardado todos los campos correctamente.');
         e.target.reset();
