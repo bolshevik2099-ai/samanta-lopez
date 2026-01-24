@@ -476,3 +476,82 @@ function filterTrips(query) {
     renderTripsTable(filtered);
 }
 
+// --- LÓGICA DE NAVEGACIÓN Y LISTADOS ---
+
+function toggleSectionView(section, view) {
+    const listView = document.getElementById(`${section}-list-view`);
+    const formView = document.getElementById(`${section}-form-view`);
+    if (!listView || !formView) return;
+
+    if (view === 'list') {
+        listView.classList.remove('hidden');
+        formView.classList.add('hidden');
+    } else {
+        listView.classList.add('hidden');
+        formView.classList.remove('hidden');
+    }
+}
+
+async function loadTripsList() {
+    const loader = document.getElementById('trips-loader');
+    const tbody = document.getElementById('trips-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
+
+    allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
+
+    if (loader) loader.classList.add('hidden');
+    renderTripsTable(allTripsData);
+}
+
+async function loadExpensesList() {
+    const loader = document.getElementById('expenses-loader');
+    const tbody = document.getElementById('expenses-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
+
+    allExpensesData = await fetchSupabaseData(DB_CONFIG.tableGastos);
+
+    if (loader) loader.classList.add('hidden');
+    renderExpensesTable(allExpensesData);
+}
+
+function renderExpensesTable(data) {
+    const tbody = document.getElementById('expenses-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(g => `
+        <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-6 py-4">
+                <div class="font-bold text-slate-800 text-sm">${g.id_gasto || 'N/A'}</div>
+                <div class="text-[10px] text-slate-400 font-mono">${g.fecha}</div>
+            </td>
+            <td class="px-6 py-4">
+                <div class="text-sm font-semibold text-slate-700">Viaje: ${g.id_viaje}</div>
+                <div class="text-[10px] text-slate-400">Unidad: ${g.id_unit_eco || g.id_unidad}</div>
+            </td>
+            <td class="px-6 py-4 text-sm text-slate-600">
+                <div class="font-bold text-slate-800 text-sm">${g.concepto}</div>
+                <div class="text-[10px] text-slate-400">Chofer: ${g.id_chofer}</div>
+            </td>
+            <td class="px-6 py-4 text-right font-mono font-bold text-red-600 text-sm">
+                $${parseFloat(g.monto).toLocaleString()}
+            </td>
+            <td class="px-6 py-4 text-[10px] text-slate-500 font-mono">
+                ${g.kmts_recorridos} km
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterExpenses(query) {
+    const q = query.toLowerCase();
+    const filtered = allExpensesData.filter(g =>
+        String(g.id_viaje).toLowerCase().includes(q) ||
+        String(g.concepto).toLowerCase().includes(q) ||
+        String(g.id_chofer).toLowerCase().includes(q) ||
+        String(g.id_unidad).toLowerCase().includes(q) ||
+        String(g.id_unit_eco).toLowerCase().includes(q)
+    );
+    renderExpensesTable(filtered);
+}
+
