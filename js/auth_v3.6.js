@@ -53,8 +53,8 @@ async function handleLogin(e) {
             const { data, error, status, statusText } = await window.supabaseClient
                 .from(DB_CONFIG.tableUsuarios)
                 .select('*')
-                .eq('Usuario', userVal)
-                .eq('Password', passVal);
+                .eq('usuario', userVal)
+                .eq('password', passVal);
 
             console.log('Respuesta cruda de Supabase:', { data, error, status, statusText });
 
@@ -79,17 +79,17 @@ async function handleLogin(e) {
 
         // --- RESULTADO ---
         if (foundUser) {
-            console.log('¡Login Exitoso! Guardando sesión para:', foundUser.Usuario);
+            console.log('¡Login Exitoso! Guardando sesión para:', foundUser.usuario);
             const sessionData = {
-                userID: foundUser.ID_Contacto || foundUser.Usuario,
-                nombre: foundUser.Usuario,
-                rol: foundUser.Rol,
+                userID: foundUser.id_contacto || foundUser.usuario,
+                nombre: foundUser.usuario,
+                rol: foundUser.rol,
                 timestamp: new Date().getTime()
             };
             localStorage.setItem('crm_session', JSON.stringify(sessionData));
 
             setTimeout(() => {
-                redirectByRol(foundUser.Rol);
+                redirectByRol(foundUser.rol);
             }, 100);
 
         } else {

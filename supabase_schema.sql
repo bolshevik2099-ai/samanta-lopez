@@ -3,10 +3,10 @@
 -- 1. Tabla de Usuarios
 CREATE TABLE IF NOT EXISTS public.usuarios (
     id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-    "Usuario" TEXT NOT NULL,
-    "Password" TEXT, -- Temporal para migración
-    "Rol" TEXT,
-    "ID_Contacto" TEXT,
+    usuario TEXT NOT NULL,
+    password TEXT, -- Temporal para migración
+    rol TEXT,
+    id_contacto TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
