@@ -38,6 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Inicializar Catálogos en Selects
+    initFormCatalogs();
+
     // Eventos de Búsqueda
     document.getElementById('search-viajes')?.addEventListener('input', (e) => {
         filterTrips(e.target.value);
@@ -312,7 +315,8 @@ async function enviarViaje(e) {
 
         alert('✅ REGISTRO EXITOSO EN SUPABASE\n\nEl viaje ha sido guardado correctamente.');
         e.target.reset();
-        document.getElementById('V_Fecha').value = new Date().toLocaleDateString('en-CA');
+        document.getElementById('V_Fecha').value = new Date().toISOString().split('T')[0];
+        generateTripID(); // Regenerar para el próximo viaje
 
         if (document.getElementById('viajes-list-view')) {
             toggleSectionView('viajes', 'list');
@@ -393,7 +397,9 @@ async function enviarGasto(e) {
         if (document.getElementById('gastos-list-view')) {
             toggleSectionView('gastos', 'list');
             loadExpensesList();
-        } else if (typeof showToast === 'function') {
+            initFormCatalogs(); // Refrescar combos (por si acaso cambió algo)
+        }
+        else if (typeof showToast === 'function') {
             showToast('Gasto registrado con éxito.');
         }
     } catch (err) {
@@ -408,6 +414,83 @@ function checkAuth() {
     return session ? JSON.parse(session) : null;
 }
 
+// --- INICIALIZACIÓN DE FORMULARIOS ---
+
+async function initFormCatalogs() {
+    const selects = {
+        'V_ID_Unidad': DB_CONFIG.tableUnidades,
+        'V_ID_Chofer': DB_CONFIG.tableChoferes,
+        'V_Cliente': DB_CONFIG.tableClientes,
+        'ID_Unidad': DB_CONFIG.tableUnidades,
+        'ID_Chofer': DB_CONFIG.tableChoferes,
+        'ID_Viaje': DB_CONFIG.tableViajes
+    };
+
+    for (const [id, table] of Object.entries(selects)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+
+        try {
+            const data = await fetchSupabaseData(table);
+
+            // Texto por defecto vacío o "Selecciona"
+            el.innerHTML = `<option value="">-- Selecciona una opción --</option>`;
+
+            data.forEach(item => {
+                let text = '';
+                let val = '';
+
+                if (table === DB_CONFIG.tableUnidades) {
+                    text = `${item.id_unidad} (${item.nombre_unidad || 'Sin nombre'})`;
+                    val = item.id_unidad;
+                } else if (table === DB_CONFIG.tableChoferes) {
+                    text = `${item.nombre} [${item.id_chofer}]`;
+                    val = item.id_chofer;
+                } else if (table === DB_CONFIG.tableClientes) {
+                    text = item.nombre_cliente;
+                    val = item.nombre_cliente;
+                } else if (table === DB_CONFIG.tableViajes) {
+                    text = `${item.id_viaje} - ${item.cliente}`;
+                    val = item.id_viaje;
+                }
+
+                if (val) el.innerHTML += `<option value="${val}">${text}</option>`;
+            });
+        } catch (err) {
+            console.error(`Error cargando catálogo para ${id}:`, err);
+            el.innerHTML = `<option value="">Error al cargar datos</option>`;
+        }
+    }
+
+    // Auto-generar ID de Viaje al iniciar
+    generateTripID();
+}
+
+function generateTripID() {
+    const el = document.getElementById('V_ID_Viaje');
+    if (!el) return;
+    const now = new Date();
+    const datePart = now.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
+    const randomPart = Math.random().toString(36).substring(2, 5).toUpperCase();
+    el.value = `V-${datePart}-${randomPart}`;
+}
+
+// Re-vincular al abrir el formulario de Viaje
+function showSection(sectionId) {
+    document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+
+    const section = document.getElementById('section-' + sectionId);
+    const nav = document.getElementById('nav-' + sectionId);
+
+    if (section) section.classList.remove('hidden');
+    if (nav) nav.classList.add('active');
+
+    // Refrescar catálogos al entrar a secciones relevantes
+    if (sectionId === 'viajes' || sectionId === 'gastos') {
+        initFormCatalogs();
+    }
+}
 // --- LÓGICA DE LISTADOS Y BÚSQUEDA ---
 
 function toggleSectionView(section, view) {
