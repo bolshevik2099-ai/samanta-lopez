@@ -21,7 +21,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (gastoForm) gastoForm.addEventListener('submit', enviarGasto);
 
     const viajeForm = document.getElementById('viaje-form');
-    if (viajeForm) viajeForm.addEventListener('submit', enviarViaje);
+    if (viajeForm) viajeForm.addEventListener('submit', (e) => {
+        enviarViaje(e).then(() => {
+            // CXC Automática al guardar viaje
+            const idViaje = document.getElementById('V_ID_Viaje').value;
+            const monto = parseFloat(document.getElementById('V_Monto_Flete').value) || 0;
+            const cliente = document.getElementById('V_Cliente').value;
+            const noInterno = document.getElementById('V_No_Interno').value;
+            if (idViaje && monto > 0) crearCXCAutomatica(idViaje, monto, cliente, noInterno);
+        });
+    });
 
     const accountForm = document.getElementById('account-form');
     if (accountForm) accountForm.addEventListener('submit', enviarCuenta);
@@ -859,57 +868,181 @@ function filterExpenses(query) {
 
 // --- TESORERÍA LOGIC ---
 
+// --- TESORERÍA LOGIC (3-TAB REFACTOR) ---
+
+let currentTreasuryTab = 'favor';
+
+async function switchTreasuryTab(tab) {
+    currentTreasuryTab = tab;
+    document.querySelectorAll('.treasury-tab').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+        btn.classList.add('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
+    });
+    const activeBtn = document.getElementById('t-tab-' + tab);
+    activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+    activeBtn.classList.remove('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
+
+    renderTreasuryHeader(tab);
+    loadTreasuryList();
+}
+
+function renderTreasuryHeader(tab) {
+    const thead = document.getElementById('treasury-thead');
+    if (!thead) return;
+
+    let html = '';
+    if (tab === 'viajes') {
+        html = `<tr>
+            <th class="px-6 py-4">Fecha / No. Interno</th>
+            <th class="px-6 py-4">Cliente / Viaje</th>
+            <th class="px-6 py-4">Monto Flete</th>
+            <th class="px-6 py-4">Estatus Pago</th>
+            <th class="px-6 py-4">Acción</th>
+        </tr>`;
+    } else {
+        html = `<tr>
+            <th class="px-6 py-4">Fecha / ID</th>
+            <th class="px-6 py-4">Actor / Concepto</th>
+            <th class="px-6 py-4">Monto</th>
+            <th class="px-6 py-4">Estatus</th>
+            <th class="px-6 py-4">Acción</th>
+        </tr>`;
+    }
+    thead.innerHTML = html;
+}
+
 async function loadTreasuryList() {
     const tbody = document.getElementById('treasury-table-body');
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
 
-    const data = await fetchSupabaseData(DB_CONFIG.tableCuentas);
+    let data = [];
+    if (currentTreasuryTab === 'viajes') {
+        data = await fetchSupabaseData(DB_CONFIG.tableViajes);
+        // Filtrar solo los que NO están pagados si queremos ver pendientes, 
+        // pero el usuario pidió "viajes por cobrar", usualmente incluye pagados recientes o todos.
+        // Mostraremos todos los que no tengan estatus_pago = 'Pagado' por defecto.
+    } else {
+        const type = currentTreasuryTab === 'favor' ? 'A Favor' : 'En Contra';
+        const allData = await fetchSupabaseData(DB_CONFIG.tableCuentas);
+        data = allData.filter(c => c.tipo === type);
+    }
 
-    let favor = 0;
-    let contra = 0;
+    let total = 0;
 
-    tbody.innerHTML = data.map(c => {
-        const isFavor = c.tipo === 'A Favor';
-        const monto = parseFloat(c.monto) || 0;
-        if (c.estatus !== 'Liquidado') {
-            if (isFavor) favor += monto;
-            else contra += monto;
+    tbody.innerHTML = data.map(item => {
+        if (currentTreasuryTab === 'viajes') {
+            const isPaid = item.estatus_pago === 'Pagado';
+            if (!isPaid) total += parseFloat(item.monto_flete) || 0;
+            return `
+                <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-slate-800 text-xs">${item.no_interno || 'S/N'}</div>
+                        <div class="text-[10px] text-slate-400 font-mono">${item.fecha}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-semibold text-slate-800">${item.cliente}</div>
+                        <div class="text-[10px] text-slate-400 italic">${item.id_viaje}</div>
+                    </td>
+                    <td class="px-6 py-4 font-bold text-slate-800">$${(parseFloat(item.monto_flete) || 0).toLocaleString()}</td>
+                    <td class="px-6 py-4">
+                        <span class="text-[10px] font-bold ${isPaid ? 'text-green-500' : 'text-amber-500'}">
+                            ● ${item.estatus_pago || 'Pendiente'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        ${!isPaid ? `<button onclick="markTripAsPaid('${item.id_viaje}')" class="text-xs text-blue-500 hover:underline">Marcar Pagado</button>` : '-'}
+                    </td>
+                </tr>
+            `;
+        } else {
+            const monto = parseFloat(item.monto) || 0;
+            if (item.estatus !== 'Liquidado') total += monto;
+            return `
+                <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
+                    <td class="px-6 py-4">
+                        <div class="font-bold text-slate-800 text-xs">${item.id_cuenta}</div>
+                        <div class="text-[10px] text-slate-400 font-mono">${item.fecha}</div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="text-sm font-semibold text-slate-800">${item.actor_nombre}</div>
+                        <div class="text-[10px] text-slate-400 italic">${item.concepto}</div>
+                    </td>
+                    <td class="px-6 py-4 font-bold text-slate-800">$${monto.toLocaleString()}</td>
+                    <td class="px-6 py-4">
+                        <span class="text-[10px] font-bold ${item.estatus === 'Liquidado' ? 'text-green-500' : 'text-amber-500'}">
+                            ● ${item.estatus}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">
+                        ${item.estatus !== 'Liquidado' ? `<button onclick="markAccountLiquidated('${item.id_cuenta}')" class="text-xs text-blue-500 hover:underline">Liquidar</button>` : '-'}
+                    </td>
+                </tr>
+            `;
         }
+    }).join('') || '<tr><td colspan="6" class="p-10 text-center text-slate-400">No hay registros en esta categoría</td></tr>';
 
-        return `
-            <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
-                <td class="px-6 py-4">
-                    <div class="font-bold text-slate-800 text-xs">${c.id_cuenta}</div>
-                    <div class="text-[10px] text-slate-400 font-mono">${c.fecha}</div>
-                </td>
-                <td class="px-6 py-4">
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isFavor ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}">
-                        ${c.tipo}
-                    </span>
-                </td>
-                <td class="px-6 py-4">
-                    <div class="text-sm font-semibold text-slate-800">${c.actor_nombre}</div>
-                    <div class="text-[10px] text-slate-400 italic">${c.concepto}</div>
-                </td>
-                <td class="px-6 py-4 font-bold text-slate-800">$${monto.toLocaleString()}</td>
-                <td class="px-6 py-4">
-                    <span class="text-[10px] font-bold ${c.estatus === 'Liquidado' ? 'text-green-500' : 'text-amber-500'}">
-                        ● ${c.estatus}
-                    </span>
-                </td>
-                <td class="px-6 py-4">
-                    ${c.estatus !== 'Liquidado' ? `<button onclick="markAccountLiquidated('${c.id_cuenta}')" class="text-xs text-blue-500 hover:underline">Liquidar</button>` : '-'}
-                </td>
-            </tr>
-        `;
-    }).join('') || '<tr><td colspan="6" class="p-10 text-center text-slate-400">No hay movimientos registrados</td></tr>';
-
-    document.getElementById('total-favor').innerText = `$${favor.toLocaleString()}`;
-    document.getElementById('total-contra').innerText = `$${contra.toLocaleString()}`;
+    if (currentTreasuryTab === 'favor') document.getElementById('total-favor').innerText = `$${total.toLocaleString()}`;
+    if (currentTreasuryTab === 'contra') document.getElementById('total-contra').innerText = `$${total.toLocaleString()}`;
 }
 
-function showAccountForm() { toggleSectionView('treasury', 'form'); }
+async function markTripAsPaid(id_viaje) {
+    if (!confirm('¿Marcar este viaje como PAGADO por el cliente?')) return;
+    const { error } = await window.supabaseClient
+        .from(DB_CONFIG.tableViajes)
+        .update({ estatus_pago: 'Pagado' })
+        .eq('id_viaje', id_viaje);
+
+    if (error) alert('Error: ' + error.message);
+    else loadTreasuryList();
+}
+
+async function loadActorOptions() {
+    const type = document.getElementById('acc-actor-type').value;
+    const select = document.getElementById('acc-actor');
+    const manualInput = document.getElementById('acc-actor-manual');
+
+    select.innerHTML = '<option value="">Cargando...</option>';
+    manualInput.classList.add('hidden');
+    select.classList.remove('hidden');
+
+    if (type === 'otro') {
+        select.classList.add('hidden');
+        manualInput.classList.remove('hidden');
+        return;
+    }
+
+    const tableMap = {
+        'chofer': DB_CONFIG.tableChoferes,
+        'proveedor': DB_CONFIG.tableProveedores,
+        'cliente': DB_CONFIG.tableClientes
+    };
+
+    const data = await fetchSupabaseData(tableMap[type]);
+    const active = data.filter(i => (i.estatus || 'Activo') === 'Activo');
+
+    select.innerHTML = '<option value="">Seleccione...</option>' + active.map(i => {
+        const name = i.nombre || i.nombre_cliente || i.nombre_proveedor;
+        return `<option value="${name}">${name}</option>`;
+    }).join('');
+}
+
+async function crearCXCAutomatica(idViaje, monto, cliente, noInterno) {
+    const data = {
+        id_cuenta: 'CXC-' + Date.now().toString().slice(-6),
+        fecha: new Date().toISOString().split('T')[0],
+        tipo: 'A Favor',
+        actor_nombre: cliente,
+        concepto: 'Pago de flete via auto-CXC',
+        monto: monto,
+        id_viaje: idViaje,
+        no_interno: noInterno,
+        estatus: 'No Liquidado'
+    };
+    await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
+}
+
+function showAccountForm() { toggleSectionView('treasury', 'form'); loadActorOptions(); }
 function hideAccountForm() { toggleSectionView('treasury', 'list'); }
 
 async function enviarCuenta(e) {
@@ -922,14 +1055,18 @@ async function enviarCuenta(e) {
         btn.innerText = 'Guardando...';
 
         const getVal = id => document.getElementById(id)?.value || '';
+        const actorType = getVal('acc-actor-type');
+        const actor = actorType === 'otro' ? getVal('acc-actor-manual') : getVal('acc-actor');
+
         const data = {
             id_cuenta: 'ACC-' + Date.now().toString().slice(-6),
             fecha: new Date().toISOString().split('T')[0],
             tipo: getVal('acc-tipo'),
-            actor_nombre: getVal('acc-actor'),
+            actor_nombre: actor,
             concepto: getVal('acc-concepto'),
             monto: parseFloat(getVal('acc-monto')) || 0,
             id_viaje: getVal('acc-id-viaje-cta') || null,
+            no_interno: getVal('acc-no-interno-cta') || null,
             estatus: 'No Liquidado'
         };
 
@@ -958,35 +1095,36 @@ async function markAccountLiquidated(id) {
     else loadTreasuryList();
 }
 
-// --- LIQUIDACIONES LOGIC ---
+// --- LIQUIDACIONES LOGIC (BY DRIVER REFACTOR) ---
 
-let selectedTripForSettlement = null;
+let selectedDriverForSettlement = null;
 let currentExpenses = [];
 let currentDebts = [];
+let pendingTripsForDriver = [];
 
 async function loadSettlementTrips() {
-    const list = document.getElementById('liquidation-trip-list');
+    const list = document.getElementById('liquidation-driver-list');
     if (!list) return;
     list.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin"></i></div>';
 
-    const trips = await fetchSupabaseData(DB_CONFIG.tableViajes);
-    // Filtrar viajes no liquidados
-    const pending = trips.filter(t => t.estatus_viaje !== 'Liquidado');
+    // 1. Obtener choferes activos
+    const drivers = await fetchSupabaseData(DB_CONFIG.tableChoferes);
+    const activeDrivers = drivers.filter(d => (d.estatus || 'Activo') === 'Activo');
 
-    list.innerHTML = pending.map(t => `
-        <button onclick="loadSettlementDetail('${t.id_viaje}')" 
+    list.innerHTML = activeDrivers.map(d => `
+        <button onclick="loadDriverSettlementDetail('${d.id_chofer}')" 
             class="w-full text-left p-4 rounded-xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all flex justify-between items-center group">
             <div>
-                <div class="font-black text-slate-800 truncate">${t.id_viaje}</div>
-                <div class="text-[10px] text-slate-400">${t.cliente} | ${t.fecha}</div>
+                <div class="font-black text-slate-800 truncate">${d.nombre}</div>
+                <div class="text-[10px] text-slate-400">ID: ${d.id_chofer}</div>
             </div>
             <i class="fas fa-chevron-right text-slate-200 group-hover:text-blue-500 transition-all"></i>
         </button>
-    `).join('') || '<p class="text-sm p-4 text-slate-400">No hay viajes pendientes.</p>';
+    `).join('') || '<p class="text-sm p-4 text-slate-400">No hay choferes disponibles.</p>';
 }
 
-async function loadSettlementDetail(id_viaje) {
-    selectedTripForSettlement = id_viaje;
+async function loadDriverSettlementDetail(id_chofer) {
+    selectedDriverForSettlement = id_chofer;
     const detail = document.getElementById('settlement-detail');
     const empty = document.getElementById('settlement-empty');
     if (!detail) return;
@@ -994,28 +1132,36 @@ async function loadSettlementDetail(id_viaje) {
     detail.classList.remove('hidden');
     empty.classList.add('hidden');
 
-    // Cargar datos del viaje, gastos relacionados y deudas del chofer
-    const [tripArr, expenses, accounts] = await Promise.all([
-        window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_viaje', id_viaje).single(),
-        window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_viaje', id_viaje),
-        window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').eq('id_viaje', id_viaje).eq('estatus', 'No Liquidado')
+    // Cargar datos: Viajes Terminados/En Proceso no liquidados + Gastos + Cuentas
+    const [trips, expenses, accounts] = await Promise.all([
+        window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_chofer', id_chofer).neq('estatus_viaje', 'Liquidado'),
+        window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_chofer', id_chofer),
+        window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').eq('actor_nombre', (await fetchSupabaseData(DB_CONFIG.tableChoferes)).find(d => d.id_chofer === id_chofer).nombre).eq('estatus', 'No Liquidado')
     ]);
 
-    const trip = tripArr.data;
+    pendingTripsForDriver = trips.data || [];
     currentExpenses = expenses.data || [];
     currentDebts = accounts.data || [];
 
     // Llenar UI
-    document.getElementById('set-trip-id').innerText = trip.id_viaje;
-    document.getElementById('set-trip-info').innerText = `${trip.cliente} | ${trip.origen} -> ${trip.destino} | Chofer: ${trip.id_chofer}`;
-    document.getElementById('set-flete').innerText = `$${parseFloat(trip.monto_flete).toLocaleString()}`;
+    document.getElementById('set-trip-id').innerText = `LIQUIDACIÓN: ${id_chofer}`;
+    document.getElementById('set-trip-info').innerText = `Consolidado de ${pendingTripsForDriver.length} viajes pendientes.`;
 
-    // Gastos Operativos
+    let sumFletes = 0;
+    let sumComisionesBrutas = 0;
+    pendingTripsForDriver.forEach(t => {
+        sumFletes += parseFloat(t.monto_flete) || 0;
+        sumComisionesBrutas += parseFloat(t.comision_chofer) || 0;
+    });
+
+    document.getElementById('set-flete').innerText = `$${sumFletes.toLocaleString()}`;
+
+    // Gastos Operativos (Filtrar solo los vinculados a los viajes seleccionados si es necesario, por ahora todos los del chofer)
     const expList = document.getElementById('set-expenses-list');
     let sumExp = 0;
     expList.innerHTML = currentExpenses.map(g => {
         sumExp += parseFloat(g.monto);
-        return `<div class="flex justify-between"><span>${g.concepto}</span><span class="font-mono">$${parseFloat(g.monto).toLocaleString()}</span></div>`;
+        return `<div class="flex justify-between"><span>${g.concepto} (${g.id_viaje})</span><span class="font-mono">$${parseFloat(g.monto).toLocaleString()}</span></div>`;
     }).join('') || '<span class="text-slate-400 italic">Sin gastos registrados</span>';
     document.getElementById('set-sum-expenses').innerText = `$${sumExp.toLocaleString()}`;
 
@@ -1025,35 +1171,35 @@ async function loadSettlementDetail(id_viaje) {
     debtList.innerHTML = currentDebts.map(d => {
         sumDebt += parseFloat(d.monto);
         return `<div class="flex justify-between text-amber-700"><span>${d.concepto}</span><span class="font-mono">$${parseFloat(d.monto).toLocaleString()}</span></div>`;
-    }).join('') || '<span class="text-amber-400 italic">Sin deudas vinculadas</span>';
+    }).join('') || '<span class="text-amber-400 italic">Sin deudas pendientes</span>';
     document.getElementById('set-sum-debts').innerText = `$${sumDebt.toLocaleString()}`;
 
     // Totales finales
-    const comisionBruta = parseFloat(trip.comision_chofer) || 0;
-    const neto = comisionBruta - sumDebt;
+    const neto = sumComisionesBrutas - sumDebt;
 
-    document.getElementById('set-comm-bruta').innerText = `$${comisionBruta.toLocaleString()}`;
+    document.getElementById('set-comm-bruta').innerText = `$${sumComisionesBrutas.toLocaleString()}`;
     document.getElementById('set-retencion').innerText = `-$${sumDebt.toLocaleString()}`;
     document.getElementById('set-pago-neto').innerText = `$${neto.toLocaleString()}`;
 }
 
 async function finalizeSettlement() {
-    if (!selectedTripForSettlement) return;
-    if (!confirm('¿Desea cerrar este viaje? Las deudas vinculadas se marcarán como liquidadas.')) return;
+    if (!selectedDriverForSettlement) return;
+    if (!confirm('¿Desea cerrar la liquidación para este chofer?')) return;
 
     try {
         // 1. Marcar deudas como liquidadas
         if (currentDebts.length > 0) {
             const ids = currentDebts.map(d => d.id_cuenta);
-            const { error: errAcc } = await window.supabaseClient.from(DB_CONFIG.tableCuentas).update({ estatus: 'Liquidado' }).in('id_cuenta', ids);
-            if (errAcc) throw errAcc;
+            await window.supabaseClient.from(DB_CONFIG.tableCuentas).update({ estatus: 'Liquidado' }).in('id_cuenta', ids);
         }
 
-        // 2. Marcar viaje como pagado/terminado
-        const { error: errTrip } = await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_pago: 'Pagado', estatus_viaje: 'Liquidado' }).eq('id_viaje', selectedTripForSettlement);
-        if (errTrip) throw errTrip;
+        // 2. Marcar viajes como operativamente 'Liquidado'
+        if (pendingTripsForDriver.length > 0) {
+            const ids = pendingTripsForDriver.map(t => t.id_viaje);
+            await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_viaje: 'Liquidado' }).in('id_viaje', ids);
+        }
 
-        alert('✅ Liquidación completada con éxito.');
+        alert('✅ Liquidación consolidada completada.');
         loadSettlementTrips();
         document.getElementById('settlement-detail').classList.add('hidden');
         document.getElementById('settlement-empty').classList.remove('hidden');
