@@ -360,9 +360,23 @@ async function enviarGasto(e) {
             fileToBase64(tacoFile)
         ]);
 
+        const tripID = getVal('ID_Viaje');
+
+        // Validación manual de existencia de viaje antes de intentar insertar
+        const { data: tripCheck, error: tripError } = await window.supabaseClient
+            .from(DB_CONFIG.tableViajes)
+            .select('id_viaje')
+            .eq('id_viaje', tripID)
+            .single();
+
+        if (tripError || !tripCheck) {
+            alert('❌ El ID de Viaje "' + tripID + '" no existe en el sistema. Por favor, verifícalo.');
+            return;
+        }
+
         const formData = {
             id_gasto: getVal('ID_Gasto'),
-            id_viaje: getVal('ID_Viaje'),
+            id_viaje: tripID,
             id_unidad: getVal('ID_Unidad'),
             fecha: getVal('Fecha') || new Date().toISOString().split('T')[0],
             concepto: getVal('Concepto'),
@@ -422,8 +436,7 @@ async function initFormCatalogs() {
         'V_ID_Chofer': DB_CONFIG.tableChoferes,
         'V_Cliente': DB_CONFIG.tableClientes,
         'ID_Unidad': DB_CONFIG.tableUnidades,
-        'ID_Chofer': DB_CONFIG.tableChoferes,
-        'ID_Viaje': DB_CONFIG.tableViajes
+        'ID_Chofer': DB_CONFIG.tableChoferes
     };
 
     for (const [id, table] of Object.entries(selects)) {
