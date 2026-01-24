@@ -458,11 +458,12 @@ async function initFormCatalogs() {
 
         try {
             const data = await fetchSupabaseData(table);
+            const activeData = data.filter(item => (item.estatus || 'Activo') === 'Activo');
 
             // Texto por defecto vacío o "Selecciona"
             el.innerHTML = `<option value="">-- Selecciona una opción --</option>`;
 
-            data.forEach(item => {
+            activeData.forEach(item => {
                 let text = '';
                 let val = '';
 
@@ -1207,6 +1208,9 @@ async function finalizeSettlement() {
         alert('Error: ' + err.message);
     }
 }
+
+// Inicializar vista de tesorería al cargar
+switchTreasuryTab('favor');
 
 function prepareAdvance(tripId, driverId) {
     showSection('tesoreria');
