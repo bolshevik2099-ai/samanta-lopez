@@ -352,97 +352,21 @@
         </div>
     </div>
 
-    <!-- CORE LOGIC INLINED TO BEAT CACHE -->
-    <script src="./js/config.js?v=3.9"></script>
+    <script src="./js/config.js?v=5.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js"></script>
-    <script src="./js/chat.js?v=3.9"></script>
+    <script src="./js/supabase-client.js?v=5.0"></script>
+    <script src="./js/auth_v3.6.js?v=5.0"></script>
+    <script src="./js/chat.js?v=5.0"></script>
     <script>
-        // --- LÓGICA DE AUTH TOTALMENTE INTEGRADA (v3.9) ---
-
-        async function handleLogin(e) {
-            if (e) e.preventDefault();
-            const userVal = document.getElementById('username').value.trim();
-            const passVal = document.getElementById('password').value.trim();
-            const loginBtn = document.getElementById('login-btn');
-            const errorMsg = document.getElementById('error-msg');
-            const originalText = loginBtn.innerHTML;
-
-            try {
-                loginBtn.disabled = true;
-                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando...';
-                errorMsg.classList.add('hidden');
-
-                let foundUser = null;
-
-                // 1. Supabase Check (EXCLUSIVO)
-                try {
-                    const { data, error } = await window.supabaseClient
-                        .from(APPSHEET_CONFIG.tableUsuarios)
-                        .select('*')
-                        .eq('Usuario', userVal)
-                        .eq('Password', passVal)
-                        .single();
-
-                    if (data && !error) foundUser = data;
-                } catch (sErr) { console.error('Supabase login error:', sErr); }
-
-                if (foundUser) {
-                    const sessionData = {
-                        userID: foundUser.ID_Contacto || foundUser.Usuario,
-                        nombre: foundUser.Usuario,
-                        rol: foundUser.Rol,
-                        timestamp: new Date().getTime()
-                    };
-                    localStorage.setItem('crm_session', JSON.stringify(sessionData));
-
-                    const routes = {
-                        'chofer': 'vista-chofer.html',
-                        'admin': 'vista-admin.html',
-                        'superadmin': 'vista-superadmin.html',
-                        'super admin': 'vista-superadmin.html'
-                    };
-                    const target = routes[String(foundUser.Rol).trim().toLowerCase()];
-                    window.location.href = target || 'index.html';
-                } else {
-                    errorMsg.classList.remove('hidden');
-                }
-            } catch (err) {
-                alert('Error de conexión: ' + err.message);
-            } finally {
-                loginBtn.disabled = false;
-                loginBtn.innerHTML = originalText;
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('login-form');
-            if (form) form.addEventListener('submit', handleLogin);
-        });
-
-        // Configuración
+        // Configuración adicional (Setup Modal)
         function openSetup() { document.getElementById('setup-modal').classList.remove('hidden'); }
         function closeSetup() { document.getElementById('setup-modal').classList.add('hidden'); }
         function handleSetup() {
-            const appId = document.getElementById('setup-app-id').value || 'dummy';
-            const accessKey = document.getElementById('setup-access-key').value || 'dummy';
             const bridgeUrl = document.getElementById('setup-bridge-url').value;
             if (bridgeUrl) {
                 localStorage.setItem('GAS_BRIDGE_URL', bridgeUrl.trim());
-                localStorage.setItem('APPSHEET_APP_ID', appId);
-                localStorage.setItem('APPSHEET_ACCESS_KEY', accessKey);
                 location.reload();
             }
-        }
-
-        function checkAuth() {
-            const session = localStorage.getItem('crm_session');
-            return session ? JSON.parse(session) : null;
-        }
-
-        function logout() {
-            localStorage.removeItem('crm_session');
-            window.location.href = 'index.html';
         }
     </script>
 </body>

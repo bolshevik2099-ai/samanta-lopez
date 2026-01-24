@@ -37,23 +37,28 @@ async function handleLogin(e) {
         let foundUser = null;
 
         // --- MÉTODO: SUPABASE (SQL) ---
-        console.log('Intentando login vía Supabase...');
+        console.log('Intentando login vía Supabase:', { user: userVal, pass: passVal });
         try {
             const { data, error } = await window.supabaseClient
                 .from(DB_CONFIG.tableUsuarios)
                 .select('*')
                 .eq('Usuario', userVal)
-                .eq('Password', passVal)
-                .single();
+                .eq('Password', passVal);
 
-            if (data && !error) {
-                foundUser = data;
-                console.log('Usuario encontrado en Supabase:', foundUser);
+            console.log('Resultado de query Supabase:', { data, error });
+
+            if (error) {
+                console.error('Error de Supabase en login:', error);
+            }
+
+            if (data && data.length > 0) {
+                foundUser = data[0]; // Usamos el primero encontrado
+                console.log('Usuario validado con éxito:', foundUser);
             } else {
-                console.warn('Supabase no encontró al usuario o credenciales incorrectas.');
+                console.warn('No se encontró usuario con esas credenciales exactas.');
             }
         } catch (err) {
-            console.error('Error en fetch Supabase Auth:', err);
+            console.error('Error catastrófico en fetch Supabase Auth:', err);
         }
 
         // --- RESULTADO ---
