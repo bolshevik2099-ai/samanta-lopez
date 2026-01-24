@@ -37,28 +37,44 @@ async function handleLogin(e) {
         let foundUser = null;
 
         // --- MÉTODO: SUPABASE (SQL) ---
-        console.log('Intentando login vía Supabase:', { user: userVal, pass: passVal });
+        console.log('Intentando login vía Supabase:', {
+            url: SUPABASE_CONFIG.url,
+            table: DB_CONFIG.tableUsuarios,
+            user: userVal,
+            pass: passVal
+        });
+
+        if (!window.supabaseClient) {
+            alert("Error: El cliente de Supabase no se inicializó correctamente.");
+            return;
+        }
+
         try {
-            const { data, error } = await window.supabaseClient
+            const { data, error, status, statusText } = await window.supabaseClient
                 .from(DB_CONFIG.tableUsuarios)
                 .select('*')
                 .eq('Usuario', userVal)
                 .eq('Password', passVal);
 
-            console.log('Resultado de query Supabase:', { data, error });
+            console.log('Respuesta cruda de Supabase:', { data, error, status, statusText });
 
             if (error) {
                 console.error('Error de Supabase en login:', error);
+                alert(`Error de Supabase [${status}]: ${error.message}\nDetalle: ${error.details || 'Ninguno'}`);
             }
 
             if (data && data.length > 0) {
-                foundUser = data[0]; // Usamos el primero encontrado
+                foundUser = data[0];
                 console.log('Usuario validado con éxito:', foundUser);
             } else {
                 console.warn('No se encontró usuario con esas credenciales exactas.');
+                if (!error) {
+                    alert("No se encontró ningún usuario con esas credenciales en la tabla 'usuarios'.\n\nVerifica:\n1. Que el nombre de usuario y contraseña coincidan exactamente (mayúsculas/minúsculas).\n2. Que la tabla 'usuarios' tenga datos.");
+                }
             }
         } catch (err) {
-            console.error('Error catastrófico en fetch Supabase Auth:', err);
+            console.error('Error catastrófico en query:', err);
+            alert("Error catastrófico al consultar la base de datos:\n" + err.message);
         }
 
         // --- RESULTADO ---
