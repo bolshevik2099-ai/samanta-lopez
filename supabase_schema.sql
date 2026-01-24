@@ -1,17 +1,23 @@
--- Tablas para CRM Procesa-T (Migración nativa SQL)
+-- RESET TOTAL PARA CRM PROCESA-T (Sincronización v5.3)
+-- ADVERTENCIA: Esto borrará los datos actuales de estas tablas.
 
--- 1. Tabla de Usuarios
-CREATE TABLE IF NOT EXISTS public.usuarios (
+-- 1. Eliminar tablas anteriores si existen (para forzar nombres en minúsculas)
+DROP TABLE IF EXISTS public.reg_gastos CASCADE;
+DROP TABLE IF EXISTS public.reg_viajes CASCADE;
+DROP TABLE IF EXISTS public.usuarios CASCADE;
+
+-- 2. Crear Tabla de Usuarios
+CREATE TABLE public.usuarios (
     id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
     usuario TEXT NOT NULL,
-    password TEXT, -- Temporal para migración
+    password TEXT, 
     rol TEXT,
     id_contacto TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Tabla de Viajes
-CREATE TABLE IF NOT EXISTS public.reg_viajes (
+-- 3. Crear Tabla de Viajes
+CREATE TABLE public.reg_viajes (
     id_viaje TEXT PRIMARY KEY,
     fecha DATE NOT NULL DEFAULT CURRENT_DATE,
     id_unidad TEXT,
@@ -26,8 +32,8 @@ CREATE TABLE IF NOT EXISTS public.reg_viajes (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Tabla de Gastos
-CREATE TABLE IF NOT EXISTS public.reg_gastos (
+-- 4. Crear Tabla de Gastos
+CREATE TABLE public.reg_gastos (
     id_gasto TEXT PRIMARY KEY,
     id_viaje TEXT REFERENCES public.reg_viajes(id_viaje) ON DELETE SET NULL,
     id_unidad TEXT,
@@ -50,7 +56,7 @@ ALTER TABLE public.usuarios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reg_viajes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reg_gastos ENABLE ROW LEVEL SECURITY;
 
--- Políticas (Permisivas para desarrollo)
+-- Políticas (Permisivas)
 CREATE POLICY "Allow public read" ON public.reg_viajes FOR SELECT USING (true);
 CREATE POLICY "Allow public insert" ON public.reg_viajes FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public read" ON public.reg_gastos FOR SELECT USING (true);
