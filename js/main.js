@@ -476,21 +476,194 @@ function filterTrips(query) {
     renderTripsTable(filtered);
 }
 
-// --- LÓGICA DE NAVEGACIÓN Y LISTADOS ---
+// --- CATALOG MANAGEMENT LOGIC ---
+let currentCatalog = 'choferes';
+let catalogData = [];
 
-function toggleSectionView(section, view) {
-    const listView = document.getElementById(`${section}-list-view`);
-    const formView = document.getElementById(`${section}-form-view`);
-    if (!listView || !formView) return;
+function switchCatalogTab(type) {
+    currentCatalog = type;
+    document.querySelectorAll('.catalog-tab').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white');
+        btn.classList.add('text-slate-500', 'hover:bg-slate-50');
+    });
+    document.getElementById(`tab-${type}`).classList.add('bg-blue-600', 'text-white');
+    document.getElementById(`tab-${type}`).classList.remove('text-slate-500', 'hover:bg-slate-50');
 
-    if (view === 'list') {
-        listView.classList.remove('hidden');
-        formView.classList.add('hidden');
-    } else {
-        listView.classList.add('hidden');
-        formView.classList.remove('hidden');
-    }
+    const titles = {
+        'choferes': 'Listado de Choferes',
+        'unidades': 'Listado de Unidades',
+        'clientes': 'Listado de Clientes',
+        'proveedores': 'Listado de Proveedores'
+    };
+    document.getElementById('catalog-title').innerText = titles[type];
+    hideCatalogForm();
+    loadCatalog(type);
 }
+
+async function loadCatalog(type) {
+    const loader = document.getElementById('catalog-loader');
+    const tbody = document.getElementById('catalog-table-body');
+    const thead = document.getElementById('catalog-table-head');
+
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
+
+    const tables = {
+        'choferes': DB_CONFIG.tableChoferes,
+        'unidades': DB_CONFIG.tableUnidades,
+        'clientes': DB_CONFIG.tableClientes,
+        'proveedores': DB_CONFIG.tableProveedores
+    };
+
+    catalogData = await fetchSupabaseData(tables[type]);
+    if (loader) loader.classList.add('hidden');
+
+    renderCatalogTable(type, catalogData);
+}
+
+function renderCatalogTable(type, data) {
+    const thead = document.getElementById('catalog-table-head');
+    const tbody = document.getElementById('catalog-table-body');
+    if (!thead || !tbody) return;
+
+    const config = {
+        'choferes': {
+            headers: ['ID', 'Nombre', 'Licencia', 'Teléfono'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_chofer}</td>
+                       <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre}</td>
+                       <td class="px-6 py-4 text-slate-500">${d.licencia || '-'}</td>
+                       <td class="px-6 py-4 text-slate-500">${d.telefono || '-'}</td>`
+        },
+        'unidades': {
+            headers: ['ID', 'Unidad', 'Placas', 'Modelo/Marca'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_unidad}</td>
+                       <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre_unidad}</td>
+                       <td class="px-6 py-4 text-slate-500">${d.placas || '-'}</td>
+                       <td class="px-6 py-4 text-slate-500">${d.modelo} / ${d.marca}</td>`
+        },
+        'clientes': {
+            headers: ['Nombre', 'RFC/Razón Social', 'Contacto'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.nombre_cliente}</td>
+                       <td class="px-6 py-4 font-semibold text-slate-700 text-xs">${d.rfc} / ${d.razon_social}</td>
+                       <td class="px-6 py-4 text-slate-500 text-xs">${d.contacto_nombre} <br/> ${d.email}</td>`
+        },
+        'proveedores': {
+            headers: ['ID', 'Proveedor', 'Tipo', 'Teléfono'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_proveedor}</td>
+                       <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre_proveedor}</td>
+                       <td class="px-6 py-4 text-slate-500">${d.tipo_proveedor}</td>
+                       <td class="px-6 py-4 text-slate-500">${d.telefono || '-'}</td>`
+        }
+    };
+
+    const c = config[type];
+    thead.innerHTML = `<tr>${c.headers.map(h => `<th class="px-6 py-4">${h}</th>`).join('')}</tr>`;
+
+    if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${c.headers.length}" class="px-6 py-12 text-center text-slate-400 italic">No hay registros aún</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = data.map(d => `
+        <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">${c.row(d)}</tr>
+    `).join('');
+}
+
+function showCatalogForm() {
+    document.getElementById('catalog-list-view').classList.add('hidden');
+    document.getElementById('catalog-form-view').classList.remove('hidden');
+
+    const fieldsContainer = document.getElementById('catalog-form-fields');
+    const config = {
+        'choferes': [
+            { id: 'C_ID', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01' },
+            { id: 'C_Nombre', label: 'Nombre Completo', type: 'text', placeholder: 'Nombre Apellido' },
+            { id: 'C_Licencia', label: 'Num. Licencia', type: 'text', placeholder: 'LIC-000' },
+            { id: 'C_Telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+        ],
+        'unidades': [
+            { id: 'U_ID', label: 'ID Unidad (ECO)', type: 'text', placeholder: 'ECO-01' },
+            { id: 'U_Nombre', label: 'Nombre/Alias', type: 'text', placeholder: 'Kenworth T680' },
+            { id: 'U_Placas', label: 'Placas', type: 'text', placeholder: '00-AA-00' },
+            { id: 'U_Modelo', label: 'Modelo', type: 'text', placeholder: '2024' },
+            { id: 'U_Marca', label: 'Marca', type: 'text', placeholder: 'Freightliner' }
+        ],
+        'clientes': [
+            { id: 'CL_ID', label: 'ID Cliente (Opcional)', type: 'text', placeholder: 'CLI-01' },
+            { id: 'CL_Nombre', label: 'Nombre Comercial', type: 'text', placeholder: 'Empresa S.A.' },
+            { id: 'CL_Razon', label: 'Razón Social', type: 'text', placeholder: 'Logística Total S.A. de C.V.' },
+            { id: 'CL_RFC', label: 'RFC', type: 'text', placeholder: 'RFC000000AAA' },
+            { id: 'CL_Contacto', label: 'Nombre de Contacto', type: 'text', placeholder: 'Juan Pérez' },
+            { id: 'CL_Email', label: 'Email', type: 'email', placeholder: 'contacto@empresa.com' },
+            { id: 'CL_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+        ],
+        'proveedores': [
+            { id: 'P_ID', label: 'ID Proveedor', type: 'text', placeholder: 'PROV-01' },
+            { id: 'P_Nombre', label: 'Nombre/Razón Social', type: 'text', placeholder: 'Gasolinera Plus' },
+            { id: 'P_Tipo', label: 'Tipo Proveedor', type: 'text', placeholder: 'Diesel / Refacciones' },
+            { id: 'P_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+        ]
+    };
+
+    fieldsContainer.innerHTML = config[currentCatalog].map(f => `
+        <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">${f.label}</label>
+            <input type="${f.type}" id="${f.id}" required placeholder="${f.placeholder}"
+                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all">
+        </div>
+    `).join('');
+}
+
+function hideCatalogForm() {
+    document.getElementById('catalog-list-view').classList.remove('hidden');
+    document.getElementById('catalog-form-view').classList.add('hidden');
+}
+
+// Inicializar envío del formulario de catálogo
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('catalog-form');
+    if (form) form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        const originalText = btn.innerText;
+
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+            const getVal = id => document.getElementById(id)?.value || '';
+            let data = {};
+            let table = '';
+
+            if (currentCatalog === 'choferes') {
+                data = { id_chofer: getVal('C_ID'), nombre: getVal('C_Nombre'), licencia: getVal('C_Licencia'), telefono: getVal('C_Telefono') };
+                table = DB_CONFIG.tableChoferes;
+            } else if (currentCatalog === 'unidades') {
+                data = { id_unidad: getVal('U_ID'), nombre_unidad: getVal('U_Nombre'), placas: getVal('U_Placas'), modelo: getVal('U_Modelo'), marca: getVal('U_Marca') };
+                table = DB_CONFIG.tableUnidades;
+            } else if (currentCatalog === 'clientes') {
+                data = { id_cliente: getVal('CL_ID') || 'CLI-' + Date.now(), nombre_cliente: getVal('CL_Nombre'), razon_social: getVal('CL_Razon'), rfc: getVal('CL_RFC'), contacto_nombre: getVal('CL_Contacto'), email: getVal('CL_Email'), telefono: getVal('CL_Tel') };
+                table = DB_CONFIG.tableClientes;
+            } else if (currentCatalog === 'proveedores') {
+                data = { id_proveedor: getVal('P_ID'), nombre_proveedor: getVal('P_Nombre'), tipo_proveedor: getVal('P_Tipo'), telefono: getVal('P_Tel') };
+                table = DB_CONFIG.tableProveedores;
+            }
+
+            const { error } = await window.supabaseClient.from(table).insert([data]);
+            if (error) throw error;
+
+            alert('✅ Registro guardado correctamente');
+            hideCatalogForm();
+            loadCatalog(currentCatalog);
+        } catch (err) {
+            console.error('Error al guardar catálogo:', err);
+            alert('❌ Error al guardar: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = originalText;
+        }
+    });
+});
 
 async function loadTripsList() {
     const loader = document.getElementById('trips-loader');
