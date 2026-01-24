@@ -1,12 +1,13 @@
--- RESET TOTAL PARA CRM PROCESA-T (Sincronización v5.3)
--- ADVERTENCIA: Esto borrará los datos actuales de estas tablas.
+-- MODIFICACIÓN SEGURA DEL ESQUEMA (Sincronización v5.4)
+-- NOTA: Se han comentado los DROP TABLE para evitar pérdida accidental de datos.
+-- Si necesitas borrar todo de nuevo, descomenta las líneas de abajo.
 
--- 1. Eliminar tablas anteriores si existen (para forzar nombres en minúsculas)
-DROP TABLE IF EXISTS public.reg_gastos CASCADE;
-DROP TABLE IF EXISTS public.reg_viajes CASCADE;
-DROP TABLE IF EXISTS public.usuarios CASCADE;
-DROP TABLE IF EXISTS public.cat_choferes CASCADE; -- Añadido para la nueva tabla
-DROP TABLE IF EXISTS public.cat_unidades CASCADE; -- Añadido para la nueva tabla
+-- 1. Eliminar tablas (¡CUIDADO! Esto borra todos tus datos actuales)
+-- DROP TABLE IF EXISTS public.reg_gastos CASCADE;
+-- DROP TABLE IF EXISTS public.reg_viajes CASCADE;
+-- DROP TABLE IF EXISTS public.usuarios CASCADE;
+-- DROP TABLE IF EXISTS public.cat_choferes CASCADE; -- Añadido para la nueva tabla
+-- DROP TABLE IF EXISTS public.cat_unidades CASCADE; -- Añadido para la nueva tabla
 
 -- 2. Crear Tabla de Usuarios
 CREATE TABLE public.usuarios (
