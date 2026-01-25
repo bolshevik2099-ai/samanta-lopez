@@ -2641,7 +2641,11 @@ function showSettlementFullDetail() {
     `).join('') || '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin viajes pendientes</td></tr>';
 
     // Generar tabla de Gastos (Aprobados)
-    const activeExpenses = currentExpenses.filter(g => g.forma_pago === 'Contado');
+    // Generar tabla de Gastos (Aprobados)
+    const activeExpenses = currentExpenses.filter(g =>
+        g.forma_pago === 'Contado' &&
+        String(g.es_deducible || 'Sí').trim() === 'Sí'
+    );
     const expensesHtml = activeExpenses.map(g => `
         <tr class="border-b border-slate-100 text-xs text-slate-600">
             <td class="p-2 font-mono">${g.id_gasto}</td>
@@ -2783,7 +2787,7 @@ function calculateCurrentSettlement() {
     const approvedReimbursable = currentExpenses.filter(g =>
         (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
         ['Contado', 'Efectivo'].includes(g.forma_pago) &&
-        (g.es_deducible || 'Sí') === 'Sí'
+        String(g.es_deducible || 'Sí').trim() === 'Sí'
     );
     const totalGastosAprobados = approvedReimbursable.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
 
