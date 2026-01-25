@@ -1641,7 +1641,14 @@ async function finalizeSettlement() {
         }
 
         // 4. Marcar gastos como pagados
-        const approvedExpenses = currentExpenses.filter(g => (g.estatus_aprobacion || 'Pendiente') === 'Aprobado');
+        // 4. Marcar gastos como pagados (SOLO LOS REEMBOLSABLES: Contado o Efectivo)
+        // OJO: Si pagamos todo lo 'Aprobado', podríamos pagar créditos por error si no filtramos.
+        // La lógica visual solo muestra Contado/Efectivo, así que solo debemos liquidar esos.
+        const approvedExpenses = currentExpenses.filter(g =>
+            (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
+            ['Contado', 'Efectivo'].includes(g.forma_pago)
+        );
+
         if (approvedExpenses.length > 0) {
             const ids = approvedExpenses.map(g => g.id_gasto);
             await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_pago: 'Pagado' }).in('id_gasto', ids);
@@ -1660,7 +1667,7 @@ function calculateCurrentSettlement() {
     const totalFletes = pendingTripsForDriver.reduce((sum, t) => sum + (parseFloat(t.monto_flete) || 0), 0);
     const approvedReimbursable = currentExpenses.filter(g =>
         (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
-        g.forma_pago === 'Contado'
+        ['Contado', 'Efectivo'].includes(g.forma_pago)
     );
     const totalGastosAprobados = approvedReimbursable.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
 
