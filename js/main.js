@@ -1409,17 +1409,67 @@ async function loadTreasuryList() {
                         ${item.estatus !== 'Liquidado' ? `<button onclick="markAccountLiquidated('${item.id_cuenta}')" class="text-xs text-green-500 hover:underline">Liquidar</button>` : '<span class="text-slate-300">-</span>'}
                     </td>
                     <td class="px-6 py-4 text-right space-x-2">
-                        <button onclick="showDetailModal('cuentas', '${item.id_cuenta}')" title="Ver Detalle" class="text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-eye"></i></button>
                         <button onclick="deleteItem('${DB_CONFIG.tableCuentas}', '${item.id_cuenta}', 'id_cuenta')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
                     </td>
                 </tr>
             `;
         }
-    }).join('') || '<tr><td colspan="6" class="p-10 text-center text-slate-400">No hay registros en esta categoría</td></tr>';
+    }).join('');
 
-    if (currentTreasuryTab === 'favor') document.getElementById('total-favor').innerText = `$${total.toLocaleString()}`;
-    if (currentTreasuryTab === 'contra') document.getElementById('total-contra').innerText = `$${total.toLocaleString()}`;
+    // updateTreasurySummary se encarga de los totales globales
+    updateTreasurySummary();
 }
+
+async function updateTreasurySummary() {
+    // Calcular totales globales independientemente de la pestaña
+    try {
+        // 1. Cuentas (Todas)
+        const allAccounts = await fetchSupabaseData(DB_CONFIG.tableCuentas);
+
+        let totalFavor = 0;
+        let totalContra = 0;
+
+        allAccounts.forEach(acc => {
+            if (acc.estatus !== 'Liquidado') {
+                const monto = parseFloat(acc.monto) || 0;
+                if (acc.tipo === 'A Favor') totalFavor += monto;
+                if (acc.tipo === 'En Contra') totalContra += monto;
+            }
+        });
+
+        // 2. Viajes por Cobrar (Todos los NO pagados)
+        // Podríamos usar allTripsData si ya se cargó, o hacer fetch
+        const allTrips = await fetchSupabaseData(DB_CONFIG.tableViajes);
+        let totalViajes = 0;
+        allTrips.forEach(t => {
+            if (t.estatus_pago !== 'Pagado') {
+                totalViajes += parseFloat(t.monto_flete) || 0;
+            }
+        });
+
+        // Actualizar UI
+        const elFavor = document.getElementById('summary-total-favor');
+        const elContra = document.getElementById('summary-total-contra');
+        const elViajes = document.getElementById('summary-viajes-cobrar');
+
+        if (elFavor) elFavor.innerText = `$${totalFavor.toLocaleString(undefined, { minimumFractionDigits: 2 })} `;
+        if (elContra) elContra.innerText = `$${totalContra.toLocaleString(undefined, { minimumFractionDigits: 2 })} `;
+        if (elViajes) elViajes.innerText = `$${totalViajes.toLocaleString(undefined, { minimumFractionDigits: 2 })} `;
+
+    } catch (err) {
+        console.error('Error actualizando resumen tesorería:', err);
+    }
+}
+// This line was incorrectly placed in the original instruction, it should not be here.
+// The `|| '<tr><td colspan="6" class="p-10 text-center text-slate-400">No hay registros en esta categoría</td></tr>'`
+// belongs to the `tbody.innerHTML = ...` assignment.
+// The correct placement is already handled by the `join('')` part.
+
+// The original lines for tab-specific totals should remain:
+// if (currentTreasuryTab === 'favor') document.getElementById('total-favor').innerText = `$${ total.toLocaleString() }`;
+// if (currentTreasuryTab === 'contra') document.getElementById('total-contra').innerText = `$${ total.toLocaleString() }`;
+
+// These lines are now correctly placed after the `updateTreasurySummary()` call within `loadTreasuryList`.
 
 async function markTripAsPaid(id_viaje) {
     if (!confirm('¿Marcar este viaje como PAGADO por el cliente?')) return;
@@ -1458,7 +1508,7 @@ async function loadActorOptions() {
 
     select.innerHTML = '<option value="">Seleccione...</option>' + active.map(i => {
         const name = i.nombre || i.nombre_cliente || i.nombre_proveedor;
-        return `<option value="${name}">${name}</option>`;
+        return `< option value = "${name}" > ${name}</option > `;
     }).join('');
 }
 
@@ -1596,15 +1646,15 @@ async function loadSettlementTrips() {
     const activeDrivers = drivers.filter(d => (d.estatus || 'Activo') === 'Activo');
 
     list.innerHTML = activeDrivers.map(d => `
-        <button onclick="loadDriverSettlementDetail('${d.id_chofer}')" 
-            class="w-full text-left p-4 rounded-xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all flex justify-between items-center group">
+    < button onclick = "loadDriverSettlementDetail('${d.id_chofer}')" 
+            class= "w-full text-left p-4 rounded-xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all flex justify-between items-center group" >
             <div>
                 <div class="font-black text-slate-800 truncate">${d.nombre}</div>
                 <div class="text-[10px] text-slate-400">ID: ${d.id_chofer}</div>
             </div>
             <i class="fas fa-chevron-right text-slate-200 group-hover:text-blue-500 transition-all"></i>
-        </button>
-    `).join('') || '<p class="text-sm p-4 text-slate-400">No hay choferes disponibles.</p>';
+        </button >
+        `).join('') || '<p class="text-sm p-4 text-slate-400">No hay choferes disponibles.</p>';
 }
 
 async function loadDriverSettlementDetail(id_chofer) {
@@ -1656,7 +1706,7 @@ async function loadDriverSettlementDetail(id_chofer) {
         sumExp += parseFloat(g.monto);
 
         return `
-            <div class="flex flex-col gap-1 border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
+    < div class= "flex flex-col gap-1 border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0" >
                 <div class="flex justify-between items-center">
                     <span class="text-xs font-semibold text-slate-700">
                         ${g.concepto} (${g.id_viaje})
@@ -1672,7 +1722,7 @@ async function loadDriverSettlementDetail(id_chofer) {
                         </div>
                     ` : ''}
                 </div>
-            </div>
+            </div >
         `;
     }).join('') || '<span class="text-slate-400 italic">Sin gastos a reembolsar</span>';
     document.getElementById('set-sum-expenses').innerText = `$${sumExp.toLocaleString()}`;
@@ -1683,9 +1733,9 @@ async function loadDriverSettlementDetail(id_chofer) {
     debtList.innerHTML = currentDebts.map(d => {
         const monto = parseFloat(d.monto) || 0;
         sumDebtNeto += monto;
-        return `<div class="flex justify-between text-amber-700"><span>${d.concepto} (Anticipo)</span><span class="font-mono">-$${monto.toLocaleString()}</span></div>`;
+        return `< div class= "flex justify-between text-amber-700" ><span>${d.concepto} (Anticipo)</span><span class="font-mono">-$${monto.toLocaleString()}</span></div > `;
     }).join('') || '<span class="text-amber-400 italic">Sin anticipos pendientes</span>';
-    document.getElementById('set-sum-debts').innerText = `-$${sumDebtNeto.toLocaleString()}`;
+    document.getElementById('set-sum-debts').innerText = `- $${sumDebtNeto.toLocaleString()}`;
 
     // Totales finales
     const approvedExpenses = currentExpenses.filter(g =>
@@ -1697,7 +1747,7 @@ async function loadDriverSettlementDetail(id_chofer) {
 
     document.getElementById('set-comm-bruta').innerText = `$${sumComisionesBrutas.toLocaleString()}`;
     document.getElementById('set-sum-expenses').innerText = `$${sumApprovedExp.toLocaleString()}`;
-    document.getElementById('set-retencion').innerText = `-$${sumDebtNeto.toLocaleString()}`;
+    document.getElementById('set-retencion').innerText = `- $${sumDebtNeto.toLocaleString()}`;
     document.getElementById('set-pago-neto').innerText = `$${neto.toLocaleString()}`;
 }
 
@@ -1716,7 +1766,7 @@ async function finalizeSettlement() {
         if (!confirm('La liquidación es de $0.00 o menor. ¿Desea continuar de todos modos?')) return;
     }
 
-    if (!confirm(`¿Desea cerrar la liquidación para ${selectedDriverForSettlement}? \nTotal Neto: $${settleData.monto_neto.toLocaleString()}`)) return;
+    if (!confirm(`¿Desea cerrar la liquidación para ${selectedDriverForSettlement} ?\nTotal Neto: $${settleData.monto_neto.toLocaleString()}`)) return;
 
     try {
         // 1. Guardar Maestro de Liquidación
@@ -1903,7 +1953,7 @@ function prepareAdvance(tripId, driverId) {
 // --- UNIVERSAL INLINE EDITING ---
 
 async function editCatalogInline(type, id) {
-    const row = document.getElementById(`row-${type}-${id}`);
+    const row = document.getElementById(`row - ${type} - ${id}`);
     if (!row) return;
 
     // Obtener datos actuales del servidor o una caché si existiera
@@ -1916,27 +1966,27 @@ async function editCatalogInline(type, id) {
     let editHtml = '';
     if (type === 'choferes') {
         editHtml = `
-            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_chofer}" class="w-20 p-1 border rounded" readonly></td>
+    < td class= "px-6 py-4" ><input type="text" id="edit-id-${id}" value="${item.id_chofer}" class="w-20 p-1 border rounded" readonly></td>
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-licencia-${id}" value="${item.licencia || ''}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-unidad-${id}" value="${item.id_unidad || ''}" class="w-full p-1 border rounded"></td>
         `;
     } else if (type === 'unidades') {
         editHtml = `
-            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_unidad}" class="w-20 p-1 border rounded" readonly></td>
+        < td class= "px-6 py-4" ><input type="text" id="edit-id-${id}" value="${item.id_unidad}" class="w-20 p-1 border rounded" readonly></td>
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_unidad}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-placas-${id}" value="${item.placas || ''}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-chofer-${id}" value="${item.id_chofer || ''}" class="w-full p-1 border rounded"></td>
         `;
     } else if (type === 'clientes') {
         editHtml = `
-            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_cliente}" class="w-full p-1 border rounded" readonly></td>
+        < td class= "px-6 py-4" ><input type="text" id="edit-nombre-${id}" value="${item.nombre_cliente}" class="w-full p-1 border rounded" readonly></td>
             <td class="px-6 py-4"><input type="text" id="edit-rfc-${id}" value="${item.rfc || ''}" class="w-24 p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-contacto-${id}" value="${item.contacto_nombre || ''}" class="w-full p-1 border rounded"></td>
         `;
     } else if (type === 'proveedores') {
         editHtml = `
-            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_proveedor}" class="w-20 p-1 border rounded" readonly></td>
+        < td class= "px-6 py-4" ><input type="text" id="edit-id-${id}" value="${item.id_proveedor}" class="w-20 p-1 border rounded" readonly></td>
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_proveedor}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-tipo-${id}" value="${item.tipo_proveedor || ''}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-tel-${id}" value="${item.telefono || ''}" class="w-full p-1 border rounded"></td>
@@ -1944,20 +1994,20 @@ async function editCatalogInline(type, id) {
     }
 
     const estatusHtml = `
-        <td class="px-6 py-4">
-            <select id="edit-estatus-${id}" class="p-1 border rounded text-xs">
-                <option value="Activo" ${item.estatus === 'Activo' ? 'selected' : ''}>Activo</option>
-                <option value="Inactivo" ${item.estatus === 'Inactivo' ? 'selected' : ''}>Inactivo</option>
-            </select>
-        </td>
-    `;
+        < td class= "px-6 py-4" >
+        <select id="edit-estatus-${id}" class="p-1 border rounded text-xs">
+            <option value="Activo" ${item.estatus === 'Activo' ? 'selected' : ''}>Activo</option>
+            <option value="Inactivo" ${item.estatus === 'Inactivo' ? 'selected' : ''}>Inactivo</option>
+        </select>
+        </td >
+        `;
 
     const actionsHtml = `
-        <td class="px-6 py-4 text-right space-x-2">
+        < td class= "px-6 py-4 text-right space-x-2" >
             <button onclick="saveCatalogInline('${type}', '${id}')" class="text-green-500 hover:text-green-700 p-1"><i class="fas fa-save"></i></button>
             <button onclick="location.reload()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-times"></i></button>
-        </td>
-    `;
+        </td >
+        `;
 
     row.innerHTML = editHtml + estatusHtml + actionsHtml;
 }
@@ -1967,24 +2017,24 @@ async function saveCatalogInline(type, id) {
     const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
 
     let updateData = {
-        estatus: document.getElementById(`edit-estatus-${id}`).value
+        estatus: document.getElementById(`edit - estatus - ${id}`).value
     };
 
     if (type === 'choferes') {
-        updateData.nombre = document.getElementById(`edit-nombre-${id}`).value;
-        updateData.licencia = document.getElementById(`edit-licencia-${id}`).value;
-        updateData.id_unidad = document.getElementById(`edit-unidad-${id}`).value;
+        updateData.nombre = document.getElementById(`edit - nombre - ${id}`).value;
+        updateData.licencia = document.getElementById(`edit - licencia - ${id}`).value;
+        updateData.id_unidad = document.getElementById(`edit - unidad - ${id}`).value;
     } else if (type === 'unidades') {
-        updateData.nombre_unidad = document.getElementById(`edit-nombre-${id}`).value;
-        updateData.placas = document.getElementById(`edit-placas-${id}`).value;
-        updateData.id_chofer = document.getElementById(`edit-chofer-${id}`).value;
+        updateData.nombre_unidad = document.getElementById(`edit - nombre - ${id}`).value;
+        updateData.placas = document.getElementById(`edit - placas - ${id}`).value;
+        updateData.id_chofer = document.getElementById(`edit - chofer - ${id}`).value;
     } else if (type === 'clientes') {
-        updateData.rfc = document.getElementById(`edit-rfc-${id}`).value;
-        updateData.contacto_nombre = document.getElementById(`edit-contacto-${id}`).value;
+        updateData.rfc = document.getElementById(`edit - rfc - ${id}`).value;
+        updateData.contacto_nombre = document.getElementById(`edit - contacto - ${id}`).value;
     } else if (type === 'proveedores') {
-        updateData.nombre_proveedor = document.getElementById(`edit-nombre-${id}`).value;
-        updateData.tipo_proveedor = document.getElementById(`edit-tipo-${id}`).value;
-        updateData.telefono = document.getElementById(`edit-tel-${id}`).value;
+        updateData.nombre_proveedor = document.getElementById(`edit - nombre - ${id}`).value;
+        updateData.tipo_proveedor = document.getElementById(`edit - tipo - ${id}`).value;
+        updateData.telefono = document.getElementById(`edit - tel - ${id}`).value;
     }
 
     try {
@@ -2005,29 +2055,29 @@ function editTripInline(id) {
     if (!v) return;
 
     row.innerHTML = `
-        <td class="px-6 py-4 font-bold text-slate-800 text-sm">${v.id_viaje}</td>
-        <td class="px-6 py-4">
-            <input type="text" id="edit-cliente-${id}" value="${v.cliente}" class="w-full p-1 text-xs border rounded mb-1">
+    < td class= "px-6 py-4 font-bold text-slate-800 text-sm" > ${v.id_viaje}</td >
+    <td class="px-6 py-4">
+        <input type="text" id="edit-cliente-${id}" value="${v.cliente}" class="w-full p-1 text-xs border rounded mb-1">
             <input type="text" id="edit-ruta-${id}" value="${v.origen} - ${v.destino}" class="w-full p-1 text-[10px] border rounded" placeholder="Origen - Destino">
-        </td>
-        <td class="px-6 py-4">
-            <input type="text" id="edit-unidad-${id}" value="${v.id_unidad}" class="w-full p-1 text-xs border rounded mb-1">
-            <input type="text" id="edit-chofer-${id}" value="${v.id_chofer}" class="w-full p-1 text-xs border rounded">
-        </td>
-        <td class="px-6 py-4">
-            <input type="number" id="edit-flete-${id}" value="${v.monto_flete}" class="w-full p-1 text-xs border rounded font-bold">
-        </td>
-        <td class="px-6 py-4">
-            <select id="edit-status-${id}" class="text-[10px] p-1 border rounded">
-                <option value="Pendiente" ${v.estatus_pago === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
-                <option value="Pagado" ${v.estatus_pago === 'Pagado' ? 'selected' : ''}>Pagado</option>
-            </select>
-        </td>
-        <td class="px-6 py-4 text-right space-x-1">
-            <button onclick="saveTripInline('${id}')" class="text-green-600 hover:text-green-800 p-1" title="Guardar"><i class="fas fa-save"></i></button>
-            <button onclick="renderTripsTable(allTripsData)" class="text-slate-400 hover:text-slate-600 p-1" title="Cancelar"><i class="fas fa-times"></i></button>
-        </td>
-    `;
+            </td>
+            <td class="px-6 py-4">
+                <input type="text" id="edit-unidad-${id}" value="${v.id_unidad}" class="w-full p-1 text-xs border rounded mb-1">
+                    <input type="text" id="edit-chofer-${id}" value="${v.id_chofer}" class="w-full p-1 text-xs border rounded">
+                    </td>
+                    <td class="px-6 py-4">
+                        <input type="number" id="edit-flete-${id}" value="${v.monto_flete}" class="w-full p-1 text-xs border rounded font-bold">
+                    </td>
+                    <td class="px-6 py-4">
+                        <select id="edit-status-${id}" class="text-[10px] p-1 border rounded">
+                            <option value="Pendiente" ${v.estatus_pago === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                            <option value="Pagado" ${v.estatus_pago === 'Pagado' ? 'selected' : ''}>Pagado</option>
+                        </select>
+                    </td>
+                    <td class="px-6 py-4 text-right space-x-1">
+                        <button onclick="saveTripInline('${id}')" class="text-green-600 hover:text-green-800 p-1" title="Guardar"><i class="fas fa-save"></i></button>
+                        <button onclick="renderTripsTable(allTripsData)" class="text-slate-400 hover:text-slate-600 p-1" title="Cancelar"><i class="fas fa-times"></i></button>
+                    </td>
+                    `;
 }
 
 async function saveTripInline(id) {
@@ -2061,32 +2111,32 @@ function editExpenseInline(id) {
     if (!g) return;
 
     row.innerHTML = `
-        <td class="px-6 py-4 font-bold text-slate-800 text-sm">${g.id_gasto}</td>
-        <td class="px-6 py-4">
-            <input type="text" id="edit-viaje-${id}" value="${g.id_viaje}" class="w-full p-1 text-xs border rounded mb-1">
-            <input type="text" id="edit-unidad-exp-${id}" value="${g.id_unidad || g.id_unit_eco}" class="w-full p-1 text-[10px] border rounded">
-        </td>
-        <td class="px-6 py-4">
-            <input type="text" id="edit-concepto-${id}" value="${g.concepto}" class="w-full p-1 text-xs border rounded mb-1 font-bold">
-            <input type="text" id="edit-chofer-exp-${id}" value="${g.id_chofer}" class="w-full p-1 text-xs border rounded">
-        </td>
-        <td class="px-6 py-4">
-            <input type="number" id="edit-monto-exp-${id}" value="${g.monto}" class="w-full p-1 text-xs border rounded font-bold text-red-600">
-        </td>
-        <td class="px-6 py-4">
-            <input type="number" id="edit-km-${id}" value="${g.kmts_recorridos}" class="w-full p-1 text-[10px] border rounded">
-        </td>
-        <td class="px-6 py-4">
-            <select id="edit-status-exp-${id}" class="text-[10px] p-1 border rounded">
-                <option value="Pendiente" ${g.estatus_pago === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
-                <option value="Pagado" ${g.estatus_pago === 'Pagado' ? 'selected' : ''}>Pagado</option>
-            </select>
-        </td>
-        <td class="px-6 py-4 text-right space-x-1">
-            <button onclick="saveExpenseInline('${id}')" class="text-green-600 hover:text-green-800 p-1" title="Guardar"><i class="fas fa-save"></i></button>
-            <button onclick="renderExpensesTable(allExpensesData)" class="text-slate-400 hover:text-slate-600 p-1" title="Cancelar"><i class="fas fa-times"></i></button>
-        </td>
-    `;
+                    <td class="px-6 py-4 font-bold text-slate-800 text-sm">${g.id_gasto}</td>
+                    <td class="px-6 py-4">
+                        <input type="text" id="edit-viaje-${id}" value="${g.id_viaje}" class="w-full p-1 text-xs border rounded mb-1">
+                            <input type="text" id="edit-unidad-exp-${id}" value="${g.id_unidad || g.id_unit_eco}" class="w-full p-1 text-[10px] border rounded">
+                            </td>
+                            <td class="px-6 py-4">
+                                <input type="text" id="edit-concepto-${id}" value="${g.concepto}" class="w-full p-1 text-xs border rounded mb-1 font-bold">
+                                    <input type="text" id="edit-chofer-exp-${id}" value="${g.id_chofer}" class="w-full p-1 text-xs border rounded">
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <input type="number" id="edit-monto-exp-${id}" value="${g.monto}" class="w-full p-1 text-xs border rounded font-bold text-red-600">
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <input type="number" id="edit-km-${id}" value="${g.kmts_recorridos}" class="w-full p-1 text-[10px] border rounded">
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <select id="edit-status-exp-${id}" class="text-[10px] p-1 border rounded">
+                                            <option value="Pendiente" ${g.estatus_pago === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                                            <option value="Pagado" ${g.estatus_pago === 'Pagado' ? 'selected' : ''}>Pagado</option>
+                                        </select>
+                                    </td>
+                                    <td class="px-6 py-4 text-right space-x-1">
+                                        <button onclick="saveExpenseInline('${id}')" class="text-green-600 hover:text-green-800 p-1" title="Guardar"><i class="fas fa-save"></i></button>
+                                        <button onclick="renderExpensesTable(allExpensesData)" class="text-slate-400 hover:text-slate-600 p-1" title="Cancelar"><i class="fas fa-times"></i></button>
+                                    </td>
+                                    `;
 }
 
 async function saveExpenseInline(id) {

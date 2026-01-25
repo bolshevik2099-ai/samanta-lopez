@@ -628,16 +628,20 @@
                 <p class="text-slate-500 text-sm">Registro de deudas, préstamos y pagos pendientes</p>
             </header>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                    <p class="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Total a Favor</p>
-                    <p id="total-favor" class="text-2xl font-bold text-blue-600">$0.00</p>
+                    <p class="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Total A Favor (Cuentas)</p>
+                    <p id="summary-total-favor" class="text-2xl font-bold text-blue-600">$0.00</p>
+                </div>
+                <div class="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                    <p class="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Viajes por Cobrar</p>
+                    <p id="summary-viajes-cobrar" class="text-2xl font-bold text-amber-600">$0.00</p>
                 </div>
                 <div class="bg-red-50 p-4 rounded-xl border border-red-100">
-                    <p class="text-[10px] font-bold text-red-400 uppercase tracking-widest">Total en Contra</p>
-                    <p id="total-contra" class="text-2xl font-bold text-red-600">$0.00</p>
+                    <p class="text-[10px] font-bold text-red-400 uppercase tracking-widest">Total En Contra (Deudas)</p>
+                    <p id="summary-total-contra" class="text-2xl font-bold text-red-600">$0.00</p>
                 </div>
-                <div class="md:col-span-2 flex items-end justify-end">
+                <div class="md:col-span-3 flex items-end justify-end mt-2">
                     <button onclick="showAccountForm()"
                         class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center gap-2">
                         <i class="fas fa-plus"></i> Nueva Deuda/Cta
