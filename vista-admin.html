@@ -171,16 +171,50 @@
 
             <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Chart Section -->
+                <!-- Main Chart & Composition -->
                 <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <div class="flex justify-between items-center mb-6">
-                        <h3 class="font-bold text-slate-800">Tendencia de Operaciones</h3>
+                        <h3 class="font-bold text-slate-800"><i class="fas fa-chart-area mr-2 text-blue-500"></i>Flujo
+                            de Caja</h3>
                         <div id="chart-loader" class="hidden"><i class="fas fa-spinner fa-spin text-blue-500"></i></div>
                     </div>
-                    <div class="h-[350px]">
+                    <div class="h-[300px]">
                         <canvas id="mainChart"></canvas>
                     </div>
                 </div>
 
+                <!-- Expense Breakdown -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 class="font-bold text-slate-800 mb-6"><i class="fas fa-chart-pie mr-2 text-red-500"></i>Desglose
+                        Gastos</h3>
+                    <div class="h-[250px] flex items-center justify-center">
+                        <canvas id="expensesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Secondary Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 mt-6">
+                <!-- Top Clients -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 class="font-bold text-slate-800 mb-6"><i class="fas fa-briefcase mr-2 text-yellow-500"></i>Top 5
+                        Clientes</h3>
+                    <div class="h-[250px]">
+                        <canvas id="clientsChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Trip Status -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 class="font-bold text-slate-800 mb-6"><i class="fas fa-tasks mr-2 text-green-500"></i>Estatus
+                        Operativo</h3>
+                    <div class="h-[250px] flex items-center justify-center">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-8">
                 <!-- Recent Mini Table -->
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                     <div class="p-6 border-b border-slate-100">
