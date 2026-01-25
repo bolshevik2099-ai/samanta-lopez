@@ -1537,9 +1537,12 @@ async function loadDriverSettlementDetail(id_chofer) {
     document.getElementById('set-sum-debts').innerText = `$${sumDebt.toLocaleString()}`;
 
     // Totales finales
-    const neto = sumComisionesBrutas - sumDebt;
+    const approvedExpenses = currentExpenses.filter(g => (g.estatus_aprobacion || 'Pendiente') === 'Aprobado');
+    const sumApprovedExp = approvedExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+    const neto = sumComisionesBrutas + sumApprovedExp - sumDebt;
 
     document.getElementById('set-comm-bruta').innerText = `$${sumComisionesBrutas.toLocaleString()}`;
+    document.getElementById('set-sum-expenses').innerText = `$${sumApprovedExp.toLocaleString()}`; // Solo mostramos los aprobados en el total a sumar
     document.getElementById('set-retencion').innerText = `-$${sumDebt.toLocaleString()}`;
     document.getElementById('set-pago-neto').innerText = `$${neto.toLocaleString()}`;
 }
@@ -1600,12 +1603,14 @@ function calculateCurrentSettlement() {
     const totalGastos = currentExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
     const totalDebts = currentDebts.reduce((sum, d) => sum + (parseFloat(d.monto) || 0), 0);
 
+    const approvedExpenses = currentExpenses.filter(g => (g.estatus_aprobacion || 'Pendiente') === 'Aprobado');
+    const totalGastosAprobados = approvedExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
     const comm = totalFletes * 0.15;
-    const neto = comm - totalDebts;
+    const neto = comm + totalGastosAprobados - totalDebts;
 
     return {
         total_fletes: totalFletes,
-        total_gastos: totalGastos,
+        total_gastos: totalGastosAprobados,
         monto_comision: comm,
         monto_neto: neto
     };
