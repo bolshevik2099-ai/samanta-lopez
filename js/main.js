@@ -2867,51 +2867,7 @@ async function saveCatalogInline(type, id) {
 }
 
 // --- CATALOG DETAIL MODAL ---
-async function showDetailModal(type, id) {
-    const table = DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)];
-    const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
 
-    try {
-        const { data: item, error } = await window.supabaseClient.from(table).select('*').eq(idCol, id).single();
-        if (error) throw error;
-
-        // Simple Overlay Construction
-        let modal = document.querySelector('#dynamic-detail-modal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'dynamic-detail-modal';
-            modal.className = 'fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200';
-            document.body.appendChild(modal);
-        }
-
-        modal.innerHTML = `
-            <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
-                <div class="bg-blue-600 p-6">
-                    <h3 class="text-xl font-bold text-white flex justify-between items-center">
-                        <span>Detalle de Registro</span>
-                        <button onclick="document.querySelector('#dynamic-detail-modal').remove()" class="text-blue-100 hover:text-white"><i class="fas fa-times"></i></button>
-                    </h3>
-                </div>
-                <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-sm text-slate-700">
-                    ${Object.entries(item).map(([k, v]) => `
-                        <div class="flex justify-between border-b border-slate-50 pb-2">
-                            <span class="font-bold text-slate-500 uppercase text-[10px]">${k.replace(/_/g, ' ')}</span>
-                            <span class="text-slate-800 text-right font-mono">${v !== null ? v : '-'}</span>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="bg-slate-50 p-4 border-t border-slate-100 text-right">
-                    <button onclick="document.querySelector('#dynamic-detail-modal').remove()" class="bg-slate-200 text-slate-600 font-bold py-2 px-4 rounded-lg hover:bg-slate-300 transition block w-full md:w-auto md:inline-block">Cerrar</button>
-                </div>
-            </div>
-        `;
-
-        modal.classList.remove('hidden');
-
-    } catch (err) {
-        alert('Error obteniendo detalle: ' + err.message);
-    }
-}
 
 async function approveSettlementExpense(id, id_chofer) {
     try {
