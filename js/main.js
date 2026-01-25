@@ -1506,8 +1506,8 @@ async function loadDriverSettlementDetail(id_chofer) {
     // Cargar datos: Viajes Terminados/En Proceso no liquidados + Gastos + Cuentas
     const [trips, expenses, accounts] = await Promise.all([
         window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_chofer', id_chofer).neq('estatus_viaje', 'Liquidado'),
-        window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_chofer', id_chofer),
-        window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').eq('actor_nombre', (await fetchSupabaseData(DB_CONFIG.tableChoferes)).find(d => d.id_chofer === id_chofer).nombre).eq('estatus', 'No Liquidado')
+        window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_chofer', id_chofer).neq('estatus_pago', 'Pagado'),
+        window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').eq('actor_nombre', id_chofer).eq('estatus', 'No Liquidado')
     ]);
 
     pendingTripsForDriver = trips.data || [];
@@ -1558,21 +1558,27 @@ async function loadDriverSettlementDetail(id_chofer) {
 
     // Anticipos/Deudas
     const debtList = document.getElementById('set-debts-list');
-    let sumDebt = 0;
+    let sumDebtNeto = 0; // A Favor - En Contra
     debtList.innerHTML = currentDebts.map(d => {
-        sumDebt += parseFloat(d.monto);
-        return `<div class="flex justify-between text-amber-700"><span>${d.concepto}</span><span class="font-mono">$${parseFloat(d.monto).toLocaleString()}</span></div>`;
+        const monto = parseFloat(d.monto) || 0;
+        if (d.tipo === 'A Favor') {
+            sumDebtNeto += monto;
+            return `<div class="flex justify-between text-amber-700"><span>${d.concepto} (Anticipo)</span><span class="font-mono">-$${monto.toLocaleString()}</span></div>`;
+        } else {
+            sumDebtNeto -= monto;
+            return `<div class="flex justify-between text-green-700"><span>${d.concepto} (A Favor Chofer)</span><span class="font-mono">+$${monto.toLocaleString()}</span></div>`;
+        }
     }).join('') || '<span class="text-amber-400 italic">Sin deudas pendientes</span>';
-    document.getElementById('set-sum-debts').innerText = `$${sumDebt.toLocaleString()}`;
+    document.getElementById('set-sum-debts').innerText = `$${sumDebtNeto.toLocaleString()}`;
 
     // Totales finales
     const approvedExpenses = currentExpenses.filter(g => (g.estatus_aprobacion || 'Pendiente') === 'Aprobado');
     const sumApprovedExp = approvedExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
-    const neto = sumComisionesBrutas + sumApprovedExp - sumDebt;
+    const neto = sumComisionesBrutas + sumApprovedExp - sumDebtNeto;
 
     document.getElementById('set-comm-bruta').innerText = `$${sumComisionesBrutas.toLocaleString()}`;
     document.getElementById('set-sum-expenses').innerText = `$${sumApprovedExp.toLocaleString()}`; // Solo mostramos los aprobados en el total a sumar
-    document.getElementById('set-retencion').innerText = `-$${sumDebt.toLocaleString()}`;
+    document.getElementById('set-retencion').innerText = sumDebtNeto > 0 ? `-$${sumDebtNeto.toLocaleString()}` : `+$${Math.abs(sumDebtNeto).toLocaleString()}`;
     document.getElementById('set-pago-neto').innerText = `$${neto.toLocaleString()}`;
 }
 
@@ -1628,6 +1634,13 @@ async function finalizeSettlement() {
             }
         }
 
+        // 4. Marcar gastos como pagados
+        const approvedExpenses = currentExpenses.filter(g => (g.estatus_aprobacion || 'Pendiente') === 'Aprobado');
+        if (approvedExpenses.length > 0) {
+            const ids = approvedExpenses.map(g => g.id_gasto);
+            await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_pago: 'Pagado' }).in('id_gasto', ids);
+        }
+
         alert('✅ Liquidación consolidada guardada y cuentas cerradas.');
         loadSettlementTrips();
         document.getElementById('settlement-detail').classList.add('hidden');
@@ -1639,11 +1652,15 @@ async function finalizeSettlement() {
 
 function calculateCurrentSettlement() {
     const totalFletes = pendingTripsForDriver.reduce((sum, t) => sum + (parseFloat(t.monto_flete) || 0), 0);
-    const totalGastos = currentExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
-    const totalDebts = currentDebts.reduce((sum, d) => sum + (parseFloat(d.monto) || 0), 0);
-
     const approvedExpenses = currentExpenses.filter(g => (g.estatus_aprobacion || 'Pendiente') === 'Aprobado');
     const totalGastosAprobados = approvedExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+
+    // totalDebts = A Favor (Resta) - En Contra (Suma)
+    const totalDebts = currentDebts.reduce((sum, d) => {
+        const m = parseFloat(d.monto) || 0;
+        return d.tipo === 'A Favor' ? sum + m : sum - m;
+    }, 0);
+
     const comm = totalFletes * 0.15;
     const neto = comm + totalGastosAprobados - totalDebts;
 
