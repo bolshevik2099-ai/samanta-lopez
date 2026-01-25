@@ -1251,6 +1251,7 @@ async function handleExpenseSubmit(e) {
             kmts_actuales: parseFloat(getVal('Kmts_Actuales')) || 0,
             kmts_recorridos: parseFloat(getVal('Kmts_Recorridos')) || 0,
             forma_pago: formaPago,
+            es_deducible: getVal('Exp_Deducible') || 'Sí',
             estatus_pago: 'Pendiente' // Regla de negocio: Todo nace/renace pendiente de revisión
         };
 
@@ -1399,6 +1400,10 @@ function editExpense(id) {
     if (formaPagoSelect) {
         formaPagoSelect.value = expense.forma_pago;
         toggleAcreedorField(); // Trigger visibility logic
+    }
+
+    if (document.getElementById('Exp_Deducible')) {
+        document.getElementById('Exp_Deducible').value = expense.es_deducible || 'Sí';
     }
 
     if (expense.acreedor_nombre && document.getElementById('Exp_Acreedor')) {
@@ -2523,8 +2528,11 @@ async function loadDriverSettlementDetail(id_chofer) {
     const expList = document.getElementById('set-expenses-list');
     let sumExp = 0;
 
-    // Filtramos SOLO los gastos de Contado/Efectivo (Reembolsables)
-    const reimbursableExpenses = currentExpenses.filter(g => ['Contado', 'Efectivo'].includes(g.forma_pago));
+    // Filtramos SOLO los gastos de Contado/Efectivo QUE SEAN DEDUCIBLES ('Sí')
+    const reimbursableExpenses = currentExpenses.filter(g =>
+        ['Contado', 'Efectivo'].includes(g.forma_pago) &&
+        (g.es_deducible || 'Sí') === 'Sí'
+    );
 
     expList.innerHTML = reimbursableExpenses.map(g => {
         const estAprob = g.estatus_aprobacion || 'Pendiente';
@@ -2745,7 +2753,8 @@ function calculateCurrentSettlement() {
     const totalFletes = pendingTripsForDriver.reduce((sum, t) => sum + (parseFloat(t.monto_flete) || 0), 0);
     const approvedReimbursable = currentExpenses.filter(g =>
         (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
-        ['Contado', 'Efectivo'].includes(g.forma_pago)
+        ['Contado', 'Efectivo'].includes(g.forma_pago) &&
+        (g.es_deducible || 'Sí') === 'Sí'
     );
     const totalGastosAprobados = approvedReimbursable.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
 
