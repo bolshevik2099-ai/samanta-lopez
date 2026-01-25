@@ -1609,31 +1609,83 @@ async function loadCatalog(type) {
         'proveedores': DB_CONFIG.tableProveedores
     };
 
-    catalogData = await fetchSupabaseData(tables[type]);
+    // Parallel fetch: Catalog Data + Expenses (if needed for yield)
+    const promises = [fetchSupabaseData(tables[type])];
+    if (type === 'choferes' || type === 'unidades') {
+        promises.push(fetchSupabaseData(DB_CONFIG.tableGastos));
+    }
+
+    const [data, expenses] = await Promise.all(promises);
+    catalogData = data;
+
     if (loader) loader.classList.add('hidden');
 
-    renderCatalogTable(type, catalogData);
+    renderCatalogTable(type, catalogData, expenses || []);
 }
 
-function renderCatalogTable(type, data) {
+function calculateFuelMetrics(id, type, expenses) {
+    // Filter expenses: Match ID (Driver or Unit) AND has Liters > 0
+    const fuelExpenses = expenses.filter(g =>
+        (parseFloat(g.litros_rellenados) > 0) &&
+        (type === 'choferes' ? g.id_chofer === id : (g.id_unidad === id || g.id_unit_eco === id))
+    );
+
+    if (fuelExpenses.length === 0) return { last: 'N/A', avg: 'N/A' };
+
+    // Sort by Date Descending
+    fuelExpenses.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+    // 1. Last Yield
+    const last = fuelExpenses[0];
+    const lastYield = (parseFloat(last.litros_rellenados) > 0)
+        ? (parseFloat(last.kmts_recorridos) / parseFloat(last.litros_rellenados))
+        : 0;
+
+    // 2. Historical Average
+    const totalKm = fuelExpenses.reduce((sum, g) => sum + (parseFloat(g.kmts_recorridos) || 0), 0);
+    const totalLiters = fuelExpenses.reduce((sum, g) => sum + (parseFloat(g.litros_rellenados) || 0), 0);
+    const avgYield = totalLiters > 0 ? (totalKm / totalLiters) : 0;
+
+    return {
+        last: lastYield.toFixed(2) + ' km/L',
+        avg: avgYield.toFixed(2) + ' km/L'
+    };
+}
+
+function renderCatalogTable(type, data, expenses = []) {
     const thead = document.getElementById('catalog-table-head');
     const tbody = document.getElementById('catalog-table-body');
     if (!thead || !tbody) return;
 
     const config = {
         'choferes': {
-            headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada'],
-            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_chofer}</td>
+            headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada', 'Rendimiento (Último / Promedio)'],
+            row: d => {
+                const metrics = calculateFuelMetrics(d.id_chofer, 'choferes', expenses);
+                return `<td class="px-6 py-4 font-bold text-slate-800">${d.id_chofer}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre}</td>
                        <td class="px-6 py-4 text-slate-500">${d.licencia || '-'}</td>
-                       <td class="px-6 py-4 text-blue-600 font-bold">${d.id_unidad || '<span class="text-slate-300 font-normal">Sin asignar</span>'}</td>`
+                       <td class="px-6 py-4 text-blue-600 font-bold">${d.id_unidad || '<span class="text-slate-300 font-normal">Sin asignar</span>'}</td>
+                       <td class="px-6 py-4">
+                           <div class="text-xs font-bold text-slate-700">Últ: ${metrics.last}</div>
+                           <div class="text-[10px] text-slate-500">Prom: ${metrics.avg}</div>
+                       </td>`;
+            }
         },
         'unidades': {
-            headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado'],
-            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_unidad}</td>
+            headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado', 'Rendimiento (Último / Promedio)'],
+            row: d => {
+                const id = d.id_unidad; // Use ECO ID usually
+                const metrics = calculateFuelMetrics(id, 'unidades', expenses);
+                return `<td class="px-6 py-4 font-bold text-slate-800">${d.id_unidad}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre_unidad}</td>
                        <td class="px-6 py-4 text-slate-500">${d.placas || '-'}</td>
-                       <td class="px-6 py-4 text-green-600 font-bold">${d.id_chofer || '<span class="text-slate-300 font-normal">Sin asignar</span>'}</td>`
+                       <td class="px-6 py-4 text-green-600 font-bold">${d.id_chofer || '<span class="text-slate-300 font-normal">Sin asignar</span>'}</td>
+                       <td class="px-6 py-4">
+                           <div class="text-xs font-bold text-slate-700">Últ: ${metrics.last}</div>
+                           <div class="text-[10px] text-slate-500">Prom: ${metrics.avg}</div>
+                       </td>`;
+            }
         },
         'clientes': {
             headers: ['Nombre', 'RFC/Razón Social', 'Contacto'],
