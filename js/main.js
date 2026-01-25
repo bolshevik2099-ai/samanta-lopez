@@ -2175,9 +2175,14 @@ async function markTripAsPaid(id_viaje) {
 }
 
 async function loadActorOptions() {
-    const type = document.getElementById('acc-actor-type').value;
+    const typeEl = document.getElementById('acc-actor-type');
+    if (!typeEl) return; // Salir si no existe el selector de tipo (HTML simplificado)
+
+    const type = typeEl.value;
     const select = document.getElementById('acc-actor');
     const manualInput = document.getElementById('acc-actor-manual');
+
+    if (!select || !manualInput) return;
 
     select.innerHTML = '<option value="">Cargando...</option>';
     manualInput.classList.add('hidden');
