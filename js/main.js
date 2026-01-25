@@ -183,9 +183,27 @@ async function renderGenericDetail(table, idCol, id, titleText) {
         let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
         for (const [key, value] of Object.entries(data)) {
             if (key === 'created_at' || value === null) continue;
+
+            const label = key.replace(/_/g, ' ');
+
+            // Image Rendering Logic
+            if (['ticket_foto', 'foto_tacometro', 'ticket_url'].includes(key)) {
+                const url = window.supabaseClient.storage.from('tickets-gastos').getPublicUrl(value).data.publicUrl;
+                html += `
+                    <div class="border-b border-slate-50 pb-2 col-span-2 md:col-span-1">
+                        <label class="block text-[10px] uppercase font-black text-slate-400 mb-1">${label}</label>
+                        <img src="${url}" alt="${label}" 
+                            class="w-full h-32 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-90 transition-opacity"
+                            onclick="window.open('${url}', '_blank')">
+                        <div class="mt-1 text-[10px] text-blue-500 cursor-pointer" onclick="window.open('${url}', '_blank')"><i class="fas fa-external-link-alt"></i> Ver pantalla completa</div>
+                    </div>
+                `;
+                continue;
+            }
+
             html += `
                 <div class="border-b border-slate-50 pb-2">
-                    <label class="block text-[10px] uppercase font-black text-slate-400 mb-1">${key.replace(/_/g, ' ')}</label>
+                    <label class="block text-[10px] uppercase font-black text-slate-400 mb-1">${label}</label>
                     <div class="text-sm font-semibold text-slate-800">${value}</div>
                 </div>
             `;
@@ -1270,7 +1288,7 @@ async function handleExpenseSubmit(e) {
                 .from('tickets-gastos')
                 .upload(fileName, file);
             if (uploadError) throw uploadError;
-            expenseData.ticket_url = fileName;
+            expenseData.ticket_foto = fileName; // Corrected column name
         }
 
         let error;
@@ -2531,7 +2549,7 @@ async function loadDriverSettlementDetail(id_chofer) {
     // Filtramos SOLO los gastos de Contado/Efectivo QUE SEAN DEDUCIBLES ('Sí')
     const reimbursableExpenses = currentExpenses.filter(g =>
         ['Contado', 'Efectivo'].includes(g.forma_pago) &&
-        (g.es_deducible || 'Sí') === 'Sí'
+        String(g.es_deducible || 'Sí').trim() === 'Sí'
     );
 
     expList.innerHTML = reimbursableExpenses.map(g => {
