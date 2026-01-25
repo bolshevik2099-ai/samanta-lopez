@@ -95,38 +95,363 @@ function showDetailModal(type, id) {
     let tableName = '';
     let idCol = '';
 
+    // Dispatch to specialized renderers
     switch (type) {
-        case 'viajes': tableName = DB_CONFIG.tableViajes; idCol = 'id_viaje'; title.innerText = 'Detalle de Viaje: ' + id; break;
-        case 'choferes': tableName = DB_CONFIG.tableChoferes; idCol = 'id_chofer'; title.innerText = 'Detalle de Chofer'; break;
-        case 'unidades': tableName = DB_CONFIG.tableUnidades; idCol = 'id_unidad'; title.innerText = 'Detalle de Unidad'; break;
-        case 'clientes': tableName = DB_CONFIG.tableClientes; idCol = 'nombre_cliente'; title.innerText = 'Detalle de Cliente'; break;
-        case 'proveedores': tableName = DB_CONFIG.tableProveedores; idCol = 'id_proveedor'; title.innerText = 'Detalle de Proveedor'; break;
-        case 'gastos': tableName = DB_CONFIG.tableGastos; idCol = 'id_gasto'; title.innerText = 'Detalle de Gasto'; break;
-        case 'liquidaciones': showEnhancedSettlement(id); return; // Special case
+        case 'viajes':
+            // Keep generic for simple trip detail or enhance later
+            renderGenericDetail(DB_CONFIG.tableViajes, 'id_viaje', id, 'Detalle de Viaje');
+            break;
+        case 'choferes':
+            renderDriverDetail(id);
+            break;
+        case 'unidades':
+            renderUnitDetail(id);
+            break;
+        case 'clientes':
+            renderClientDetail(id);
+            break;
+        case 'proveedores':
+            renderProviderDetail(id);
+            break;
+        case 'gastos':
+            renderGenericDetail(DB_CONFIG.tableGastos, 'id_gasto', id, 'Detalle de Gasto');
+            break;
+        case 'liquidaciones':
+            showEnhancedSettlement(id);
+            break;
+        default:
+            content.innerHTML = '<p class="text-center text-slate-500">Tipo de detalle no soportado.</p>';
     }
+}
 
-    if (!tableName) return;
+// --- SPECIALIZED DETAIL RENDERERS ---
 
-    window.supabaseClient.from(tableName).select('*').eq(idCol, id).single()
-        .then(({ data, error }) => {
-            if (error) throw error;
+async function renderGenericDetail(table, idCol, id, titleText) {
+    const content = document.getElementById('modal-content');
+    const title = document.getElementById('modal-title');
+    if (title) title.innerText = titleText + ': ' + id;
 
-            let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
-            for (const [key, value] of Object.entries(data)) {
-                if (key === 'created_at' || value === null) continue;
-                html += `
-                    <div class="border-b border-slate-50 pb-2">
-                        <label class="block text-[10px] uppercase font-black text-slate-400 mb-1">${key.replace(/_/g, ' ')}</label>
-                        <div class="text-sm font-semibold text-slate-800">${value}</div>
+    try {
+        const { data, error } = await window.supabaseClient.from(table).select('*').eq(idCol, id).single();
+        if (error) throw error;
+
+        let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
+        for (const [key, value] of Object.entries(data)) {
+            if (key === 'created_at' || value === null) continue;
+            html += `
+                <div class="border-b border-slate-50 pb-2">
+                    <label class="block text-[10px] uppercase font-black text-slate-400 mb-1">${key.replace(/_/g, ' ')}</label>
+                    <div class="text-sm font-semibold text-slate-800">${value}</div>
+                </div>
+            `;
+        }
+        html += '</div>';
+        content.innerHTML = html;
+    } catch (err) {
+        content.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-lg text-sm font-bold">Error: ${err.message}</div>`;
+    }
+}
+
+async function renderDriverDetail(id) {
+    const content = document.getElementById('modal-content');
+    const title = document.getElementById('modal-title');
+    title.innerText = 'Perfil de Chofer: ' + id;
+
+    try {
+        // Parallel Fetch: Driver Info + Recent Trips
+        const [driverReq, tripsReq] = await Promise.all([
+            window.supabaseClient.from(DB_CONFIG.tableChoferes).select('*').eq('id_chofer', id).single(),
+            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_chofer', id).order('fecha', { ascending: false }).limit(10)
+        ]);
+
+        if (driverReq.error) throw driverReq.error;
+        const driver = driverReq.data;
+        const trips = tripsReq.data || [];
+
+        // Calculate Stats
+        const totalTrips = trips.length;
+        const totalEarned = trips.reduce((sum, t) => sum + (parseFloat(t.comision_chofer) || 0), 0);
+
+        content.innerHTML = `
+            <div class="space-y-6">
+                <!-- Header Card -->
+                <div class="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-6 text-white shadow-lg">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h2 class="text-2xl font-bold">${driver.nombre}</h2>
+                            <p class="text-blue-200 text-sm"><i class="fas fa-id-card mr-2"></i>Licencia: ${driver.num_licencia || 'N/A'}</p>
+                            <p class="text-blue-200 text-sm"><i class="fas fa-phone mr-2"></i>${driver.telefono || 'Sin teléfono'}</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="bg-blue-500/30 px-3 py-1 rounded-full text-xs font-bold border border-blue-400/30">${driver.estatus || 'Activo'}</span>
+                        </div>
                     </div>
-                `;
-            }
-            html += '</div>';
-            content.innerHTML = html;
-        })
-        .catch(err => {
-            content.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-lg text-sm font-bold">Error: ${err.message}</div>`;
-        });
+                    <div class="mt-6 grid grid-cols-3 gap-4 border-t border-blue-500/30 pt-4">
+                        <div>
+                            <p class="text-xs text-blue-300 uppercase font-bold">Viajes (Recientes)</p>
+                            <p class="text-xl font-bold">${totalTrips}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-blue-300 uppercase font-bold">Comisiones (Visible)</p>
+                            <p class="text-xl font-bold">$${totalEarned.toLocaleString()}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-blue-300 uppercase font-bold">Cuenta Banco</p>
+                            <p class="text-sm font-mono">${driver.cuenta_clabe || '---'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trips History -->
+                <div class="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 bg-slate-100 flex justify-between items-center">
+                        <h3 class="font-bold text-slate-700 text-sm">Historial de Viajes</h3>
+                    </div>
+                    <div class="max-h-[300px] overflow-y-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-xs text-slate-400 uppercase font-bold sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-2">Fecha</th>
+                                    <th class="px-4 py-2">Ruta</th>
+                                    <th class="px-4 py-2 text-right">Comisión</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200">
+                                ${trips.map(t => `
+                                    <tr class="hover:bg-white transition-colors">
+                                        <td class="px-4 py-2 text-slate-600">${t.fecha}</td>
+                                        <td class="px-4 py-2 font-medium text-slate-800">${t.origen} -> ${t.destino}</td>
+                                        <td class="px-4 py-2 text-right text-green-600 font-bold">$${(parseFloat(t.comision_chofer) || 0).toLocaleString()}</td>
+                                    </tr>
+                                `).join('')}
+                                ${trips.length === 0 ? '<tr><td colspan="3" class="p-4 text-center text-slate-400 italic">Sin viajes recientes</td></tr>' : ''}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+
+    } catch (err) {
+        content.innerHTML = `<div class="p-4 bg-red-100 text-red-600 rounded-lg font-bold">Error cargando chofer: ${err.message}</div>`;
+    }
+}
+
+async function renderClientDetail(id) {
+    // id comes as 'nombre_cliente' in current logic, need to be careful if it's ID or Name.
+    // Based on showDetailModal: idCol = 'nombre_cliente' for clientes.
+    const content = document.getElementById('modal-content');
+    document.getElementById('modal-title').innerText = 'Cliente: ' + id;
+
+    try {
+        const [clientReq, tripsReq] = await Promise.all([
+            window.supabaseClient.from(DB_CONFIG.tableClientes).select('*').eq('nombre_cliente', id).single(),
+            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('cliente', id).order('fecha', { ascending: false }).limit(10)
+        ]);
+
+        if (clientReq.error) throw clientReq.error;
+        const client = clientReq.data;
+        const trips = tripsReq.data || [];
+        const totalRevenue = trips.reduce((sum, t) => sum + (parseFloat(t.monto_flete) || 0), 0);
+
+        content.innerHTML = `
+             <div class="space-y-6">
+                <!-- Header -->
+                <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600 text-2xl">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-800">${client.nombre_cliente}</h2>
+                            <p class="text-slate-500 text-sm"><i class="fas fa-map-marker-alt mr-1"></i> ${client.direccion || 'Sin dirección'}</p>
+                            <p class="text-slate-500 text-sm"><i class="fas fa-envelope mr-1"></i> ${client.email || 'Sin email'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-green-50 p-4 rounded-xl border border-green-100 text-center">
+                        <p class="text-xs text-green-600 uppercase font-bold">Fletes (Recientes)</p>
+                        <p class="text-2xl font-black text-green-700">$${totalRevenue.toLocaleString()}</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                        <p class="text-xs text-blue-600 uppercase font-bold">Viajes Registrados</p>
+                        <p class="text-2xl font-black text-blue-700">${trips.length}</p>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                    <div class="p-3 bg-slate-100 border-b border-slate-200 font-bold text-slate-600 text-xs uppercase">
+                        Últimos Envios
+                    </div>
+                    <div class="max-h-[250px] overflow-y-auto">
+                        <table class="w-full text-sm">
+                            <thead class="text-xs text-slate-400 uppercase bg-slate-50 sticky top-0">
+                                <tr><th class="px-4 py-2 text-left">Fecha</th><th class="px-4 py-2 text-left">Origen/Destino</th><th class="px-4 py-2 text-right">Monto</th></tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${trips.map(t => `
+                                    <tr>
+                                        <td class="px-4 py-2 text-slate-500">${t.fecha}</td>
+                                        <td class="px-4 py-2 text-slate-700 font-medium">${t.origen} <i class="fas fa-arrow-right text-[10px] mx-1"></i> ${t.destino}</td>
+                                        <td class="px-4 py-2 text-right font-bold text-slate-800">$${parseFloat(t.monto_flete).toLocaleString()}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        content.innerHTML = `<div class="p-4 bg-red-100 text-red-600">Error: ${e.message}</div>`;
+    }
+}
+
+async function renderUnitDetail(id) {
+    const content = document.getElementById('modal-content');
+    document.getElementById('modal-title').innerText = 'Unidad: ' + id;
+
+    try {
+        const [unitReq, expensesReq] = await Promise.all([
+            window.supabaseClient.from(DB_CONFIG.tableUnidades).select('*').eq('id_unidad', id).single(),
+            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_unidad', id).order('fecha', { ascending: false }).limit(10)
+        ]);
+
+        if (unitReq.error) throw unitReq.error;
+        const unit = unitReq.data;
+        const expenses = expensesReq.data || [];
+        const totalExpenses = expenses.reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0);
+
+        content.innerHTML = `
+            <div class="space-y-6">
+                <!-- Card -->
+                <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
+                    <div class="relative z-10 flex justify-between items-start">
+                        <div>
+                            <h2 class="text-3xl font-black text-white">${unit.id_unidad}</h2>
+                            <p class="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">
+                                ${unit.marca || 'Marca N/A'} ${unit.modelo || ''}
+                            </p>
+                            <div class="mt-4 flex gap-4 text-sm text-slate-300">
+                                <span><i class="fas fa-barcode mr-2"></i>${unit.placas || 'Sin Placas'}</span>
+                                <span><i class="fas fa-gas-pump mr-2"></i>${unit.tipo_combustible || 'Diesel'}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                             <p class="text-xs text-slate-400 uppercase font-bold">Gastos (Recientes)</p>
+                             <p class="text-2xl font-bold text-red-400">$${totalExpenses.toLocaleString()}</p>
+                        </div>
+                    </div>
+                    <!-- Decoratve Icon -->
+                    <i class="fas fa-truck absolute -bottom-4 -right-4 text-9xl text-slate-700 opacity-50 transform -rotate-12"></i>
+                </div>
+
+                <!-- Expenses Log -->
+                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div class="p-4 border-b border-slate-100 font-bold text-slate-800 flex justify-between items-center">
+                        <span><i class="fas fa-wrench text-slate-400 mr-2"></i>Historial de Mantenimiento y Combustible</span>
+                    </div>
+                    <div class="max-h-[300px] overflow-y-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
+                                <tr><th class="px-4 py-2">Fecha</th><th class="px-4 py-2">Concepto</th><th class="px-4 py-2 text-right">Monto</th></tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${expenses.map(e => `
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-4 py-2 text-slate-500">${e.fecha}</td>
+                                        <td class="px-4 py-2 font-medium text-slate-700">
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${e.concepto === 'Diesel' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">
+                                                ${e.concepto}
+                                            </span>
+                                            ${e.kmts_actuales ? `<span class="text-xs text-slate-400 ml-2">Km: ${e.kmts_actuales}</span>` : ''}
+                                        </td>
+                                        <td class="px-4 py-2 text-right font-bold text-red-500">-$${parseFloat(e.monto).toLocaleString()}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        content.innerHTML = `<div class="text-red-500 font-bold p-4">Error: ${e.message}</div>`;
+    }
+}
+
+async function renderProviderDetail(id) {
+    const content = document.getElementById('modal-content');
+    document.getElementById('modal-title').innerText = 'Proveedor: ' + id;
+
+    try {
+        // NOTE: Searching expenses by 'acreedor_nombre' might happen if we link them, 
+        // but currently expenses don't strictly enforce foreign key to providers table in all logic. 
+        // We will try to filter expenses where 'acreedor_nombre' matches the provider ID (which is numeric) OR provider name.
+        // For now, let's assume we link by ID if provided, or name. 
+        // In the catalog click, 'id' is likely the PK (id_proveedor).
+
+        const { data: provider, error: pErr } = await window.supabaseClient.from(DB_CONFIG.tableProveedores).select('*').eq('id_proveedor', id).single();
+        if (pErr) throw pErr;
+
+        // Try to fetch expenses where acreedor_nombre matches provider name
+        // (This relies on string matching which might be brittle but is "smart" for this context)
+        const { data: expenses, error: eErr } = await window.supabaseClient
+            .from(DB_CONFIG.tableGastos)
+            .select('*')
+            .eq('acreedor_nombre', provider.nombre_proveedor)
+            .order('fecha', { ascending: false })
+            .limit(10);
+
+        const expenseList = expenses || [];
+        const total = expenseList.reduce((acc, curr) => acc + (parseFloat(curr.monto) || 0), 0);
+
+        content.innerHTML = `
+            <div class="space-y-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-6">
+                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
+                        <i class="fas fa-hands-helping text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">${provider.nombre_proveedor}</h2>
+                        <p class="text-slate-500 font-mono text-xs mt-1">ID: ${provider.id_proveedor}</p>
+                        <p class="text-slate-500 text-sm mt-1">${provider.contacto || 'Sin contacto'}</p>
+                    </div>
+                    <div class="ml-auto text-right">
+                         <p class="text-[10px] uppercase font-bold text-slate-400">Total Compras</p>
+                         <p class="text-2xl font-bold text-purple-600">$${total.toLocaleString()}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                    <div class="p-4 bg-slate-50 font-bold text-slate-600 border-b border-slate-200">Historial de Compras/Pagos</div>
+                    <div class="max-h-[300px] overflow-y-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-slate-400 uppercase font-bold bg-slate-50">
+                                <tr><th class="px-4 py-3">Fecha</th><th class="px-4 py-3">Concepto</th><th class="px-4 py-3 text-right">Total</th></tr>
+                            </thead>
+                             <tbody class="divide-y divide-slate-100">
+                                ${expenseList.map(e => `
+                                    <tr>
+                                        <td class="px-4 py-2 text-slate-500">${e.fecha}</td>
+                                        <td class="px-4 py-2 font-medium text-slate-700">${e.concepto}</td>
+                                        <td class="px-4 py-2 text-right font-bold text-slate-800">$${parseFloat(e.monto).toLocaleString()}</td>
+                                    </tr>
+                                `).join('')}
+                                ${expenseList.length === 0 ? '<tr><td colspan="3" class="p-8 text-center text-slate-400 italic">No se encontraron pagos asociados a este nombre de proveedor.</td></tr>' : ''}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+
+    } catch (e) {
+        content.innerHTML = `<div class="p-4 text-red-500 font-bold">Error: ${e.message}</div>`;
+    }
 }
 
 function closeDetailModal() {
