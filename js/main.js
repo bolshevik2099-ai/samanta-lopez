@@ -1020,72 +1020,56 @@ function renderAdvancedCharts(viajesData, gastosData) {
     });
 
     // 4. Eficiencia de Combustible (Yield)
-    const dieselExpenses = gastosData.filter(g => g.concepto === 'Diesel' && g.id_unidad);
-    const { unitYields, fleetAvg } = calculateFleetEfficiency(dieselExpenses);
-
-    const kpiEl = document.getElementById('period-rendimiento');
-    if (kpiEl) {
-        kpiEl.innerHTML = `${fleetAvg.toFixed(2)} <span class="text-sm font-bold text-slate-500">km/l</span>`;
-    }
+    // Filter expenses containing fuel charges (litros_rellenados > 0)
+    const fuelExpenses = gastosData.filter(g => parseFloat(g.litros_rellenados) > 0 && g.id_unidad);
+    const { unitYields, fleetAvg } = calculateFleetEfficiency(fuelExpenses);
 
     const sortedYields = Object.entries(unitYields)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
+        .sort((a, b) => b[1] - a[1]) // Sort high to low
+        .slice(0, 8); // Top 8 units
 
     renderChartInstance('yieldChart', 'bar', {
-        indexAxis: 'y',
+        indexAxis: 'y', // Horizontal bars
         labels: sortedYields.map(u => u[0]),
         datasets: [{
-            label: 'Rendimiento (km/l)',
+            label: 'Km/L',
             data: sortedYields.map(u => u[1]),
-            backgroundColor: 'rgba(245, 158, 11, 0.7)',
-            borderColor: 'rgba(245, 158, 11, 1)',
+            backgroundColor: 'rgba(147, 51, 234, 0.7)', // Purple
+            borderColor: 'rgba(147, 51, 234, 1)',
             borderWidth: 1
         }]
     });
 }
 
-function calculateFleetEfficiency(dieselExpenses) {
+function calculateFleetEfficiency(expenses) {
     const unitGroups = {};
-    dieselExpenses.forEach(e => {
-        if (!unitGroups[e.id_unidad]) unitGroups[e.id_unidad] = [];
-        unitGroups[e.id_unidad].push(e);
+    expenses.forEach(e => {
+        if (!unitGroups[e.id_unidad]) unitGroups[e.id_unidad] = { km: 0, lts: 0 };
+        unitGroups[e.id_unidad].km += (parseFloat(e.kmts_recorridos) || 0);
+        unitGroups[e.id_unidad].lts += (parseFloat(e.litros_rellenados) || 0);
     });
 
     const unitYields = {};
-    let totalYieldSum = 0;
-    let validCount = 0;
+    let totalKm = 0;
+    let totalLts = 0;
 
-    for (const unitId in unitGroups) {
-        const sorted = unitGroups[unitId].sort((a, b) => (parseFloat(a.kmts_actuales) || 0) - (parseFloat(b.kmts_actuales) || 0));
-        let sumY = 0;
-        let countY = 0;
-
-        for (let i = 1; i < sorted.length; i++) {
-            const km1 = parseFloat(sorted[i - 1].kmts_actuales) || 0;
-            const km2 = parseFloat(sorted[i].kmts_actuales) || 0;
-            const lts = parseFloat(sorted[i].litros) || 0;
-
-            if (km2 > km1 && lts > 0) {
-                const y = (km2 - km1) / lts;
-                if (y > 0.5 && y < 15) {
-                    sumY += y;
-                    countY++;
-                }
+    for (const [unit, data] of Object.entries(unitGroups)) {
+        if (data.lts > 0) {
+            const yieldVal = data.km / data.lts;
+            // Basic sanity check: 0.5 < yield < 15 km/l to avoid bad data outliers
+            if (yieldVal > 0.5 && yieldVal < 15) {
+                unitYields[unit] = parseFloat(yieldVal.toFixed(2));
+                totalKm += data.km;
+                totalLts += data.lts;
             }
-        }
-
-        if (countY > 0) {
-            const avg = sumY / countY;
-            unitYields[unitId] = avg;
-            totalYieldSum += avg;
-            validCount++;
         }
     }
 
+    const fleetAvg = totalLts > 0 ? (totalKm / totalLts) : 0;
+
     return {
         unitYields,
-        fleetAvg: validCount > 0 ? (totalYieldSum / validCount) : 0
+        fleetAvg
     };
 }
 
