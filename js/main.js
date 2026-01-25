@@ -462,130 +462,131 @@ async function enviarGasto(e) {
         btn.disabled = false;
         if (typeof originalText !== 'undefined') btn.innerHTML = originalText;
     }
+}
 
-    function checkAuth() {
-        const session = localStorage.getItem('crm_session');
-        return session ? JSON.parse(session) : null;
-    }
+function checkAuth() {
+    const session = localStorage.getItem('crm_session');
+    return session ? JSON.parse(session) : null;
+}
 
-    // --- INICIALIZACIÓN DE FORMULARIOS ---
+// --- INICIALIZACIÓN DE FORMULARIOS ---
 
-    async function initFormCatalogs() {
-        const selects = {
-            'V_ID_Unidad': DB_CONFIG.tableUnidades,
-            'V_ID_Chofer': DB_CONFIG.tableChoferes,
-            'V_Cliente': DB_CONFIG.tableClientes,
-            'ID_Unidad': DB_CONFIG.tableUnidades,
-            'ID_Chofer': DB_CONFIG.tableChoferes,
-            'acc-id-viaje-cta': DB_CONFIG.tableViajes
-        };
+async function initFormCatalogs() {
+    const selects = {
+        'V_ID_Unidad': DB_CONFIG.tableUnidades,
+        'V_ID_Chofer': DB_CONFIG.tableChoferes,
+        'V_Cliente': DB_CONFIG.tableClientes,
+        'ID_Unidad': DB_CONFIG.tableUnidades,
+        'ID_Chofer': DB_CONFIG.tableChoferes,
+        'acc-id-viaje-cta': DB_CONFIG.tableViajes
+    };
 
-        for (const [id, table] of Object.entries(selects)) {
-            const el = document.getElementById(id);
-            if (!el) continue;
+    for (const [id, table] of Object.entries(selects)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
 
-            try {
-                const data = await fetchSupabaseData(table);
-                const activeData = data.filter(item => (item.estatus || 'Activo') === 'Activo');
+        try {
+            const data = await fetchSupabaseData(table);
+            const activeData = data.filter(item => (item.estatus || 'Activo') === 'Activo');
 
-                // Texto por defecto vacío o "Selecciona"
-                el.innerHTML = `<option value="">-- Selecciona una opción --</option>`;
+            // Texto por defecto vacío o "Selecciona"
+            el.innerHTML = `<option value="">-- Selecciona una opción --</option>`;
 
-                activeData.forEach(item => {
-                    let text = '';
-                    let val = '';
+            activeData.forEach(item => {
+                let text = '';
+                let val = '';
 
-                    if (table === DB_CONFIG.tableUnidades) {
-                        text = `${item.id_unidad} (${item.nombre_unidad || 'Sin nombre'})`;
-                        val = item.id_unidad;
-                    } else if (table === DB_CONFIG.tableChoferes) {
-                        text = `${item.nombre} [${item.id_chofer}]`;
-                        val = item.id_chofer;
-                    } else if (table === DB_CONFIG.tableClientes) {
-                        text = item.nombre_cliente;
-                        val = item.nombre_cliente;
-                    } else if (table === DB_CONFIG.tableViajes) {
-                        text = `${item.id_viaje} - ${item.cliente}`;
-                        val = item.id_viaje;
-                    }
+                if (table === DB_CONFIG.tableUnidades) {
+                    text = `${item.id_unidad} (${item.nombre_unidad || 'Sin nombre'})`;
+                    val = item.id_unidad;
+                } else if (table === DB_CONFIG.tableChoferes) {
+                    text = `${item.nombre} [${item.id_chofer}]`;
+                    val = item.id_chofer;
+                } else if (table === DB_CONFIG.tableClientes) {
+                    text = item.nombre_cliente;
+                    val = item.nombre_cliente;
+                } else if (table === DB_CONFIG.tableViajes) {
+                    text = `${item.id_viaje} - ${item.cliente}`;
+                    val = item.id_viaje;
+                }
 
-                    if (val) el.innerHTML += `<option value="${val}">${text}</option>`;
-                });
-            } catch (err) {
-                console.error(`Error cargando catálogo para ${id}:`, err);
-                el.innerHTML = `<option value="">Error al cargar datos</option>`;
-            }
-        }
-
-        // Auto-generar ID de Viaje al iniciar
-        generateTripID();
-    }
-
-    function generateTripID() {
-        const el = document.getElementById('V_ID_Viaje');
-        if (!el) return;
-        const now = new Date();
-        const datePart = now.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
-        const randomPart = Math.random().toString(36).substring(2, 5).toUpperCase();
-        el.value = `V-${datePart}-${randomPart}`;
-    }
-
-    // Re-vincular al abrir el formulario de Viaje
-    function showSection(sectionId) {
-        document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
-        document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
-
-        const section = document.getElementById('section-' + sectionId);
-        const nav = document.getElementById('nav-' + sectionId);
-
-        if (section) section.classList.remove('hidden');
-        if (nav) nav.classList.add('active');
-
-        if (section) section.classList.remove('hidden');
-        if (nav) nav.classList.add('active');
-
-        // Refrescar catálogos al entrar a secciones relevantes
-        if (['viajes', 'gastos', 'tesoreria', 'liquidaciones'].includes(sectionId)) {
-            initFormCatalogs();
-        }
-    }
-    // --- LÓGICA DE LISTADOS Y BÚSQUEDA ---
-
-    function toggleSectionView(section, view) {
-        const listView = document.getElementById(`${section}-list-view`);
-        const formView = document.getElementById(`${section}-form-view`);
-        if (!listView || !formView) return;
-
-        if (view === 'list') {
-            listView.classList.remove('hidden');
-            formView.classList.add('hidden');
-        } else {
-            listView.classList.add('hidden');
-            formView.classList.remove('hidden');
-        }
-
-        // Auto-reset forms on toggle if needed
-        if (view === 'form' && section === 'tesoreria') {
-            document.getElementById('account-form')?.reset();
+                if (val) el.innerHTML += `<option value="${val}">${text}</option>`;
+            });
+        } catch (err) {
+            console.error(`Error cargando catálogo para ${id}:`, err);
+            el.innerHTML = `<option value="">Error al cargar datos</option>`;
         }
     }
 
-    async function loadTripsList() {
-        const loader = document.getElementById('trips-loader');
-        const tbody = document.getElementById('trips-table-body');
-        if (loader) loader.classList.remove('hidden');
-        if (tbody) tbody.innerHTML = '';
+    // Auto-generar ID de Viaje al iniciar
+    generateTripID();
+}
 
-        allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
+function generateTripID() {
+    const el = document.getElementById('V_ID_Viaje');
+    if (!el) return;
+    const now = new Date();
+    const datePart = now.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
+    const randomPart = Math.random().toString(36).substring(2, 5).toUpperCase();
+    el.value = `V-${datePart}-${randomPart}`;
+}
 
-        if (loader) loader.classList.add('hidden');
-        renderTripsTable(allTripsData);
+// Re-vincular al abrir el formulario de Viaje
+function showSection(sectionId) {
+    document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+
+    const section = document.getElementById('section-' + sectionId);
+    const nav = document.getElementById('nav-' + sectionId);
+
+    if (section) section.classList.remove('hidden');
+    if (nav) nav.classList.add('active');
+
+    if (section) section.classList.remove('hidden');
+    if (nav) nav.classList.add('active');
+
+    // Refrescar catálogos al entrar a secciones relevantes
+    if (['viajes', 'gastos', 'tesoreria', 'liquidaciones'].includes(sectionId)) {
+        initFormCatalogs();
+    }
+}
+// --- LÓGICA DE LISTADOS Y BÚSQUEDA ---
+
+function toggleSectionView(section, view) {
+    const listView = document.getElementById(`${section}-list-view`);
+    const formView = document.getElementById(`${section}-form-view`);
+    if (!listView || !formView) return;
+
+    if (view === 'list') {
+        listView.classList.remove('hidden');
+        formView.classList.add('hidden');
+    } else {
+        listView.classList.add('hidden');
+        formView.classList.remove('hidden');
     }
 
-    function renderTripsTable(data) {
-        const tbody = document.getElementById('trips-table-body');
-        if (!tbody) return;
-        tbody.innerHTML = data.map(v => `
+    // Auto-reset forms on toggle if needed
+    if (view === 'form' && section === 'tesoreria') {
+        document.getElementById('account-form')?.reset();
+    }
+}
+
+async function loadTripsList() {
+    const loader = document.getElementById('trips-loader');
+    const tbody = document.getElementById('trips-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
+
+    allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
+
+    if (loader) loader.classList.add('hidden');
+    renderTripsTable(allTripsData);
+}
+
+function renderTripsTable(data) {
+    const tbody = document.getElementById('trips-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(v => `
         <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4">
                 <div class="font-bold text-slate-800 text-sm">${v.id_viaje}</div>
@@ -615,251 +616,251 @@ async function enviarGasto(e) {
             </td>
         </tr>
     `).join('');
-    }
+}
 
-    function filterTrips(query) {
-        const q = query.toLowerCase();
-        const filtered = allTripsData.filter(v =>
-            String(v.id_viaje).toLowerCase().includes(q) ||
-            String(v.cliente).toLowerCase().includes(q) ||
-            String(v.id_chofer).toLowerCase().includes(q) ||
-            String(v.id_unidad).toLowerCase().includes(q)
-        );
-        renderTripsTable(filtered);
-    }
+function filterTrips(query) {
+    const q = query.toLowerCase();
+    const filtered = allTripsData.filter(v =>
+        String(v.id_viaje).toLowerCase().includes(q) ||
+        String(v.cliente).toLowerCase().includes(q) ||
+        String(v.id_chofer).toLowerCase().includes(q) ||
+        String(v.id_unidad).toLowerCase().includes(q)
+    );
+    renderTripsTable(filtered);
+}
 
-    // --- CATALOG MANAGEMENT LOGIC ---
-    let currentCatalog = 'choferes';
-    let catalogData = [];
+// --- CATALOG MANAGEMENT LOGIC ---
+let currentCatalog = 'choferes';
+let catalogData = [];
 
-    function switchCatalogTab(type) {
-        currentCatalog = type;
-        document.querySelectorAll('.catalog-tab').forEach(btn => {
-            btn.classList.remove('bg-blue-600', 'text-white');
-            btn.classList.add('text-slate-500', 'hover:bg-slate-50');
-        });
-        document.getElementById(`tab-${type}`).classList.add('bg-blue-600', 'text-white');
-        document.getElementById(`tab-${type}`).classList.remove('text-slate-500', 'hover:bg-slate-50');
+function switchCatalogTab(type) {
+    currentCatalog = type;
+    document.querySelectorAll('.catalog-tab').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white');
+        btn.classList.add('text-slate-500', 'hover:bg-slate-50');
+    });
+    document.getElementById(`tab-${type}`).classList.add('bg-blue-600', 'text-white');
+    document.getElementById(`tab-${type}`).classList.remove('text-slate-500', 'hover:bg-slate-50');
 
-        const titles = {
-            'choferes': 'Listado de Choferes',
-            'unidades': 'Listado de Unidades',
-            'clientes': 'Listado de Clientes',
-            'proveedores': 'Listado de Proveedores'
-        };
-        document.getElementById('catalog-title').innerText = titles[type];
-        hideCatalogForm();
-        loadCatalog(type);
-    }
+    const titles = {
+        'choferes': 'Listado de Choferes',
+        'unidades': 'Listado de Unidades',
+        'clientes': 'Listado de Clientes',
+        'proveedores': 'Listado de Proveedores'
+    };
+    document.getElementById('catalog-title').innerText = titles[type];
+    hideCatalogForm();
+    loadCatalog(type);
+}
 
-    async function loadCatalog(type) {
-        const loader = document.getElementById('catalog-loader');
-        const tbody = document.getElementById('catalog-table-body');
-        const thead = document.getElementById('catalog-table-head');
+async function loadCatalog(type) {
+    const loader = document.getElementById('catalog-loader');
+    const tbody = document.getElementById('catalog-table-body');
+    const thead = document.getElementById('catalog-table-head');
 
-        if (loader) loader.classList.remove('hidden');
-        if (tbody) tbody.innerHTML = '';
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-        const tables = {
-            'choferes': DB_CONFIG.tableChoferes,
-            'unidades': DB_CONFIG.tableUnidades,
-            'clientes': DB_CONFIG.tableClientes,
-            'proveedores': DB_CONFIG.tableProveedores
-        };
+    const tables = {
+        'choferes': DB_CONFIG.tableChoferes,
+        'unidades': DB_CONFIG.tableUnidades,
+        'clientes': DB_CONFIG.tableClientes,
+        'proveedores': DB_CONFIG.tableProveedores
+    };
 
-        catalogData = await fetchSupabaseData(tables[type]);
-        if (loader) loader.classList.add('hidden');
+    catalogData = await fetchSupabaseData(tables[type]);
+    if (loader) loader.classList.add('hidden');
 
-        renderCatalogTable(type, catalogData);
-    }
+    renderCatalogTable(type, catalogData);
+}
 
-    function renderCatalogTable(type, data) {
-        const thead = document.getElementById('catalog-table-head');
-        const tbody = document.getElementById('catalog-table-body');
-        if (!thead || !tbody) return;
+function renderCatalogTable(type, data) {
+    const thead = document.getElementById('catalog-table-head');
+    const tbody = document.getElementById('catalog-table-body');
+    if (!thead || !tbody) return;
 
-        const config = {
-            'choferes': {
-                headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada'],
-                row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_chofer}</td>
+    const config = {
+        'choferes': {
+            headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_chofer}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre}</td>
                        <td class="px-6 py-4 text-slate-500">${d.licencia || '-'}</td>
                        <td class="px-6 py-4 text-blue-600 font-bold">${d.id_unidad || '<span class="text-slate-300 font-normal">Sin asignar</span>'}</td>`
-            },
-            'unidades': {
-                headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado'],
-                row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_unidad}</td>
+        },
+        'unidades': {
+            headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_unidad}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre_unidad}</td>
                        <td class="px-6 py-4 text-slate-500">${d.placas || '-'}</td>
                        <td class="px-6 py-4 text-green-600 font-bold">${d.id_chofer || '<span class="text-slate-300 font-normal">Sin asignar</span>'}</td>`
-            },
-            'clientes': {
-                headers: ['Nombre', 'RFC/Razón Social', 'Contacto'],
-                row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.nombre_cliente}</td>
+        },
+        'clientes': {
+            headers: ['Nombre', 'RFC/Razón Social', 'Contacto'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.nombre_cliente}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700 text-xs">${d.rfc} / ${d.razon_social}</td>
                        <td class="px-6 py-4 text-slate-500 text-xs">${d.contacto_nombre} <br/> ${d.email}</td>`
-            },
-            'proveedores': {
-                headers: ['ID', 'Proveedor', 'Tipo', 'Teléfono'],
-                row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_proveedor}</td>
+        },
+        'proveedores': {
+            headers: ['ID', 'Proveedor', 'Tipo', 'Teléfono'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_proveedor}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre_proveedor}</td>
                        <td class="px-6 py-4 text-slate-500">${d.tipo_proveedor}</td>
                        <td class="px-6 py-4 text-slate-500">${d.telefono || '-'}</td>`
-            }
-        };
-
-        const c = config[type];
-        thead.innerHTML = `<tr>${c.headers.map(h => `<th class="px-6 py-4">${h}</th>`).join('')}</tr>`;
-
-        if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${c.headers.length}" class="px-6 py-12 text-center text-slate-400 italic">No hay registros aún</td></tr>`;
-            return;
         }
+    };
 
-        tbody.innerHTML = data.map(d => `
-        <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">${c.row(d)}</tr>
-    `).join('');
+    const c = config[type];
+    thead.innerHTML = `<tr>${c.headers.map(h => `<th class="px-6 py-4">${h}</th>`).join('')}</tr>`;
+
+    if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${c.headers.length}" class="px-6 py-12 text-center text-slate-400 italic">No hay registros aún</td></tr>`;
+        return;
     }
 
-    function showCatalogForm() {
-        document.getElementById('catalog-list-view').classList.add('hidden');
-        document.getElementById('catalog-form-view').classList.remove('hidden');
+    tbody.innerHTML = data.map(d => `
+        <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">${c.row(d)}</tr>
+    `).join('');
+}
 
-        const fieldsContainer = document.getElementById('catalog-form-fields');
-        const config = {
-            'choferes': [
-                { id: 'C_ID', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01' },
-                { id: 'C_Nombre', label: 'Nombre Completo', type: 'text', placeholder: 'Nombre Apellido' },
-                { id: 'C_Licencia', label: 'Num. Licencia', type: 'text', placeholder: 'LIC-000' },
-                { id: 'C_Telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
-                { id: 'C_Unidad', label: 'Unidad Asignada (ID ECO)', type: 'text', placeholder: 'ECO-01' }
-            ],
-            'unidades': [
-                { id: 'U_ID', label: 'ID Unidad (ECO)', type: 'text', placeholder: 'ECO-01' },
-                { id: 'U_Nombre', label: 'Nombre/Alias', type: 'text', placeholder: 'Kenworth T680' },
-                { id: 'U_Placas', label: 'Placas', type: 'text', placeholder: '00-AA-00' },
-                { id: 'U_Modelo', label: 'Modelo', type: 'text', placeholder: '2024' },
-                { id: 'U_Marca', label: 'Marca', type: 'text', placeholder: 'Freightliner' },
-                { id: 'U_Chofer', label: 'Chofer Asignado (ID)', type: 'text', placeholder: 'CHO-01' }
-            ],
-            'clientes': [
-                { id: 'CL_ID', label: 'ID Cliente (Opcional)', type: 'text', placeholder: 'CLI-01' },
-                { id: 'CL_Nombre', label: 'Nombre Comercial', type: 'text', placeholder: 'Empresa S.A.' },
-                { id: 'CL_Razon', label: 'Razón Social', type: 'text', placeholder: 'Logística Total S.A. de C.V.' },
-                { id: 'CL_RFC', label: 'RFC', type: 'text', placeholder: 'RFC000000AAA' },
-                { id: 'CL_Contacto', label: 'Nombre de Contacto', type: 'text', placeholder: 'Juan Pérez' },
-                { id: 'CL_Email', label: 'Email', type: 'email', placeholder: 'contacto@empresa.com' },
-                { id: 'CL_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
-            ],
-            'proveedores': [
-                { id: 'P_ID', label: 'ID Proveedor', type: 'text', placeholder: 'PROV-01' },
-                { id: 'P_Nombre', label: 'Nombre/Razón Social', type: 'text', placeholder: 'Gasolinera Plus' },
-                { id: 'P_Tipo', label: 'Tipo Proveedor', type: 'text', placeholder: 'Diesel / Refacciones' },
-                { id: 'P_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
-            ]
-        };
+function showCatalogForm() {
+    document.getElementById('catalog-list-view').classList.add('hidden');
+    document.getElementById('catalog-form-view').classList.remove('hidden');
 
-        fieldsContainer.innerHTML = config[currentCatalog].map(f => `
+    const fieldsContainer = document.getElementById('catalog-form-fields');
+    const config = {
+        'choferes': [
+            { id: 'C_ID', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01' },
+            { id: 'C_Nombre', label: 'Nombre Completo', type: 'text', placeholder: 'Nombre Apellido' },
+            { id: 'C_Licencia', label: 'Num. Licencia', type: 'text', placeholder: 'LIC-000' },
+            { id: 'C_Telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
+            { id: 'C_Unidad', label: 'Unidad Asignada (ID ECO)', type: 'text', placeholder: 'ECO-01' }
+        ],
+        'unidades': [
+            { id: 'U_ID', label: 'ID Unidad (ECO)', type: 'text', placeholder: 'ECO-01' },
+            { id: 'U_Nombre', label: 'Nombre/Alias', type: 'text', placeholder: 'Kenworth T680' },
+            { id: 'U_Placas', label: 'Placas', type: 'text', placeholder: '00-AA-00' },
+            { id: 'U_Modelo', label: 'Modelo', type: 'text', placeholder: '2024' },
+            { id: 'U_Marca', label: 'Marca', type: 'text', placeholder: 'Freightliner' },
+            { id: 'U_Chofer', label: 'Chofer Asignado (ID)', type: 'text', placeholder: 'CHO-01' }
+        ],
+        'clientes': [
+            { id: 'CL_ID', label: 'ID Cliente (Opcional)', type: 'text', placeholder: 'CLI-01' },
+            { id: 'CL_Nombre', label: 'Nombre Comercial', type: 'text', placeholder: 'Empresa S.A.' },
+            { id: 'CL_Razon', label: 'Razón Social', type: 'text', placeholder: 'Logística Total S.A. de C.V.' },
+            { id: 'CL_RFC', label: 'RFC', type: 'text', placeholder: 'RFC000000AAA' },
+            { id: 'CL_Contacto', label: 'Nombre de Contacto', type: 'text', placeholder: 'Juan Pérez' },
+            { id: 'CL_Email', label: 'Email', type: 'email', placeholder: 'contacto@empresa.com' },
+            { id: 'CL_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+        ],
+        'proveedores': [
+            { id: 'P_ID', label: 'ID Proveedor', type: 'text', placeholder: 'PROV-01' },
+            { id: 'P_Nombre', label: 'Nombre/Razón Social', type: 'text', placeholder: 'Gasolinera Plus' },
+            { id: 'P_Tipo', label: 'Tipo Proveedor', type: 'text', placeholder: 'Diesel / Refacciones' },
+            { id: 'P_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+        ]
+    };
+
+    fieldsContainer.innerHTML = config[currentCatalog].map(f => `
         <div>
             <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">${f.label}</label>
             <input type="${f.type}" id="${f.id}" required placeholder="${f.placeholder}"
                 class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all">
         </div>
     `).join('');
-    }
+}
 
-    function hideCatalogForm() {
-        document.getElementById('catalog-list-view').classList.remove('hidden');
-        document.getElementById('catalog-form-view').classList.add('hidden');
-    }
+function hideCatalogForm() {
+    document.getElementById('catalog-list-view').classList.remove('hidden');
+    document.getElementById('catalog-form-view').classList.add('hidden');
+}
 
-    // Inicializar envío del formulario de catálogo
-    document.addEventListener('DOMContentLoaded', () => {
-        const form = document.getElementById('catalog-form');
-        if (form) form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button[type="submit"]');
-            const originalText = btn.innerText;
+// Inicializar envío del formulario de catálogo
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('catalog-form');
+    if (form) form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        const originalText = btn.innerText;
 
-            try {
-                btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
 
-                const getVal = id => document.getElementById(id)?.value || '';
-                let data = {};
-                let table = '';
+            const getVal = id => document.getElementById(id)?.value || '';
+            let data = {};
+            let table = '';
 
-                if (currentCatalog === 'choferes') {
-                    data = {
-                        id_chofer: getVal('C_ID'),
-                        nombre: getVal('C_Nombre'),
-                        licencia: getVal('C_Licencia'),
-                        telefono: getVal('C_Telefono'),
-                        id_unidad: getVal('C_Unidad')
-                    };
-                    table = DB_CONFIG.tableChoferes;
-                } else if (currentCatalog === 'unidades') {
-                    data = {
-                        id_unidad: getVal('U_ID'),
-                        nombre_unidad: getVal('U_Nombre'),
-                        placas: getVal('U_Placas'),
-                        modelo: getVal('U_Modelo'),
-                        marca: getVal('U_Marca'),
-                        id_chofer: getVal('U_Chofer')
-                    };
-                    table = DB_CONFIG.tableUnidades;
-                } else if (currentCatalog === 'clientes') {
-                    data = { id_cliente: getVal('CL_ID') || 'CLI-' + Date.now(), nombre_cliente: getVal('CL_Nombre'), razon_social: getVal('CL_Razon'), rfc: getVal('CL_RFC'), contacto_nombre: getVal('CL_Contacto'), email: getVal('CL_Email'), telefono: getVal('CL_Tel') };
-                    table = DB_CONFIG.tableClientes;
-                } else if (currentCatalog === 'proveedores') {
-                    data = { id_proveedor: getVal('P_ID'), nombre_proveedor: getVal('P_Nombre'), tipo_proveedor: getVal('P_Tipo'), telefono: getVal('P_Tel') };
-                    table = DB_CONFIG.tableProveedores;
-                }
-
-                const { error } = await window.supabaseClient.from(table).insert([data]);
-                if (error) throw error;
-
-                alert('✅ Registro guardado correctamente');
-                hideCatalogForm();
-                loadCatalog(currentCatalog);
-            } catch (err) {
-                console.error('Error al guardar catálogo:', err);
-                alert('❌ Error al guardar: ' + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = originalText;
+            if (currentCatalog === 'choferes') {
+                data = {
+                    id_chofer: getVal('C_ID'),
+                    nombre: getVal('C_Nombre'),
+                    licencia: getVal('C_Licencia'),
+                    telefono: getVal('C_Telefono'),
+                    id_unidad: getVal('C_Unidad')
+                };
+                table = DB_CONFIG.tableChoferes;
+            } else if (currentCatalog === 'unidades') {
+                data = {
+                    id_unidad: getVal('U_ID'),
+                    nombre_unidad: getVal('U_Nombre'),
+                    placas: getVal('U_Placas'),
+                    modelo: getVal('U_Modelo'),
+                    marca: getVal('U_Marca'),
+                    id_chofer: getVal('U_Chofer')
+                };
+                table = DB_CONFIG.tableUnidades;
+            } else if (currentCatalog === 'clientes') {
+                data = { id_cliente: getVal('CL_ID') || 'CLI-' + Date.now(), nombre_cliente: getVal('CL_Nombre'), razon_social: getVal('CL_Razon'), rfc: getVal('CL_RFC'), contacto_nombre: getVal('CL_Contacto'), email: getVal('CL_Email'), telefono: getVal('CL_Tel') };
+                table = DB_CONFIG.tableClientes;
+            } else if (currentCatalog === 'proveedores') {
+                data = { id_proveedor: getVal('P_ID'), nombre_proveedor: getVal('P_Nombre'), tipo_proveedor: getVal('P_Tipo'), telefono: getVal('P_Tel') };
+                table = DB_CONFIG.tableProveedores;
             }
-        });
+
+            const { error } = await window.supabaseClient.from(table).insert([data]);
+            if (error) throw error;
+
+            alert('✅ Registro guardado correctamente');
+            hideCatalogForm();
+            loadCatalog(currentCatalog);
+        } catch (err) {
+            console.error('Error al guardar catálogo:', err);
+            alert('❌ Error al guardar: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = originalText;
+        }
     });
+});
 
-    async function loadTripsList() {
-        const loader = document.getElementById('trips-loader');
-        const tbody = document.getElementById('trips-table-body');
-        if (loader) loader.classList.remove('hidden');
-        if (tbody) tbody.innerHTML = '';
+async function loadTripsList() {
+    const loader = document.getElementById('trips-loader');
+    const tbody = document.getElementById('trips-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-        allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
+    allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
 
-        if (loader) loader.classList.add('hidden');
-        renderTripsTable(allTripsData);
-    }
+    if (loader) loader.classList.add('hidden');
+    renderTripsTable(allTripsData);
+}
 
-    async function loadExpensesList() {
-        const loader = document.getElementById('expenses-loader');
-        const tbody = document.getElementById('expenses-table-body');
-        if (loader) loader.classList.remove('hidden');
-        if (tbody) tbody.innerHTML = '';
+async function loadExpensesList() {
+    const loader = document.getElementById('expenses-loader');
+    const tbody = document.getElementById('expenses-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-        allExpensesData = await fetchSupabaseData(DB_CONFIG.tableGastos);
+    allExpensesData = await fetchSupabaseData(DB_CONFIG.tableGastos);
 
-        if (loader) loader.classList.add('hidden');
-        renderExpensesTable(allExpensesData);
-    }
+    if (loader) loader.classList.add('hidden');
+    renderExpensesTable(allExpensesData);
+}
 
-    function renderExpensesTable(data) {
-        const tbody = document.getElementById('expenses-table-body');
-        if (!tbody) return;
-        tbody.innerHTML = data.map(g => `
+function renderExpensesTable(data) {
+    const tbody = document.getElementById('expenses-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(g => `
         <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4">
                 <div class="font-bold text-slate-800 text-sm">${g.id_gasto || 'N/A'}</div>
@@ -881,89 +882,89 @@ async function enviarGasto(e) {
             </td>
         </tr>
     `).join('');
-    }
+}
 
-    function filterExpenses(query) {
-        const q = query.toLowerCase();
-        const filtered = allExpensesData.filter(g =>
-            String(g.id_viaje).toLowerCase().includes(q) ||
-            String(g.concepto).toLowerCase().includes(q) ||
-            String(g.id_chofer).toLowerCase().includes(q) ||
-            String(g.id_unidad).toLowerCase().includes(q) ||
-            String(g.id_unit_eco).toLowerCase().includes(q)
-        );
-        renderExpensesTable(filtered);
-    }
+function filterExpenses(query) {
+    const q = query.toLowerCase();
+    const filtered = allExpensesData.filter(g =>
+        String(g.id_viaje).toLowerCase().includes(q) ||
+        String(g.concepto).toLowerCase().includes(q) ||
+        String(g.id_chofer).toLowerCase().includes(q) ||
+        String(g.id_unidad).toLowerCase().includes(q) ||
+        String(g.id_unit_eco).toLowerCase().includes(q)
+    );
+    renderExpensesTable(filtered);
+}
 
-    // --- TESORERÍA LOGIC ---
+// --- TESORERÍA LOGIC ---
 
-    // --- TESORERÍA LOGIC (3-TAB REFACTOR) ---
+// --- TESORERÍA LOGIC (3-TAB REFACTOR) ---
 
-    let currentTreasuryTab = 'favor';
+let currentTreasuryTab = 'favor';
 
-    async function switchTreasuryTab(tab) {
-        currentTreasuryTab = tab;
-        document.querySelectorAll('.treasury-tab').forEach(btn => {
-            btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
-            btn.classList.add('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
-        });
-        const activeBtn = document.getElementById('t-tab-' + tab);
-        activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
-        activeBtn.classList.remove('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
+async function switchTreasuryTab(tab) {
+    currentTreasuryTab = tab;
+    document.querySelectorAll('.treasury-tab').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+        btn.classList.add('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
+    });
+    const activeBtn = document.getElementById('t-tab-' + tab);
+    activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+    activeBtn.classList.remove('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
 
-        renderTreasuryHeader(tab);
-        loadTreasuryList();
-    }
+    renderTreasuryHeader(tab);
+    loadTreasuryList();
+}
 
-    function renderTreasuryHeader(tab) {
-        const thead = document.getElementById('treasury-thead');
-        if (!thead) return;
+function renderTreasuryHeader(tab) {
+    const thead = document.getElementById('treasury-thead');
+    if (!thead) return;
 
-        let html = '';
-        if (tab === 'viajes') {
-            html = `<tr>
+    let html = '';
+    if (tab === 'viajes') {
+        html = `<tr>
             <th class="px-6 py-4">Fecha / No. Interno</th>
             <th class="px-6 py-4">Cliente / Viaje</th>
             <th class="px-6 py-4">Monto Flete</th>
             <th class="px-6 py-4">Estatus Pago</th>
             <th class="px-6 py-4">Acción</th>
         </tr>`;
-        } else {
-            html = `<tr>
+    } else {
+        html = `<tr>
             <th class="px-6 py-4">Fecha / ID</th>
             <th class="px-6 py-4">Actor / Concepto</th>
             <th class="px-6 py-4">Monto</th>
             <th class="px-6 py-4">Estatus</th>
             <th class="px-6 py-4">Acción</th>
         </tr>`;
-        }
-        thead.innerHTML = html;
+    }
+    thead.innerHTML = html;
+}
+
+async function loadTreasuryList() {
+    const tbody = document.getElementById('treasury-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
+
+    let data = [];
+    if (currentTreasuryTab === 'viajes') {
+        data = await fetchSupabaseData(DB_CONFIG.tableViajes);
+        // Filtrar solo los que NO están pagados si queremos ver pendientes, 
+        // pero el usuario pidió "viajes por cobrar", usualmente incluye pagados recientes o todos.
+        // Mostraremos todos los que no tengan estatus_pago = 'Pagado' por defecto.
+    } else {
+        const type = currentTreasuryTab === 'favor' ? 'A Favor' : 'En Contra';
+        const allData = await fetchSupabaseData(DB_CONFIG.tableCuentas);
+        data = allData.filter(c => c.tipo === type);
     }
 
-    async function loadTreasuryList() {
-        const tbody = document.getElementById('treasury-table-body');
-        if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
+    let total = 0;
 
-        let data = [];
+    tbody.innerHTML = data.map(item => {
         if (currentTreasuryTab === 'viajes') {
-            data = await fetchSupabaseData(DB_CONFIG.tableViajes);
-            // Filtrar solo los que NO están pagados si queremos ver pendientes, 
-            // pero el usuario pidió "viajes por cobrar", usualmente incluye pagados recientes o todos.
-            // Mostraremos todos los que no tengan estatus_pago = 'Pagado' por defecto.
-        } else {
-            const type = currentTreasuryTab === 'favor' ? 'A Favor' : 'En Contra';
-            const allData = await fetchSupabaseData(DB_CONFIG.tableCuentas);
-            data = allData.filter(c => c.tipo === type);
-        }
-
-        let total = 0;
-
-        tbody.innerHTML = data.map(item => {
-            if (currentTreasuryTab === 'viajes') {
-                const isPaid = item.estatus_pago === 'Pagado';
-                if (!isPaid) total += parseFloat(item.monto_flete) || 0;
-                return `
+            const isPaid = item.estatus_pago === 'Pagado';
+            if (!isPaid) total += parseFloat(item.monto_flete) || 0;
+            return `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
                     <td class="px-6 py-4">
                         <div class="font-bold text-slate-800 text-xs">${item.no_interno || 'S/N'}</div>
@@ -984,10 +985,10 @@ async function enviarGasto(e) {
                     </td>
                 </tr>
             `;
-            } else {
-                const monto = parseFloat(item.monto) || 0;
-                if (item.estatus !== 'Liquidado') total += monto;
-                return `
+        } else {
+            const monto = parseFloat(item.monto) || 0;
+            if (item.estatus !== 'Liquidado') total += monto;
+            return `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
                     <td class="px-6 py-4">
                         <div class="font-bold text-slate-800 text-xs">${item.id_cuenta}</div>
@@ -1008,187 +1009,187 @@ async function enviarGasto(e) {
                     </td>
                 </tr>
             `;
-            }
-        }).join('') || '<tr><td colspan="6" class="p-10 text-center text-slate-400">No hay registros en esta categoría</td></tr>';
-
-        if (currentTreasuryTab === 'favor') document.getElementById('total-favor').innerText = `$${total.toLocaleString()}`;
-        if (currentTreasuryTab === 'contra') document.getElementById('total-contra').innerText = `$${total.toLocaleString()}`;
-    }
-
-    async function markTripAsPaid(id_viaje) {
-        if (!confirm('¿Marcar este viaje como PAGADO por el cliente?')) return;
-        const { error } = await window.supabaseClient
-            .from(DB_CONFIG.tableViajes)
-            .update({ estatus_pago: 'Pagado' })
-            .eq('id_viaje', id_viaje);
-
-        if (error) alert('Error: ' + error.message);
-        else loadTreasuryList();
-    }
-
-    async function loadActorOptions() {
-        const type = document.getElementById('acc-actor-type').value;
-        const select = document.getElementById('acc-actor');
-        const manualInput = document.getElementById('acc-actor-manual');
-
-        select.innerHTML = '<option value="">Cargando...</option>';
-        manualInput.classList.add('hidden');
-        select.classList.remove('hidden');
-
-        if (type === 'otro') {
-            select.classList.add('hidden');
-            manualInput.classList.remove('hidden');
-            return;
         }
+    }).join('') || '<tr><td colspan="6" class="p-10 text-center text-slate-400">No hay registros en esta categoría</td></tr>';
 
-        const tableMap = {
-            'chofer': DB_CONFIG.tableChoferes,
-            'proveedor': DB_CONFIG.tableProveedores,
-            'cliente': DB_CONFIG.tableClientes
-        };
+    if (currentTreasuryTab === 'favor') document.getElementById('total-favor').innerText = `$${total.toLocaleString()}`;
+    if (currentTreasuryTab === 'contra') document.getElementById('total-contra').innerText = `$${total.toLocaleString()}`;
+}
 
-        const data = await fetchSupabaseData(tableMap[type]);
-        const active = data.filter(i => (i.estatus || 'Activo') === 'Activo');
+async function markTripAsPaid(id_viaje) {
+    if (!confirm('¿Marcar este viaje como PAGADO por el cliente?')) return;
+    const { error } = await window.supabaseClient
+        .from(DB_CONFIG.tableViajes)
+        .update({ estatus_pago: 'Pagado' })
+        .eq('id_viaje', id_viaje);
 
-        select.innerHTML = '<option value="">Seleccione...</option>' + active.map(i => {
-            const name = i.nombre || i.nombre_cliente || i.nombre_proveedor;
-            return `<option value="${name}">${name}</option>`;
-        }).join('');
+    if (error) alert('Error: ' + error.message);
+    else loadTreasuryList();
+}
+
+async function loadActorOptions() {
+    const type = document.getElementById('acc-actor-type').value;
+    const select = document.getElementById('acc-actor');
+    const manualInput = document.getElementById('acc-actor-manual');
+
+    select.innerHTML = '<option value="">Cargando...</option>';
+    manualInput.classList.add('hidden');
+    select.classList.remove('hidden');
+
+    if (type === 'otro') {
+        select.classList.add('hidden');
+        manualInput.classList.remove('hidden');
+        return;
     }
 
-    async function crearCXCAutomatica(idViaje, monto, cliente, noInterno) {
+    const tableMap = {
+        'chofer': DB_CONFIG.tableChoferes,
+        'proveedor': DB_CONFIG.tableProveedores,
+        'cliente': DB_CONFIG.tableClientes
+    };
+
+    const data = await fetchSupabaseData(tableMap[type]);
+    const active = data.filter(i => (i.estatus || 'Activo') === 'Activo');
+
+    select.innerHTML = '<option value="">Seleccione...</option>' + active.map(i => {
+        const name = i.nombre || i.nombre_cliente || i.nombre_proveedor;
+        return `<option value="${name}">${name}</option>`;
+    }).join('');
+}
+
+async function crearCXCAutomatica(idViaje, monto, cliente, noInterno) {
+    const data = {
+        id_cuenta: 'CXC-' + Date.now().toString().slice(-6),
+        fecha: new Date().toISOString().split('T')[0],
+        tipo: 'A Favor',
+        actor_nombre: cliente,
+        concepto: 'Pago de flete via auto-CXC',
+        monto: monto,
+        id_viaje: idViaje,
+        no_interno: noInterno,
+        estatus: 'No Liquidado'
+    };
+    await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
+}
+
+function showAccountForm() { toggleSectionView('treasury', 'form'); loadActorOptions(); }
+function hideAccountForm() { toggleSectionView('treasury', 'list'); }
+
+async function enviarCuenta(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const original = btn.innerText;
+
+    try {
+        btn.disabled = true;
+        btn.innerText = 'Guardando...';
+
+        const getVal = id => document.getElementById(id)?.value || '';
+        const actorType = getVal('acc-actor-type');
+        const actor = actorType === 'otro' ? getVal('acc-actor-manual') : getVal('acc-actor');
+
         const data = {
-            id_cuenta: 'CXC-' + Date.now().toString().slice(-6),
+            id_cuenta: 'ACC-' + Date.now().toString().slice(-6),
             fecha: new Date().toISOString().split('T')[0],
-            tipo: 'A Favor',
-            actor_nombre: cliente,
-            concepto: 'Pago de flete via auto-CXC',
-            monto: monto,
-            id_viaje: idViaje,
-            no_interno: noInterno,
-            estatus: 'No Liquidado'
-        };
-        await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
-    }
-
-    function showAccountForm() { toggleSectionView('treasury', 'form'); loadActorOptions(); }
-    function hideAccountForm() { toggleSectionView('treasury', 'list'); }
-
-    async function enviarCuenta(e) {
-        e.preventDefault();
-        const btn = e.target.querySelector('button[type="submit"]');
-        const original = btn.innerText;
-
-        try {
-            btn.disabled = true;
-            btn.innerText = 'Guardando...';
-
-            const getVal = id => document.getElementById(id)?.value || '';
-            const actorType = getVal('acc-actor-type');
-            const actor = actorType === 'otro' ? getVal('acc-actor-manual') : getVal('acc-actor');
-
-            const data = {
-                id_cuenta: 'ACC-' + Date.now().toString().slice(-6),
-                fecha: new Date().toISOString().split('T')[0],
-                tipo: getVal('acc-tipo'),
-                actor_nombre: actor,
-                concepto: getVal('acc-concepto'),
-                monto: parseFloat(getVal('acc-monto')) || 0,
-                id_viaje: getVal('acc-id-viaje-cta') || null,
-                no_interno: getVal('acc-no-interno-cta') || null,
-                estatus: 'No Liquidado'
-            };
-
-            const { error } = await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
-            if (error) throw error;
-
-            alert('✅ Cuenta registrada con éxito.');
-            e.target.reset();
-            hideAccountForm();
-            loadTreasuryList();
-        } catch (err) {
-            alert('❌ Error: ' + err.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = original;
-        }
-    }
-
-    async function markAccountLiquidated(id) {
-        if (!confirm('¿Desea marcar esta cuenta como liquidada?')) return;
-
-        // 1. Obtener datos de la cuenta para ver si está ligada a un gasto
-        const { data: account } = await window.supabaseClient
-            .from(DB_CONFIG.tableCuentas)
-            .select('*')
-            .eq('id_cuenta', id)
-            .single();
-
-        const { error } = await window.supabaseClient
-            .from(DB_CONFIG.tableCuentas)
-            .update({ estatus: 'Liquidado' })
-            .eq('id_cuenta', id);
-
-        if (error) {
-            alert('Error: ' + error.message);
-        } else {
-            // 2. Si la cuenta era un gasto a crédito, marcar el gasto como pagado
-            if (account && account.id_gasto_ref) {
-                await window.supabaseClient
-                    .from(DB_CONFIG.tableGastos)
-                    .update({ estatus_pago: 'Pagado' })
-                    .eq('id_gasto', account.id_gasto_ref);
-            }
-            loadTreasuryList();
-        }
-    }
-
-    async function crearCXPAutomatica({ id_gasto, monto, concepto, actor }) {
-        const data = {
-            id_cuenta: 'CXP-' + Date.now().toString().slice(-6),
-            fecha: new Date().toISOString().split('T')[0],
-            tipo: 'En Contra',
+            tipo: getVal('acc-tipo'),
             actor_nombre: actor,
-            concepto: concepto,
-            monto: monto,
-            id_gasto_ref: id_gasto,
+            concepto: getVal('acc-concepto'),
+            monto: parseFloat(getVal('acc-monto')) || 0,
+            id_viaje: getVal('acc-id-viaje-cta') || null,
+            no_interno: getVal('acc-no-interno-cta') || null,
             estatus: 'No Liquidado'
         };
-        await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
+
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
+        if (error) throw error;
+
+        alert('✅ Cuenta registrada con éxito.');
+        e.target.reset();
+        hideAccountForm();
+        loadTreasuryList();
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = original;
     }
+}
 
-    async function crearGastoComisionAutomatica({ id_viaje, monto, id_chofer, id_unidad }) {
-        const data = {
-            id_gasto: 'COM-' + Date.now().toString().slice(-6),
-            fecha: new Date().toISOString().split('T')[0],
-            id_viaje: id_viaje,
-            id_unidad: id_unidad,
-            id_chofer: id_chofer,
-            concepto: 'Comisión Chofer',
-            monto: monto,
-            forma_pago: 'Crédito', // Se paga al liquidar
-            estatus_pago: 'Pendiente'
-        };
-        await window.supabaseClient.from(DB_CONFIG.tableGastos).insert([data]);
+async function markAccountLiquidated(id) {
+    if (!confirm('¿Desea marcar esta cuenta como liquidada?')) return;
+
+    // 1. Obtener datos de la cuenta para ver si está ligada a un gasto
+    const { data: account } = await window.supabaseClient
+        .from(DB_CONFIG.tableCuentas)
+        .select('*')
+        .eq('id_cuenta', id)
+        .single();
+
+    const { error } = await window.supabaseClient
+        .from(DB_CONFIG.tableCuentas)
+        .update({ estatus: 'Liquidado' })
+        .eq('id_cuenta', id);
+
+    if (error) {
+        alert('Error: ' + error.message);
+    } else {
+        // 2. Si la cuenta era un gasto a crédito, marcar el gasto como pagado
+        if (account && account.id_gasto_ref) {
+            await window.supabaseClient
+                .from(DB_CONFIG.tableGastos)
+                .update({ estatus_pago: 'Pagado' })
+                .eq('id_gasto', account.id_gasto_ref);
+        }
+        loadTreasuryList();
     }
+}
 
-    // --- LIQUIDACIONES LOGIC (BY DRIVER REFACTOR) ---
+async function crearCXPAutomatica({ id_gasto, monto, concepto, actor }) {
+    const data = {
+        id_cuenta: 'CXP-' + Date.now().toString().slice(-6),
+        fecha: new Date().toISOString().split('T')[0],
+        tipo: 'En Contra',
+        actor_nombre: actor,
+        concepto: concepto,
+        monto: monto,
+        id_gasto_ref: id_gasto,
+        estatus: 'No Liquidado'
+    };
+    await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
+}
 
-    let selectedDriverForSettlement = null;
-    let currentExpenses = [];
-    let currentDebts = [];
-    let pendingTripsForDriver = [];
+async function crearGastoComisionAutomatica({ id_viaje, monto, id_chofer, id_unidad }) {
+    const data = {
+        id_gasto: 'COM-' + Date.now().toString().slice(-6),
+        fecha: new Date().toISOString().split('T')[0],
+        id_viaje: id_viaje,
+        id_unidad: id_unidad,
+        id_chofer: id_chofer,
+        concepto: 'Comisión Chofer',
+        monto: monto,
+        forma_pago: 'Crédito', // Se paga al liquidar
+        estatus_pago: 'Pendiente'
+    };
+    await window.supabaseClient.from(DB_CONFIG.tableGastos).insert([data]);
+}
 
-    async function loadSettlementTrips() {
-        const list = document.getElementById('liquidation-driver-list');
-        if (!list) return;
-        list.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin"></i></div>';
+// --- LIQUIDACIONES LOGIC (BY DRIVER REFACTOR) ---
 
-        // 1. Obtener choferes activos
-        const drivers = await fetchSupabaseData(DB_CONFIG.tableChoferes);
-        const activeDrivers = drivers.filter(d => (d.estatus || 'Activo') === 'Activo');
+let selectedDriverForSettlement = null;
+let currentExpenses = [];
+let currentDebts = [];
+let pendingTripsForDriver = [];
 
-        list.innerHTML = activeDrivers.map(d => `
+async function loadSettlementTrips() {
+    const list = document.getElementById('liquidation-driver-list');
+    if (!list) return;
+    list.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin"></i></div>';
+
+    // 1. Obtener choferes activos
+    const drivers = await fetchSupabaseData(DB_CONFIG.tableChoferes);
+    const activeDrivers = drivers.filter(d => (d.estatus || 'Activo') === 'Activo');
+
+    list.innerHTML = activeDrivers.map(d => `
         <button onclick="loadDriverSettlementDetail('${d.id_chofer}')" 
             class="w-full text-left p-4 rounded-xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all flex justify-between items-center group">
             <div>
@@ -1198,113 +1199,113 @@ async function enviarGasto(e) {
             <i class="fas fa-chevron-right text-slate-200 group-hover:text-blue-500 transition-all"></i>
         </button>
     `).join('') || '<p class="text-sm p-4 text-slate-400">No hay choferes disponibles.</p>';
-    }
+}
 
-    async function loadDriverSettlementDetail(id_chofer) {
-        selectedDriverForSettlement = id_chofer;
-        const detail = document.getElementById('settlement-detail');
-        const empty = document.getElementById('settlement-empty');
-        if (!detail) return;
+async function loadDriverSettlementDetail(id_chofer) {
+    selectedDriverForSettlement = id_chofer;
+    const detail = document.getElementById('settlement-detail');
+    const empty = document.getElementById('settlement-empty');
+    if (!detail) return;
 
-        detail.classList.remove('hidden');
-        empty.classList.add('hidden');
+    detail.classList.remove('hidden');
+    empty.classList.add('hidden');
 
-        // Cargar datos: Viajes Terminados/En Proceso no liquidados + Gastos + Cuentas
-        const [trips, expenses, accounts] = await Promise.all([
-            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_chofer', id_chofer).neq('estatus_viaje', 'Liquidado'),
-            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_chofer', id_chofer),
-            window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').eq('actor_nombre', (await fetchSupabaseData(DB_CONFIG.tableChoferes)).find(d => d.id_chofer === id_chofer).nombre).eq('estatus', 'No Liquidado')
-        ]);
+    // Cargar datos: Viajes Terminados/En Proceso no liquidados + Gastos + Cuentas
+    const [trips, expenses, accounts] = await Promise.all([
+        window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_chofer', id_chofer).neq('estatus_viaje', 'Liquidado'),
+        window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_chofer', id_chofer),
+        window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').eq('actor_nombre', (await fetchSupabaseData(DB_CONFIG.tableChoferes)).find(d => d.id_chofer === id_chofer).nombre).eq('estatus', 'No Liquidado')
+    ]);
 
-        pendingTripsForDriver = trips.data || [];
-        currentExpenses = expenses.data || [];
-        currentDebts = accounts.data || [];
+    pendingTripsForDriver = trips.data || [];
+    currentExpenses = expenses.data || [];
+    currentDebts = accounts.data || [];
 
-        // Llenar UI
-        document.getElementById('set-trip-id').innerText = `LIQUIDACIÓN: ${id_chofer}`;
-        document.getElementById('set-trip-info').innerText = `Consolidado de ${pendingTripsForDriver.length} viajes pendientes.`;
+    // Llenar UI
+    document.getElementById('set-trip-id').innerText = `LIQUIDACIÓN: ${id_chofer}`;
+    document.getElementById('set-trip-info').innerText = `Consolidado de ${pendingTripsForDriver.length} viajes pendientes.`;
 
-        let sumFletes = 0;
-        let sumComisionesBrutas = 0;
-        pendingTripsForDriver.forEach(t => {
-            sumFletes += parseFloat(t.monto_flete) || 0;
-            sumComisionesBrutas += parseFloat(t.comision_chofer) || 0;
-        });
+    let sumFletes = 0;
+    let sumComisionesBrutas = 0;
+    pendingTripsForDriver.forEach(t => {
+        sumFletes += parseFloat(t.monto_flete) || 0;
+        sumComisionesBrutas += parseFloat(t.comision_chofer) || 0;
+    });
 
-        document.getElementById('set-flete').innerText = `$${sumFletes.toLocaleString()}`;
+    document.getElementById('set-flete').innerText = `$${sumFletes.toLocaleString()}`;
 
-        // Gastos Operativos (Filtrar solo los vinculados a los viajes seleccionados si es necesario, por ahora todos los del chofer)
-        const expList = document.getElementById('set-expenses-list');
-        let sumExp = 0;
-        expList.innerHTML = currentExpenses.map(g => {
-            sumExp += parseFloat(g.monto);
-            return `<div class="flex justify-between"><span>${g.concepto} (${g.id_viaje})</span><span class="font-mono">$${parseFloat(g.monto).toLocaleString()}</span></div>`;
-        }).join('') || '<span class="text-slate-400 italic">Sin gastos registrados</span>';
-        document.getElementById('set-sum-expenses').innerText = `$${sumExp.toLocaleString()}`;
+    // Gastos Operativos (Filtrar solo los vinculados a los viajes seleccionados si es necesario, por ahora todos los del chofer)
+    const expList = document.getElementById('set-expenses-list');
+    let sumExp = 0;
+    expList.innerHTML = currentExpenses.map(g => {
+        sumExp += parseFloat(g.monto);
+        return `<div class="flex justify-between"><span>${g.concepto} (${g.id_viaje})</span><span class="font-mono">$${parseFloat(g.monto).toLocaleString()}</span></div>`;
+    }).join('') || '<span class="text-slate-400 italic">Sin gastos registrados</span>';
+    document.getElementById('set-sum-expenses').innerText = `$${sumExp.toLocaleString()}`;
 
-        // Anticipos/Deudas
-        const debtList = document.getElementById('set-debts-list');
-        let sumDebt = 0;
-        debtList.innerHTML = currentDebts.map(d => {
-            sumDebt += parseFloat(d.monto);
-            return `<div class="flex justify-between text-amber-700"><span>${d.concepto}</span><span class="font-mono">$${parseFloat(d.monto).toLocaleString()}</span></div>`;
-        }).join('') || '<span class="text-amber-400 italic">Sin deudas pendientes</span>';
-        document.getElementById('set-sum-debts').innerText = `$${sumDebt.toLocaleString()}`;
+    // Anticipos/Deudas
+    const debtList = document.getElementById('set-debts-list');
+    let sumDebt = 0;
+    debtList.innerHTML = currentDebts.map(d => {
+        sumDebt += parseFloat(d.monto);
+        return `<div class="flex justify-between text-amber-700"><span>${d.concepto}</span><span class="font-mono">$${parseFloat(d.monto).toLocaleString()}</span></div>`;
+    }).join('') || '<span class="text-amber-400 italic">Sin deudas pendientes</span>';
+    document.getElementById('set-sum-debts').innerText = `$${sumDebt.toLocaleString()}`;
 
-        // Totales finales
-        const neto = sumComisionesBrutas - sumDebt;
+    // Totales finales
+    const neto = sumComisionesBrutas - sumDebt;
 
-        document.getElementById('set-comm-bruta').innerText = `$${sumComisionesBrutas.toLocaleString()}`;
-        document.getElementById('set-retencion').innerText = `-$${sumDebt.toLocaleString()}`;
-        document.getElementById('set-pago-neto').innerText = `$${neto.toLocaleString()}`;
-    }
+    document.getElementById('set-comm-bruta').innerText = `$${sumComisionesBrutas.toLocaleString()}`;
+    document.getElementById('set-retencion').innerText = `-$${sumDebt.toLocaleString()}`;
+    document.getElementById('set-pago-neto').innerText = `$${neto.toLocaleString()}`;
+}
 
-    async function finalizeSettlement() {
-        if (!selectedDriverForSettlement) return;
-        if (!confirm('¿Desea cerrar la liquidación para este chofer?')) return;
+async function finalizeSettlement() {
+    if (!selectedDriverForSettlement) return;
+    if (!confirm('¿Desea cerrar la liquidación para este chofer?')) return;
 
-        try {
-            // 1. Marcar deudas como liquidadas
-            if (currentDebts.length > 0) {
-                const ids = currentDebts.map(d => d.id_cuenta);
-                await window.supabaseClient.from(DB_CONFIG.tableCuentas).update({ estatus: 'Liquidado' }).in('id_cuenta', ids);
-            }
-
-            // 2. Marcar viajes como operativamente 'Liquidado'
-            if (pendingTripsForDriver.length > 0) {
-                const ids = pendingTripsForDriver.map(t => t.id_viaje);
-                await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_viaje: 'Liquidado' }).in('id_viaje', ids);
-            }
-
-            alert('✅ Liquidación consolidada completada.');
-            loadSettlementTrips();
-            document.getElementById('settlement-detail').classList.add('hidden');
-            document.getElementById('settlement-empty').classList.remove('hidden');
-        } catch (err) {
-            alert('Error: ' + err.message);
+    try {
+        // 1. Marcar deudas como liquidadas
+        if (currentDebts.length > 0) {
+            const ids = currentDebts.map(d => d.id_cuenta);
+            await window.supabaseClient.from(DB_CONFIG.tableCuentas).update({ estatus: 'Liquidado' }).in('id_cuenta', ids);
         }
+
+        // 2. Marcar viajes como operativamente 'Liquidado'
+        if (pendingTripsForDriver.length > 0) {
+            const ids = pendingTripsForDriver.map(t => t.id_viaje);
+            await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_viaje: 'Liquidado' }).in('id_viaje', ids);
+        }
+
+        alert('✅ Liquidación consolidada completada.');
+        loadSettlementTrips();
+        document.getElementById('settlement-detail').classList.add('hidden');
+        document.getElementById('settlement-empty').classList.remove('hidden');
+    } catch (err) {
+        alert('Error: ' + err.message);
     }
+}
 
-    // Inicializar vista de tesorería al cargar
-    switchTreasuryTab('favor');
+// Inicializar vista de tesorería al cargar
+switchTreasuryTab('favor');
 
-    function prepareAdvance(tripId, driverId) {
-        showSection('tesoreria');
-        showAccountForm();
+function prepareAdvance(tripId, driverId) {
+    showSection('tesoreria');
+    showAccountForm();
 
-        // Esperar un momento a que el DOM se actualice si es necesario
-        setTimeout(() => {
-            const selectTipo = document.getElementById('acc-tipo');
-            if (selectTipo) selectTipo.value = 'A Favor';
+    // Esperar un momento a que el DOM se actualice si es necesario
+    setTimeout(() => {
+        const selectTipo = document.getElementById('acc-tipo');
+        if (selectTipo) selectTipo.value = 'A Favor';
 
-            const inputActor = document.getElementById('acc-actor');
-            if (inputActor) inputActor.value = driverId;
+        const inputActor = document.getElementById('acc-actor');
+        if (inputActor) inputActor.value = driverId;
 
-            const inputConcepto = document.getElementById('acc-concepto');
-            if (inputConcepto) inputConcepto.value = 'Anticipo para viaje ' + tripId;
+        const inputConcepto = document.getElementById('acc-concepto');
+        if (inputConcepto) inputConcepto.value = 'Anticipo para viaje ' + tripId;
 
-            const inputViaje = document.getElementById('acc-id-viaje-cta');
-            if (inputViaje) inputViaje.value = tripId;
-        }, 100);
-    }
+        const inputViaje = document.getElementById('acc-id-viaje-cta');
+        if (inputViaje) inputViaje.value = tripId;
+    }, 100);
+}
 
