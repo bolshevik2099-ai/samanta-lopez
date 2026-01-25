@@ -1814,6 +1814,92 @@ async function loadDriverSettlementDetail(id_chofer) {
     document.getElementById('set-pago-neto').innerText = `$${neto.toLocaleString()}`;
 }
 
+function showSettlementFullDetail() {
+    if (!selectedDriverForSettlement) {
+        alert('Seleccione un chofer primero.');
+        return;
+    }
+
+    const modal = document.getElementById('detail-modal');
+    const content = document.getElementById('modal-content');
+    const title = document.getElementById('modal-title');
+
+    modal.classList.remove('hidden');
+    title.innerText = 'Detalle Completo de Liquidación';
+
+    // Generar tabla de Viajes
+    const tripsHtml = pendingTripsForDriver.map(t => `
+        <tr class="border-b border-slate-100 text-xs text-slate-600">
+            <td class="p-2 font-mono">${t.id_viaje}</td>
+            <td class="p-2">${t.origen} -> ${t.destino}</td>
+            <td class="p-2 text-right font-bold">$${(parseFloat(t.monto_flete) || 0).toLocaleString()}</td>
+            <td class="p-2 text-right text-green-600 font-bold">$${((parseFloat(t.monto_flete) || 0) * 0.15).toLocaleString()}</td>
+        </tr>
+    `).join('') || '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin viajes pendientes</td></tr>';
+
+    // Generar tabla de Gastos (Aprobados)
+    const activeExpenses = currentExpenses.filter(g => g.forma_pago === 'Contado');
+    const expensesHtml = activeExpenses.map(g => `
+        <tr class="border-b border-slate-100 text-xs text-slate-600">
+            <td class="p-2 font-mono">${g.id_gasto}</td>
+            <td class="p-2">${g.concepto}</td>
+            <td class="p-2 font-bold ${g.estatus_aprobacion === 'Aprobado' ? 'text-slate-700' : 'text-amber-500'}">
+                $${(parseFloat(g.monto) || 0).toLocaleString()}
+            </td>
+            <td class="p-2 text-[10px]">${g.estatus_aprobacion || 'Pendiente'}</td>
+        </tr>
+    `).join('') || '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin gastos reembolsables</td></tr>';
+
+    // Generar tabla de Deudas
+    const debtsHtml = currentDebts.map(d => `
+        <tr class="border-b border-slate-100 text-xs text-slate-600">
+            <td class="p-2 font-mono">${d.id_cuenta}</td>
+            <td class="p-2">${d.concepto}</td>
+            <td class="p-2 text-right font-bold text-red-500">-$${(parseFloat(d.monto) || 0).toLocaleString()}</td>
+        </tr>
+    `).join('') || '<tr><td colspan="3" class="p-4 text-center text-slate-400 italic">Sin deudas pendientes</td></tr>';
+
+    content.innerHTML = `
+        <div class="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+            <!-- Sección Viajes -->
+            <div>
+                <h4 class="font-bold text-blue-600 uppercase text-xs mb-2 border-b border-blue-100 pb-1">1. Viajes a Liquidar (Comisión 15%)</h4>
+                <table class="w-full text-left">
+                    <thead class="bg-blue-50 text-[10px] uppercase font-bold text-blue-400">
+                        <tr><th class="p-2">ID</th><th class="p-2">Ruta</th><th class="p-2 text-right">Flete</th><th class="p-2 text-right">Comisión</th></tr>
+                    </thead>
+                    <tbody>${tripsHtml}</tbody>
+                </table>
+            </div>
+
+            <!-- Sección Gastos -->
+            <div>
+                <h4 class="font-bold text-slate-600 uppercase text-xs mb-2 border-b border-slate-100 pb-1">2. Reembolsos (Gastos Contado)</h4>
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-400">
+                        <tr><th class="p-2">ID</th><th class="p-2">Concepto</th><th class="p-2">Monto</th><th class="p-2">Estado</th></tr>
+                    </thead>
+                    <tbody>${expensesHtml}</tbody>
+                </table>
+            </div>
+
+            <!-- Sección Deudas -->
+            <div>
+                <h4 class="font-bold text-amber-600 uppercase text-xs mb-2 border-b border-amber-100 pb-1">3. Descuentos (Adelantos/Deudas)</h4>
+                <table class="w-full text-left">
+                    <thead class="bg-amber-50 text-[10px] uppercase font-bold text-amber-400">
+                        <tr><th class="p-2">ID</th><th class="p-2">Concepto</th><th class="p-2 text-right">Monto</th></tr>
+                    </thead>
+                    <tbody>${debtsHtml}</tbody>
+                </table>
+            </div>
+        </div>
+        <div class="mt-6 pt-4 border-t border-slate-100 text-right">
+             <button onclick="closeDetailModal()" class="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-sm">Cerrar Detalle</button>
+        </div>
+    `;
+}
+
 async function finalizeSettlement() {
     if (!selectedDriverForSettlement) return;
 
