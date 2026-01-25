@@ -545,7 +545,8 @@ async function enviarGasto(e) {
             kmts_actuales: parseFloat(getVal('Kmts_Actuales')) || 0,
             kmts_recorridos: parseFloat(getVal('Kmts_Recorridos')) || 0,
             forma_pago: formaPago,
-            estatus_pago: formaPago === 'Crédito' ? 'Pendiente' : 'Pagado'
+            estatus_pago: formaPago === 'Crédito' ? 'Pendiente' : 'Pagado',
+            acreedor_nombre: document.getElementById('Exp_Acreedor')?.value || ''
         };
 
         // Upload photo if exists
@@ -571,7 +572,7 @@ async function enviarGasto(e) {
                 id_gasto: expenseData.id_gasto,
                 monto: expenseData.monto,
                 concepto: `Gasto Crédito: ${expenseData.concepto} (${expenseData.id_gasto})`,
-                actor: expenseData.id_chofer
+                actor: expenseData.acreedor_nombre || expenseData.id_chofer
             });
         }
 
@@ -653,8 +654,47 @@ async function initFormCatalogs() {
         }
     }
 
+    // Special case for Acreedor (Drivers + Clients + Providers)
+    const acreedorSelect = document.getElementById('Exp_Acreedor');
+    if (acreedorSelect) {
+        try {
+            const [choferes, clientes, proveedores] = await Promise.all([
+                fetchSupabaseData(DB_CONFIG.tableChoferes),
+                fetchSupabaseData(DB_CONFIG.tableClientes),
+                fetchSupabaseData(DB_CONFIG.tableProveedores)
+            ]);
+
+            acreedorSelect.innerHTML = '<option value="">-- Selecciona Acreedor (Opcional) --</option>';
+            choferes.filter(x => (x.estatus || 'Activo') === 'Activo').forEach(x => {
+                acreedorSelect.innerHTML += `<option value="${x.nombre}">${x.nombre} (Chofer)</option>`;
+            });
+            clientes.filter(x => (x.estatus || 'Activo') === 'Activo').forEach(x => {
+                acreedorSelect.innerHTML += `<option value="${x.nombre_cliente}">${x.nombre_cliente} (Cliente)</option>`;
+            });
+            proveedores.filter(x => (x.estatus || 'Activo') === 'Activo').forEach(x => {
+                acreedorSelect.innerHTML += `<option value="${x.nombre_proveedor}">${x.nombre_proveedor} (Proveedor)</option>`;
+            });
+        } catch (err) {
+            console.error('Error cargando catálogo de acreedores:', err);
+        }
+    }
+
     // Auto-generar ID de Viaje al iniciar
     generateTripID();
+}
+
+function toggleAcreedorField() {
+    const formaPago = document.getElementById('Exp_Forma_Pago')?.value;
+    const container = document.getElementById('acreedor-container');
+    if (container) {
+        if (formaPago === 'Crédito') {
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+            const acreedorSelect = document.getElementById('Exp_Acreedor');
+            if (acreedorSelect) acreedorSelect.value = '';
+        }
+    }
 }
 
 function generateTripID() {
@@ -1085,6 +1125,7 @@ function renderExpensesTable(data) {
                         <span class="text-[10px] font-bold ${g.estatus_pago === 'Pagado' ? 'text-green-500' : 'text-amber-500'} uppercase">
                             ● Pago: ${g.estatus_pago || 'Pendiente'}
                         </span>
+                        ${g.acreedor_nombre ? `<span class="text-[8px] font-bold text-slate-500 uppercase">Acreedor: ${g.acreedor_nombre}</span>` : ''}
                         <span class="text-[8px] font-black px-1.5 py-0.5 rounded ${aprobClass} w-fit uppercase">
                             ${estAprob}
                         </span>

@@ -61,7 +61,11 @@ CREATE TABLE public.reg_gastos (
     litros_rellenados NUMERIC(10,2) DEFAULT 0,
     ticket_foto TEXT, 
     foto_tacometro TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    estatus_pago TEXT DEFAULT 'Pendiente', -- 'Pendiente', 'Pagado'
+    forma_pago TEXT DEFAULT 'Contado',     -- 'Contado', 'Crédito'
+    estatus_aprobacion TEXT DEFAULT 'Pendiente', -- 'Pendiente', 'Aprobado', 'Rechazado'
+    acreedor_nombre TEXT                    -- Chofer, Cliente o Proveedor (para crédito)
 );
 
 -- 6. Tabla de Unidades
