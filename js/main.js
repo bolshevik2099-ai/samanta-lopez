@@ -1039,6 +1039,48 @@ function renderAdvancedCharts(viajesData, gastosData) {
             borderWidth: 1
         }]
     });
+
+    // 5. Best & Worst Drivers (Yield)
+    // Filter expenses for drivers (id_chofer exists and litros > 0)
+    const driverFuelExpenses = gastosData.filter(g => parseFloat(g.litros_rellenados) > 0 && g.id_chofer);
+    const { driverYields } = calculateDriverEfficiency(driverFuelExpenses);
+
+    // Sort logic
+    const allDrivers = Object.entries(driverYields);
+
+    // Best 3 (Descending)
+    const bestDrivers = [...allDrivers]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3);
+
+    // Worst 3 (Ascending) - Filter out reasonable minimums or errors (e.g. < 0.5) to avoid bad data showing up
+    const worstDrivers = [...allDrivers]
+        .sort((a, b) => a[1] - b[1])
+        .slice(0, 3);
+
+    renderChartInstance('bestDriversChart', 'bar', {
+        indexAxis: 'y',
+        labels: bestDrivers.map(d => d[0]),
+        datasets: [{
+            label: 'Km/L (Mejor)',
+            data: bestDrivers.map(d => d[1]),
+            backgroundColor: 'rgba(34, 197, 94, 0.7)', // Green
+            borderColor: 'rgba(34, 197, 94, 1)',
+            borderWidth: 1
+        }]
+    });
+
+    renderChartInstance('worstDriversChart', 'bar', {
+        indexAxis: 'y',
+        labels: worstDrivers.map(d => d[0]),
+        datasets: [{
+            label: 'Km/L (Menor)',
+            data: worstDrivers.map(d => d[1]),
+            backgroundColor: 'rgba(239, 68, 68, 0.7)', // Red
+            borderColor: 'rgba(239, 68, 68, 1)',
+            borderWidth: 1
+        }]
+    });
 }
 
 function calculateFleetEfficiency(expenses) {
@@ -1071,6 +1113,34 @@ function calculateFleetEfficiency(expenses) {
         unitYields,
         fleetAvg
     };
+}
+
+function calculateDriverEfficiency(expenses) {
+    const driverGroups = {};
+    // Pre-fetch driver names if possible, or use ID. For now using ID or name from expense if available (usually just ID in expense table unless joined)
+    // The expense table has 'id_chofer' which might be the name if the select logic uses names.
+    // Based on previous code, 'id_chofer' in expenses seems to be the stored value (name or ID).
+
+    expenses.forEach(e => {
+        const id = e.id_chofer;
+        if (!driverGroups[id]) driverGroups[id] = { km: 0, lts: 0 };
+        driverGroups[id].km += (parseFloat(e.kmts_recorridos) || 0);
+        driverGroups[id].lts += (parseFloat(e.litros_rellenados) || 0);
+    });
+
+    const driverYields = {};
+
+    for (const [driver, data] of Object.entries(driverGroups)) {
+        if (data.lts > 0) {
+            const yieldVal = data.km / data.lts;
+            // Basic sanity check: 0.5 < yield < 15 km/l
+            if (yieldVal > 0.5 && yieldVal < 15) {
+                driverYields[driver] = parseFloat(yieldVal.toFixed(2));
+            }
+        }
+    }
+
+    return { driverYields };
 }
 
 // --- MANEJO DE FORMULARIOS ---

@@ -207,7 +207,8 @@
                 <!-- Fuel Yield Chart (New) -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
                     <h3 class="font-bold text-slate-800 mb-6"><i
-                            class="fas fa-gas-pump mr-2 text-purple-500"></i>Rendimiento Combustible (Km/L)</h3>
+                            class="fas fa-gas-pump mr-2 text-purple-500"></i>Rendimiento Combustible por Unidad (Km/L)
+                    </h3>
                     <div class="h-[300px]">
                         <canvas id="yieldChart"></canvas>
                     </div>
@@ -219,6 +220,29 @@
                         Operativo</h3>
                     <div class="h-[250px] flex items-center justify-center">
                         <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Driver Efficiency Section (New) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <!-- Best Drivers -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-green-500">
+                    <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <i class="fas fa-trophy text-yellow-400"></i> Top 3 Mejores Choferes (Km/L)
+                    </h3>
+                    <div class="h-[250px]">
+                        <canvas id="bestDriversChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Worst Drivers -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-red-500">
+                    <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle text-red-500"></i> Top 3 Menor Rendimiento (Km/L)
+                    </h3>
+                    <div class="h-[250px]">
+                        <canvas id="worstDriversChart"></canvas>
                     </div>
                 </div>
             </div>
