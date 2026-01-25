@@ -1531,8 +1531,8 @@ async function loadDriverSettlementDetail(id_chofer) {
     const expList = document.getElementById('set-expenses-list');
     let sumExp = 0;
 
-    // Filtramos SOLO los gastos de Contado (Reembolsables)
-    const reimbursableExpenses = currentExpenses.filter(g => g.forma_pago === 'Contado');
+    // Filtramos SOLO los gastos de Contado/Efectivo (Reembolsables)
+    const reimbursableExpenses = currentExpenses.filter(g => ['Contado', 'Efectivo'].includes(g.forma_pago));
 
     expList.innerHTML = reimbursableExpenses.map(g => {
         const estAprob = g.estatus_aprobacion || 'Pendiente';
