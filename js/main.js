@@ -598,21 +598,21 @@ function renderTripsTable(data) {
             </td>
             <td class="px-6 py-4 text-xs text-slate-600">
                 <div><i class="fas fa-truck text-xs mr-1 text-slate-300"></i> ${v.id_unidad}</div>
-                <div><i class="fas fa-user text-xs mr-1 text-slate-300"></i> ${v.id_chofer}</div>
+                <div><i class="fas fa-user-tie text-xs mr-1 text-slate-300"></i> ${v.id_chofer}</div>
             </td>
-            <td class="px-6 py-4 text-right font-mono font-bold text-slate-700 text-sm">
-                $${parseFloat(v.monto_flete).toLocaleString()}
-            </td>
+            <td class="px-6 py-4 font-bold text-slate-800 text-sm">$${(parseFloat(v.monto_flete) || 0).toLocaleString()}</td>
             <td class="px-6 py-4">
-                <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase ${v.estatus_viaje === 'Liquidado' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}">
-                    ${v.estatus_viaje}
+                <span class="text-[10px] font-bold ${v.estatus_pago === 'Pagado' ? 'text-green-500' : 'text-amber-500'}">
+                    ● ${v.estatus_pago || 'Pendiente'}
                 </span>
             </td>
-            <td class="px-6 py-4">
-                <button onclick="prepareAdvance('${v.id_viaje}', '${v.id_chofer}')" title="Registrar Anticipo" 
-                    class="text-blue-500 hover:text-blue-700 transition-colors">
+            <td class="px-6 py-4 text-right space-x-2">
+                <button onclick="prepareAdvance('${v.id_viaje}', '${v.id_chofer}')" title="Registrar Anticipo"
+                    class="text-blue-500 hover:text-blue-700 transition-colors p-1">
                     <i class="fas fa-hand-holding-usd"></i>
                 </button>
+                <button onclick="editTripInline('${v.id_viaje}')" class="text-blue-500 hover:text-blue-700 p-1" title="Editar"><i class="fas fa-edit"></i></button>
+                <button onclick="deleteItem('${DB_CONFIG.tableViajes}', '${v.id_viaje}', 'id_viaje')" class="text-red-500 hover:text-red-700 p-1" title="Eliminar"><i class="fas fa-trash"></i></button>
             </td>
         </tr>
     `).join('');
@@ -710,16 +710,44 @@ function renderCatalogTable(type, data) {
     };
 
     const c = config[type];
-    thead.innerHTML = `<tr>${c.headers.map(h => `<th class="px-6 py-4">${h}</th>`).join('')}</tr>`;
+    thead.innerHTML = `<tr>${c.headers.map(h => `<th class="px-6 py-4">${h}</th>`).join('')}<th class="px-6 py-4">Estatus</th><th class="px-6 py-4 text-right">Acciones</th></tr>`;
 
     if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${c.headers.length}" class="px-6 py-12 text-center text-slate-400 italic">No hay registros aún</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${c.headers.length + 2}" class="px-6 py-12 text-center text-slate-400 italic">No hay registros aún</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = data.map(d => `
-        <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">${c.row(d)}</tr>
-    `).join('');
+    tbody.innerHTML = data.map(d => {
+        const id = d.id_chofer || d.id_unidad || d.nombre_cliente || d.id_proveedor;
+        const idCol = d.id_chofer ? 'id_chofer' : (d.id_unidad ? 'id_unidad' : (d.nombre_cliente ? 'nombre_cliente' : 'id_proveedor'));
+
+        return `
+            <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0" id="row-${type}-${id}">
+                ${c.row(d)}
+                <td class="px-6 py-4">
+                    <span class="text-[10px] font-bold ${(d.estatus || 'Activo') === 'Activo' ? 'text-green-500' : 'text-slate-400'} uppercase">
+                        ● ${d.estatus || 'Activo'}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-right space-x-2">
+                    <button onclick="editCatalogInline('${type}', '${id}')" class="text-blue-500 hover:text-blue-700 p-1"><i class="fas fa-edit"></i></button>
+                    <button onclick="deleteItem('${DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)]}', '${id}', '${idCol}')" class="text-red-500 hover:text-red-700 p-1"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function deleteItem(table, id, idCol) {
+    if (!confirm('¿Desea eliminar definitivamente este registro?')) return;
+    try {
+        const { error } = await window.supabaseClient.from(table).delete().eq(idCol, id);
+        if (error) throw error;
+        alert('Registro eliminado.');
+        location.reload(); // Recarga simple para actualizar listas
+    } catch (err) {
+        alert('Error al eliminar: ' + err.message);
+    }
 }
 
 function showCatalogForm() {
@@ -875,10 +903,19 @@ function renderExpensesTable(data) {
                 <div class="text-[10px] text-slate-400">Chofer: ${g.id_chofer}</div>
             </td>
             <td class="px-6 py-4 text-right font-mono font-bold text-red-600 text-sm">
-                $${parseFloat(g.monto).toLocaleString()}
+                $${(parseFloat(g.monto) || 0).toLocaleString()}
             </td>
             <td class="px-6 py-4 text-[10px] text-slate-500 font-mono">
                 ${g.kmts_recorridos} km
+            </td>
+            <td class="px-6 py-4">
+                <span class="text-[10px] font-bold ${g.estatus_pago === 'Pagado' ? 'text-green-500' : 'text-amber-500'}">
+                    ● ${g.estatus_pago || 'Pendiente'}
+                </span>
+            </td>
+            <td class="px-6 py-4 text-right space-x-2">
+                <button onclick="editExpenseInline('${g.id_gasto}')" class="text-blue-500 hover:text-blue-700 p-1" title="Editar"><i class="fas fa-edit"></i></button>
+                <button onclick="deleteItem('${DB_CONFIG.tableGastos}', '${g.id_gasto}', 'id_gasto')" class="text-red-500 hover:text-red-700 p-1" title="Eliminar"><i class="fas fa-trash"></i></button>
             </td>
         </tr>
     `).join('');
@@ -981,7 +1018,10 @@ async function loadTreasuryList() {
                         </span>
                     </td>
                     <td class="px-6 py-4">
-                        ${!isPaid ? `<button onclick="markTripAsPaid('${item.id_viaje}')" class="text-xs text-blue-500 hover:underline">Marcar Pagado</button>` : '-'}
+                        ${!isPaid ? `<button onclick="markTripAsPaid('${item.id_viaje}')" class="text-xs text-blue-500 hover:underline">Marcar Pagado</button>` : '<span class="text-slate-300">-</span>'}
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="deleteItem('${DB_CONFIG.tableViajes}', '${item.id_viaje}', 'ID_Viaje')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
                     </td>
                 </tr>
             `;
@@ -1005,7 +1045,10 @@ async function loadTreasuryList() {
                         </span>
                     </td>
                     <td class="px-6 py-4">
-                        ${item.estatus !== 'Liquidado' ? `<button onclick="markAccountLiquidated('${item.id_cuenta}')" class="text-xs text-blue-500 hover:underline">Liquidar</button>` : '-'}
+                        ${item.estatus !== 'Liquidado' ? `<button onclick="markAccountLiquidated('${item.id_cuenta}')" class="text-xs text-green-500 hover:underline">Liquidar</button>` : '<span class="text-slate-300">-</span>'}
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="deleteItem('${DB_CONFIG.tableCuentas}', '${item.id_cuenta}', 'id_cuenta')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
                     </td>
                 </tr>
             `;
