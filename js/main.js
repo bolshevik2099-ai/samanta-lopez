@@ -44,6 +44,51 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Lógica de Campos Condicionales de Diesel ---
+    const conceptoSelect = document.getElementById('Concepto');
+    const dieselBlock = document.getElementById('diesel-fields');
+    // Inputs que se deben resetear/requerir
+    const dieselInputs = ['Litros_Rellenados', 'Kmts_Anteriores', 'Kmts_Actuales', 'Foto_tacometro'];
+
+    if (conceptoSelect && dieselBlock) {
+        const toggleDieselInfo = () => {
+            const isDiesel = conceptoSelect.value === 'Diesel';
+            if (isDiesel) {
+                dieselBlock.classList.remove('hidden');
+                dieselInputs.forEach(id => document.getElementById(id)?.setAttribute('required', 'true'));
+            } else {
+                dieselBlock.classList.add('hidden');
+                dieselInputs.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.removeAttribute('required');
+                        el.value = ''; // Limpiar valores al ocultar
+                    }
+                });
+                if (document.getElementById('Kmts_Recorridos')) document.getElementById('Kmts_Recorridos').value = '';
+            }
+        };
+
+        conceptoSelect.addEventListener('change', toggleDieselInfo);
+        // Ejecutar al inicio por si el navegador guarda el estado
+        toggleDieselInfo();
+    }
+
+    // --- Cálculo Automático de Kilómetros ---
+    const kmAntInput = document.getElementById('Kmts_Anteriores');
+    const kmActInput = document.getElementById('Kmts_Actuales');
+    const kmRecInput = document.getElementById('Kmts_Recorridos');
+
+    if (kmAntInput && kmActInput && kmRecInput) {
+        const calcKm = () => {
+            const ant = parseFloat(kmAntInput.value) || 0;
+            const act = parseFloat(kmActInput.value) || 0;
+            kmRecInput.value = act > ant ? (act - ant) : 0;
+        };
+        kmAntInput.addEventListener('input', calcKm);
+        kmActInput.addEventListener('input', calcKm);
+    }
+
     // Inicializar Dashboard Nativo por API
     if (document.getElementById('period-table-body')) {
         setupDateFilters();
@@ -2155,8 +2200,41 @@ async function loadActorOptions() {
 
     select.innerHTML = '<option value="">Seleccione...</option>' + active.map(i => {
         const name = i.nombre || i.nombre_cliente || i.nombre_proveedor;
-        return `< option value = "${name}" > ${name}</option > `;
+        return `<option value="${name}">${name}</option>`;
     }).join('');
+}
+
+function prepareAdvance(viajeId, choferId) {
+    showSection('tesoreria');
+    switchTreasuryTab('favor');
+    showAccountForm();
+
+    // Resetear form primero
+    const form = document.getElementById('account-form');
+    if (form) form.reset();
+
+    // Pre-llenar datos
+    document.getElementById('acc-tipo').value = 'A Favor';
+    const viajeInput = document.getElementById('acc-id-viaje-cta');
+    if (viajeInput) viajeInput.value = viajeId;
+
+    // Configurar Actor (Chofer)
+    const actorSimple = document.getElementById('acc-actor');
+    // Intentar buscar el input de actor, ya sea simple o complejo
+    if (actorSimple) {
+        actorSimple.value = choferId;
+    } else {
+        // Fallback si la estructura cambia a select/manual
+        const actorManual = document.getElementById('acc-actor-manual');
+        if (actorManual) {
+            actorManual.value = choferId;
+            document.getElementById('acc-actor-type').value = 'otro';
+            loadActorOptions(); // Forzar actualización de UI si es necesario
+        }
+    }
+
+    // Concepto
+    document.getElementById('acc-concepto').value = `Anticipo Viaje ${viajeId}`;
 }
 
 async function crearCXCAutomatica(idViaje, monto, cliente, noInterno) {

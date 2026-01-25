@@ -450,38 +450,41 @@
                         <h3 class="text-xl font-bold text-slate-800">Registrar Gasto Operativo</h3>
                     </div>
                     <form id="gasto-form" class="space-y-6">
-                        <div class="grid grid-cols-2 gap-4">
+                        <!-- General Info Block -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-2">ID Gasto</label>
                                 <input type="text" id="ID_Gasto" required placeholder="GAS-100"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none">
+                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-2">Fecha</label>
                                 <input type="date" id="Fecha" required
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none">
+                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all">
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-2">ID Viaje</label>
                                 <input type="text" id="ID_Viaje" required placeholder="V-260124-ABC"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none">
+                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all">
                             </div>
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-2">ID Unidad</label>
                                 <select id="ID_Unidad" required
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none">
+                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all">
                                     <option value="">Cargando unidades...</option>
                                 </select>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-2">ID Chofer
                                     (Opcional)</label>
                                 <select id="ID_Chofer"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none">
+                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all">
                                     <option value="">-- Sin Chofer (Solo Unidad) --</option>
                                     <option value="">Cargando choferes...</option>
                                 </select>
@@ -489,7 +492,8 @@
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-2">Concepto</label>
                                 <select id="Concepto" required
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none">
+                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all">
+                                    <option value="">Selecciona Concepto</option>
                                     <option value="Diesel">Diesel</option>
                                     <option value="Caseta">Caseta</option>
                                     <option value="Reparación">Reparación</option>
@@ -498,82 +502,99 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
+
+                        <!-- Financial Block -->
+                        <div
+                            class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
                             <div>
                                 <label class="block text-sm font-semibold text-slate-700 mb-2">Monto ($)</label>
                                 <input type="number" id="Monto" step="0.01" required placeholder="0.00"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none">
+                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all font-bold text-slate-700">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Litros Rellenados</label>
-                                <input type="number" id="Litros_Rellenados" step="0.1" placeholder="0.0"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none">
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">Tipo de Pago</label>
+                                <div class="flex gap-4 h-[50px] items-center">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="Tipo_Pago" value="Efectivo" checked
+                                            class="w-4 h-4 text-green-600 focus:ring-green-500"> Efectivo
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="Tipo_Pago" value="Tarjeta"
+                                            class="w-4 h-4 text-green-600 focus:ring-green-500"> Tarjeta/Tag
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">Forma de Pago</label>
+                                <select id="Exp_Forma_Pago" onchange="toggleAcreedorField()"
+                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-bold">
+                                    <option value="Contado">Contado</option>
+                                    <option value="Crédito">A Crédito</option>
+                                </select>
+                            </div>
+                            <div id="acreedor-container" class="hidden">
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">Acreedor
+                                    (Opcional)</label>
+                                <select id="Exp_Acreedor"
+                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-bold">
+                                    <option value="">-- Selecciona --</option>
+                                </select>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Km. Anteriores</label>
-                                <input type="number" id="Kmts_Anteriores" required placeholder="0"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none bg-slate-50">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Km. Actuales</label>
-                                <input type="number" id="Kmts_Actuales" required placeholder="0"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-500 mb-2 italic">Km. Recorridos
-                                    (Calculado)</label>
-                                <input type="number" id="Kmts_Recorridos" readonly
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50 text-slate-600 font-bold outline-none">
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
+
+                        <!-- Diesel Specific Block (Hidden by default) -->
+                        <div id="diesel-fields"
+                            class="hidden space-y-4 p-4 bg-amber-50 rounded-xl border border-amber-100 animate-in fade-in slide-in-from-top-4 duration-300">
+                            <h4 class="font-bold text-amber-800 text-sm flex items-center gap-2">
+                                <i class="fas fa-gas-pump"></i> Detalles de Carga de Diesel
+                            </h4>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Forma de Pago</label>
-                                    <select id="Exp_Forma_Pago" onchange="toggleAcreedorField()"
-                                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-bold">
-                                        <option value="Contado">Contado</option>
-                                        <option value="Crédito">A Crédito</option>
-                                    </select>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Litros
+                                        Rellenados</label>
+                                    <input type="number" id="Litros_Rellenados" step="0.1" placeholder="0.0"
+                                        class="w-full px-4 py-3 rounded-xl border border-amber-200 outline-none focus:ring-2 focus:ring-amber-500/20 transition-all bg-white">
                                 </div>
-                                <div id="acreedor-container" class="hidden">
-                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Acreedor
-                                        (Opcional)</label>
-                                    <select id="Exp_Acreedor"
-                                        class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-bold">
-                                        <option value="">-- Selecciona --</option>
-                                    </select>
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Foto
+                                        Tacómetro</label>
+                                    <input type="file" id="Foto_tacometro" accept="image/*"
+                                        class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 transition-colors">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Km.
+                                        Anteriores</label>
+                                    <input type="number" id="Kmts_Anteriores" placeholder="0"
+                                        class="w-full px-4 py-3 rounded-xl border border-amber-200 outline-none focus:ring-2 focus:ring-amber-500/20 bg-white">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Km. Actuales</label>
+                                    <input type="number" id="Kmts_Actuales" placeholder="0"
+                                        class="w-full px-4 py-3 rounded-xl border border-amber-200 outline-none focus:ring-2 focus:ring-amber-500/20 bg-white">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-slate-500 mb-2 italic">Km.
+                                        Recorridos</label>
+                                    <input type="number" id="Kmts_Recorridos" readonly
+                                        class="w-full px-4 py-3 rounded-xl border border-amber-100 bg-amber-100/50 text-slate-600 font-bold outline-none cursor-not-allowed">
                                 </div>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Foto Ticket</label>
-                                <input type="file" id="Ticket_Foto" accept="image/*"
-                                    class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Foto Tacómetro</label>
-                                <input type="file" id="Foto_tacometro" accept="image/*"
-                                    class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700">
-                            </div>
-                        </div>
+
+                        <!-- General Evidence -->
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Tipo de Pago</label>
-                            <div class="flex gap-4">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="radio" name="Tipo_Pago" value="Efectivo" checked> Efectivo
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="radio" name="Tipo_Pago" value="Tarjeta"> Tarjeta/Tag
-                                </label>
-                            </div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Foto Ticket</label>
+                            <input type="file" id="Ticket_Foto" accept="image/*"
+                                class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-colors">
                         </div>
+
                         <button type="submit"
-                            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all">
-                            Registrar Gasto
+                            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                            <i class="fas fa-check-circle"></i> Registrar Gasto
                         </button>
                     </form>
                 </div>
