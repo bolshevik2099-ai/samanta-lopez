@@ -4,6 +4,7 @@ let mainChart = null; // Instancia global para el gráfico
 // Variables Globales de Datos (para búsqueda)
 let allTripsData = [];
 let allExpensesData = [];
+let currentExpenseTab = 'todos';
 
 document.addEventListener('DOMContentLoaded', () => {
     // Verificar sesión al cargar
@@ -84,7 +85,154 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('search-gastos')?.addEventListener('input', (e) => {
         filterExpenses(e.target.value);
     });
+
+    // Close modal on escape
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDetailModal();
+    });
 });
+
+// --- UNIVERSAL DETAIL MODAL ---
+function showDetailModal(type, id) {
+    const modal = document.getElementById('detail-modal');
+    const content = document.getElementById('modal-content');
+    const title = document.getElementById('modal-title');
+
+    if (!modal || !content || !title) return;
+
+    modal.classList.remove('hidden');
+    content.innerHTML = `
+        <div class="flex items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600"></div>
+        </div>
+    `;
+
+    // Fetch details based on type
+    let tableName = '';
+    let idCol = '';
+
+    switch (type) {
+        case 'viajes': tableName = DB_CONFIG.tableViajes; idCol = 'id_viaje'; title.innerText = 'Detalle de Viaje: ' + id; break;
+        case 'choferes': tableName = DB_CONFIG.tableChoferes; idCol = 'id_chofer'; title.innerText = 'Detalle de Chofer'; break;
+        case 'unidades': tableName = DB_CONFIG.tableUnidades; idCol = 'id_unidad'; title.innerText = 'Detalle de Unidad'; break;
+        case 'clientes': tableName = DB_CONFIG.tableClientes; idCol = 'nombre_cliente'; title.innerText = 'Detalle de Cliente'; break;
+        case 'proveedores': tableName = DB_CONFIG.tableProveedores; idCol = 'id_proveedor'; title.innerText = 'Detalle de Proveedor'; break;
+        case 'gastos': tableName = DB_CONFIG.tableGastos; idCol = 'id_gasto'; title.innerText = 'Detalle de Gasto'; break;
+        case 'liquidaciones': showEnhancedSettlement(id); return; // Special case
+    }
+
+    if (!tableName) return;
+
+    window.supabaseClient.from(tableName).select('*').eq(idCol, id).single()
+        .then(({ data, error }) => {
+            if (error) throw error;
+
+            let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-6">';
+            for (const [key, value] of Object.entries(data)) {
+                if (key === 'created_at' || value === null) continue;
+                html += `
+                    <div class="border-b border-slate-50 pb-2">
+                        <label class="block text-[10px] uppercase font-black text-slate-400 mb-1">${key.replace(/_/g, ' ')}</label>
+                        <div class="text-sm font-semibold text-slate-800">${value}</div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            content.innerHTML = html;
+        })
+        .catch(err => {
+            content.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-lg text-sm font-bold">Error: ${err.message}</div>`;
+        });
+}
+
+function closeDetailModal() {
+    document.getElementById('detail-modal')?.classList.add('hidden');
+}
+
+async function showEnhancedSettlement(idLiquidacion) {
+    const content = document.getElementById('modal-content');
+    const title = document.getElementById('modal-title');
+    title.innerText = 'Liquidación Detallada: ' + idLiquidacion;
+
+    try {
+        // 1. Get Settlement Master
+        const { data: settle, error: sErr } = await window.supabaseClient
+            .from(DB_CONFIG.tableLiquidaciones)
+            .select('*')
+            .eq('id_liquidacion', idLiquidacion)
+            .single();
+
+        if (sErr) throw sErr;
+
+        // 2. Get Related Trips
+        const { data: trips, error: tErr } = await window.supabaseClient
+            .from(DB_CONFIG.tableViajes)
+            .select('*')
+            .eq('id_chofer', settle.id_chofer)
+            .eq('estatus_pago', 'Pagado'); // Or filter by specific date range if available
+
+        // 3. Render Enhanced View
+        content.innerHTML = `
+            <div class="space-y-6 text-slate-800">
+                <div class="flex justify-between items-start bg-blue-50 p-6 rounded-xl border border-blue-100">
+                    <div>
+                        <div class="text-[10px] font-black uppercase text-blue-400">Chofer</div>
+                        <div class="text-2xl font-black text-blue-900">${settle.id_chofer}</div>
+                        <div class="text-xs text-blue-600 font-bold mt-1">Periodo: ${settle.fecha_inicio || 'N/A'} - ${settle.fecha_fin || 'N/A'}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-[10px] font-black uppercase text-blue-400">Neto a Pagar</div>
+                        <div class="text-3xl font-black text-blue-600">$${(parseFloat(settle.monto_neto) || 0).toLocaleString()}</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                        <div class="text-[10px] font-black uppercase text-slate-400">Total Fletes</div>
+                        <div class="text-lg font-bold text-slate-800">$${(parseFloat(settle.total_fletes) || 0).toLocaleString()}</div>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                        <div class="text-[10px] font-black uppercase text-slate-400">Total Gastos</div>
+                        <div class="text-lg font-bold text-red-500">$${(parseFloat(settle.total_gastos) || 0).toLocaleString()}</div>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+                        <div class="text-[10px] font-black uppercase text-slate-400">Comisión (15%)</div>
+                        <div class="text-lg font-bold text-green-600">$${(parseFloat(settle.monto_comision) || 0).toLocaleString()}</div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="fas fa-truck-loading text-blue-500"></i> Viajes Incluidos
+                    </h4>
+                    <div class="overflow-hidden rounded-xl border border-slate-100">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400">
+                                <tr>
+                                    <th class="px-4 py-3">ID Viaje</th>
+                                    <th class="px-4 py-3">Ruta</th>
+                                    <th class="px-4 py-3 text-right">Flete</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${trips && trips.length > 0 ? trips.map(t => `
+                                    <tr>
+                                        <td class="px-4 py-3 font-bold text-slate-600">${t.id_viaje}</td>
+                                        <td class="px-4 py-3 text-slate-500">${t.origen} - ${t.destino}</td>
+                                        <td class="px-4 py-3 text-right font-bold text-slate-800">$${parseFloat(t.monto_flete).toLocaleString()}</td>
+                                    </tr>
+                                `).join('') : '<tr><td colspan="3" class="px-4 py-3 text-center text-slate-400">No hay viajes registrados</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+
+    } catch (err) {
+        content.innerHTML = `<div class="p-4 bg-red-50 text-red-600 rounded-lg text-sm font-bold">Error: ${err.message}</div>`;
+    }
+}
 
 function setupDateFilters() {
     const startInput = document.getElementById('filter-start');
@@ -607,6 +755,10 @@ function renderTripsTable(data) {
                 </span>
             </td>
             <td class="px-6 py-4 text-right space-x-2">
+                <button onclick="showDetailModal('viajes', '${v.id_viaje}')" title="Ver Detalle"
+                    class="text-slate-400 hover:text-slate-600 transition-colors p-1">
+                    <i class="fas fa-eye"></i>
+                </button>
                 <button onclick="prepareAdvance('${v.id_viaje}', '${v.id_chofer}')" title="Registrar Anticipo"
                     class="text-blue-500 hover:text-blue-700 transition-colors p-1">
                     <i class="fas fa-hand-holding-usd"></i>
@@ -730,6 +882,7 @@ function renderCatalogTable(type, data) {
                     </span>
                 </td>
                 <td class="px-6 py-4 text-right space-x-2">
+                    <button onclick="showDetailModal('${type}', '${id}')" title="Ver Detalle" class="text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-eye"></i></button>
                     <button onclick="editCatalogInline('${type}', '${id}')" class="text-blue-500 hover:text-blue-700 p-1"><i class="fas fa-edit"></i></button>
                     <button onclick="deleteItem('${DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)]}', '${id}', '${idCol}')" class="text-red-500 hover:text-red-700 p-1"><i class="fas fa-trash"></i></button>
                 </td>
@@ -881,44 +1034,110 @@ async function loadExpensesList() {
 
     allExpensesData = await fetchSupabaseData(DB_CONFIG.tableGastos);
 
+    // Update pending count
+    const pendingCount = allExpensesData.filter(g => g.estatus_aprobacion === 'Pendiente').length;
+    const badge = document.getElementById('pending-expenses-count');
+    if (badge) {
+        badge.innerText = pendingCount;
+        badge.classList.toggle('hidden', pendingCount === 0);
+    }
+
     if (loader) loader.classList.add('hidden');
+    renderExpensesTable(allExpensesData);
+}
+
+function switchExpenseTab(tab) {
+    currentExpenseTab = tab;
+    document.querySelectorAll('.expense-tab').forEach(btn => {
+        btn.classList.remove('bg-green-600', 'text-white', 'shadow-sm');
+        btn.classList.add('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
+    });
+
+    const activeBtn = document.getElementById(`exp-tab-${tab}`);
+    if (activeBtn) {
+        activeBtn.classList.add('bg-green-600', 'text-white', 'shadow-sm');
+        activeBtn.classList.remove('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
+    }
+
     renderExpensesTable(allExpensesData);
 }
 
 function renderExpensesTable(data) {
     const tbody = document.getElementById('expenses-table-body');
     if (!tbody) return;
-    tbody.innerHTML = data.map(g => `
-        <tr class="hover:bg-slate-50 transition-colors">
-            <td class="px-6 py-4">
-                <div class="font-bold text-slate-800 text-sm">${g.id_gasto || 'N/A'}</div>
-                <div class="text-[10px] text-slate-400 font-mono">${g.fecha}</div>
-            </td>
-            <td class="px-6 py-4">
-                <div class="text-sm font-semibold text-slate-700">Viaje: ${g.id_viaje}</div>
-                <div class="text-[10px] text-slate-400">Unidad: ${g.id_unit_eco || g.id_unidad}</div>
-            </td>
-            <td class="px-6 py-4 text-sm text-slate-600">
-                <div class="font-bold text-slate-800 text-sm">${g.concepto}</div>
-                <div class="text-[10px] text-slate-400">Chofer: ${g.id_chofer}</div>
-            </td>
-            <td class="px-6 py-4 text-right font-mono font-bold text-red-600 text-sm">
-                $${(parseFloat(g.monto) || 0).toLocaleString()}
-            </td>
-            <td class="px-6 py-4 text-[10px] text-slate-500 font-mono">
-                ${g.kmts_recorridos} km
-            </td>
-            <td class="px-6 py-4">
-                <span class="text-[10px] font-bold ${g.estatus_pago === 'Pagado' ? 'text-green-500' : 'text-amber-500'}">
-                    ● ${g.estatus_pago || 'Pendiente'}
-                </span>
-            </td>
-            <td class="px-6 py-4 text-right space-x-2">
-                <button onclick="editExpenseInline('${g.id_gasto}')" class="text-blue-500 hover:text-blue-700 p-1" title="Editar"><i class="fas fa-edit"></i></button>
-                <button onclick="deleteItem('${DB_CONFIG.tableGastos}', '${g.id_gasto}', 'id_gasto')" class="text-red-500 hover:text-red-700 p-1" title="Eliminar"><i class="fas fa-trash"></i></button>
-            </td>
-        </tr>
-    `).join('');
+
+    let filtered = data;
+    if (currentExpenseTab === 'pendientes') {
+        filtered = data.filter(g => g.estatus_aprobacion === 'Pendiente');
+    }
+
+    tbody.innerHTML = filtered.map(g => {
+        const estAprob = g.estatus_aprobacion || 'Pendiente';
+        const aprobClass = estAprob === 'Aprobado' ? 'bg-green-100 text-green-700' :
+            (estAprob === 'Rechazado' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700');
+
+        return `
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-6 py-4">
+                    <div class="font-bold text-slate-800 text-sm">${g.id_gasto || 'N/A'}</div>
+                    <div class="text-[10px] text-slate-400 font-mono">${g.fecha}</div>
+                </td>
+                <td class="px-6 py-4">
+                    <div class="text-sm font-semibold text-slate-700">Viaje: ${g.id_viaje}</div>
+                    <div class="text-[10px] text-slate-400">Unidad: ${g.id_unit_eco || g.id_unidad}</div>
+                </td>
+                <td class="px-6 py-4 text-sm text-slate-600">
+                    <div class="font-bold text-slate-800 text-sm">${g.concepto}</div>
+                    <div class="text-[10px] text-slate-400">Chofer: ${g.id_chofer}</div>
+                </td>
+                <td class="px-6 py-4 text-right font-mono font-bold text-red-600 text-sm">
+                    $${(parseFloat(g.monto) || 0).toLocaleString()}
+                </td>
+                <td class="px-6 py-4">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[10px] font-bold ${g.estatus_pago === 'Pagado' ? 'text-green-500' : 'text-amber-500'} uppercase">
+                            ● Pago: ${g.estatus_pago || 'Pendiente'}
+                        </span>
+                        <span class="text-[8px] font-black px-1.5 py-0.5 rounded ${aprobClass} w-fit uppercase">
+                            ${estAprob}
+                        </span>
+                    </div>
+                </td>
+                <td class="px-6 py-4 text-right space-x-1">
+                    ${estAprob === 'Pendiente' ? `
+                        <button onclick="approveExpense('${g.id_gasto}')" title="Aprobar" class="text-green-500 hover:text-green-700 p-1">
+                            <i class="fas fa-check-circle"></i>
+                        </button>
+                        <button onclick="rejectExpense('${g.id_gasto}')" title="Rechazar" class="text-red-500 hover:text-red-700 p-1">
+                            <i class="fas fa-times-circle"></i>
+                        </button>
+                    ` : ''}
+                    <button onclick="showDetailModal('gastos', '${g.id_gasto}')" title="Ver Detalle" class="text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-eye"></i></button>
+                    <button onclick="editExpenseInline('${g.id_gasto}')" class="text-blue-500 hover:text-blue-700 p-1" title="Editar"><i class="fas fa-edit"></i></button>
+                    <button onclick="deleteItem('${DB_CONFIG.tableGastos}', '${g.id_gasto}', 'id_gasto')" class="text-red-500 hover:text-red-700 p-1" title="Eliminar"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function approveExpense(id) {
+    if (!confirm('¿Aprobar este gasto?')) return;
+    try {
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Aprobado' }).eq('id_gasto', id);
+        if (error) throw error;
+        loadExpensesList();
+    } catch (err) { alert('Error: ' + err.message); }
+}
+
+async function rejectExpense(id) {
+    const motivo = prompt('Motivo del rechazo (opcional):');
+    if (motivo === null) return;
+    try {
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Rechazado' }).eq('id_gasto', id);
+        if (error) throw error;
+        loadExpensesList();
+    } catch (err) { alert('Error: ' + err.message); }
 }
 
 function filterExpenses(query) {
@@ -1020,8 +1239,9 @@ async function loadTreasuryList() {
                     <td class="px-6 py-4">
                         ${!isPaid ? `<button onclick="markTripAsPaid('${item.id_viaje}')" class="text-xs text-blue-500 hover:underline">Marcar Pagado</button>` : '<span class="text-slate-300">-</span>'}
                     </td>
-                    <td class="px-6 py-4 text-right">
-                        <button onclick="deleteItem('${DB_CONFIG.tableViajes}', '${item.id_viaje}', 'ID_Viaje')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
+                    <td class="px-6 py-4 text-right space-x-2">
+                        <button onclick="showDetailModal('viajes', '${item.id_viaje}')" title="Ver Detalle" class="text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-eye"></i></button>
+                        <button onclick="deleteItem('${DB_CONFIG.tableViajes}', '${item.id_viaje}', 'id_viaje')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
                     </td>
                 </tr>
             `;
@@ -1047,7 +1267,8 @@ async function loadTreasuryList() {
                     <td class="px-6 py-4">
                         ${item.estatus !== 'Liquidado' ? `<button onclick="markAccountLiquidated('${item.id_cuenta}')" class="text-xs text-green-500 hover:underline">Liquidar</button>` : '<span class="text-slate-300">-</span>'}
                     </td>
-                    <td class="px-6 py-4 text-right">
+                    <td class="px-6 py-4 text-right space-x-2">
+                        <button onclick="showDetailModal('cuentas', '${item.id_cuenta}')" title="Ver Detalle" class="text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-eye"></i></button>
                         <button onclick="deleteItem('${DB_CONFIG.tableCuentas}', '${item.id_cuenta}', 'id_cuenta')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
                     </td>
                 </tr>
@@ -1277,12 +1498,32 @@ async function loadDriverSettlementDetail(id_chofer) {
 
     document.getElementById('set-flete').innerText = `$${sumFletes.toLocaleString()}`;
 
-    // Gastos Operativos (Filtrar solo los vinculados a los viajes seleccionados si es necesario, por ahora todos los del chofer)
+    // Gastos Operativos
     const expList = document.getElementById('set-expenses-list');
     let sumExp = 0;
     expList.innerHTML = currentExpenses.map(g => {
+        const estAprob = g.estatus_aprobacion || 'Pendiente';
+        const isPending = estAprob === 'Pendiente';
+        const aprobColor = estAprob === 'Aprobado' ? 'text-green-500' : (estAprob === 'Rechazado' ? 'text-red-500' : 'text-amber-500');
+
         sumExp += parseFloat(g.monto);
-        return `<div class="flex justify-between"><span>${g.concepto} (${g.id_viaje})</span><span class="font-mono">$${parseFloat(g.monto).toLocaleString()}</span></div>`;
+        return `
+            <div class="flex flex-col gap-1 border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-semibold text-slate-700">${g.concepto} (${g.id_viaje})</span>
+                    <span class="font-mono font-bold">$${parseFloat(g.monto).toLocaleString()}</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-[8px] font-black uppercase ${aprobColor}">${estAprob}</span>
+                    ${isPending ? `
+                        <div class="flex gap-2">
+                            <button onclick="approveSettlementExpense('${g.id_gasto}', '${id_chofer}')" class="text-[8px] bg-green-500 text-white px-2 py-0.5 rounded hover:bg-green-600">Aprobar</button>
+                            <button onclick="rejectSettlementExpense('${g.id_gasto}', '${id_chofer}')" class="text-[8px] bg-red-500 text-white px-2 py-0.5 rounded hover:bg-red-600">Rechazar</button>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
     }).join('') || '<span class="text-slate-400 italic">Sin gastos registrados</span>';
     document.getElementById('set-sum-expenses').innerText = `$${sumExp.toLocaleString()}`;
 
@@ -1305,22 +1546,47 @@ async function loadDriverSettlementDetail(id_chofer) {
 
 async function finalizeSettlement() {
     if (!selectedDriverForSettlement) return;
-    if (!confirm('¿Desea cerrar la liquidación para este chofer?')) return;
+
+    // Check for unapproved expenses
+    const unapproved = currentExpenses.filter(g => (g.estatus_aprobacion || 'Pendiente') === 'Pendiente');
+    if (unapproved.length > 0) {
+        alert('❌ No se puede finalizar la liquidación: Hay ' + unapproved.length + ' gastos pendientes de aprobación.');
+        return;
+    }
+
+    const settleData = calculateCurrentSettlement();
+    if (!settleData || settleData.monto_neto <= 0) {
+        if (!confirm('La liquidación es de $0.00 o menor. ¿Desea continuar de todos modos?')) return;
+    }
+
+    if (!confirm(`¿Desea cerrar la liquidación para ${selectedDriverForSettlement}? \nTotal Neto: $${settleData.monto_neto.toLocaleString()}`)) return;
 
     try {
-        // 1. Marcar deudas como liquidadas
+        // 1. Guardar Maestro de Liquidación
+        const { error: lErr } = await window.supabaseClient.from(DB_CONFIG.tableLiquidaciones).insert([{
+            id_chofer: selectedDriverForSettlement,
+            fecha_inicio: pendingTripsForDriver.length > 0 ? pendingTripsForDriver[0].fecha : new Date().toISOString().split('T')[0],
+            fecha_fin: new Date().toISOString().split('T')[0],
+            total_fletes: settleData.total_fletes,
+            total_gastos: settleData.total_gastos,
+            monto_comision: settleData.monto_comision,
+            monto_neto: settleData.monto_neto
+        }]);
+        if (lErr) throw lErr;
+
+        // 2. Marcar deudas como liquidadas
         if (currentDebts.length > 0) {
             const ids = currentDebts.map(d => d.id_cuenta);
             await window.supabaseClient.from(DB_CONFIG.tableCuentas).update({ estatus: 'Liquidado' }).in('id_cuenta', ids);
         }
 
-        // 2. Marcar viajes como operativamente 'Liquidado'
+        // 3. Marcar viajes como operativamente 'Liquidado'
         if (pendingTripsForDriver.length > 0) {
             const ids = pendingTripsForDriver.map(t => t.id_viaje);
-            await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_viaje: 'Liquidado' }).in('id_viaje', ids);
+            await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_viaje: 'Liquidado', estatus_pago: 'Pagado' }).in('id_viaje', ids);
         }
 
-        alert('✅ Liquidación consolidada completada.');
+        alert('✅ Liquidación consolidada guardada y cuentas cerradas.');
         loadSettlementTrips();
         document.getElementById('settlement-detail').classList.add('hidden');
         document.getElementById('settlement-empty').classList.remove('hidden');
@@ -1329,26 +1595,266 @@ async function finalizeSettlement() {
     }
 }
 
+function calculateCurrentSettlement() {
+    const totalFletes = pendingTripsForDriver.reduce((sum, t) => sum + (parseFloat(t.monto_flete) || 0), 0);
+    const totalGastos = currentExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+    const totalDebts = currentDebts.reduce((sum, d) => sum + (parseFloat(d.monto) || 0), 0);
+
+    const comm = totalFletes * 0.15;
+    const neto = comm - totalDebts;
+
+    return {
+        total_fletes: totalFletes,
+        total_gastos: totalGastos,
+        monto_comision: comm,
+        monto_neto: neto
+    };
+}
+
 // Inicializar vista de tesorería al cargar
 switchTreasuryTab('favor');
 
-function prepareAdvance(tripId, driverId) {
+async function prepareAdvance(tripId, driverId) {
     showSection('tesoreria');
     showAccountForm();
 
-    // Esperar un momento a que el DOM se actualice si es necesario
     setTimeout(() => {
         const selectTipo = document.getElementById('acc-tipo');
         if (selectTipo) selectTipo.value = 'A Favor';
-
         const inputActor = document.getElementById('acc-actor');
         if (inputActor) inputActor.value = driverId;
-
         const inputConcepto = document.getElementById('acc-concepto');
         if (inputConcepto) inputConcepto.value = 'Anticipo para viaje ' + tripId;
-
         const inputViaje = document.getElementById('acc-id-viaje-cta');
         if (inputViaje) inputViaje.value = tripId;
     }, 100);
 }
 
+// --- UNIVERSAL INLINE EDITING ---
+
+async function editCatalogInline(type, id) {
+    const row = document.getElementById(`row-${type}-${id}`);
+    if (!row) return;
+
+    // Obtener datos actuales del servidor o una caché si existiera
+    const table = DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)];
+    const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
+
+    const { data: item } = await window.supabaseClient.from(table).select('*').eq(idCol, id).single();
+    if (!item) return;
+
+    let editHtml = '';
+    if (type === 'choferes') {
+        editHtml = `
+            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_chofer}" class="w-20 p-1 border rounded" readonly></td>
+            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre}" class="w-full p-1 border rounded"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-licencia-${id}" value="${item.licencia || ''}" class="w-full p-1 border rounded"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-unidad-${id}" value="${item.id_unidad || ''}" class="w-full p-1 border rounded"></td>
+        `;
+    } else if (type === 'unidades') {
+        editHtml = `
+            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_unidad}" class="w-20 p-1 border rounded" readonly></td>
+            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_unidad}" class="w-full p-1 border rounded"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-placas-${id}" value="${item.placas || ''}" class="w-full p-1 border rounded"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-chofer-${id}" value="${item.id_chofer || ''}" class="w-full p-1 border rounded"></td>
+        `;
+    } else if (type === 'clientes') {
+        editHtml = `
+            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_cliente}" class="w-full p-1 border rounded" readonly></td>
+            <td class="px-6 py-4"><input type="text" id="edit-rfc-${id}" value="${item.rfc || ''}" class="w-24 p-1 border rounded"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-contacto-${id}" value="${item.contacto_nombre || ''}" class="w-full p-1 border rounded"></td>
+        `;
+    } else if (type === 'proveedores') {
+        editHtml = `
+            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_proveedor}" class="w-20 p-1 border rounded" readonly></td>
+            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_proveedor}" class="w-full p-1 border rounded"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-tipo-${id}" value="${item.tipo_proveedor || ''}" class="w-full p-1 border rounded"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-tel-${id}" value="${item.telefono || ''}" class="w-full p-1 border rounded"></td>
+        `;
+    }
+
+    const estatusHtml = `
+        <td class="px-6 py-4">
+            <select id="edit-estatus-${id}" class="p-1 border rounded text-xs">
+                <option value="Activo" ${item.estatus === 'Activo' ? 'selected' : ''}>Activo</option>
+                <option value="Inactivo" ${item.estatus === 'Inactivo' ? 'selected' : ''}>Inactivo</option>
+            </select>
+        </td>
+    `;
+
+    const actionsHtml = `
+        <td class="px-6 py-4 text-right space-x-2">
+            <button onclick="saveCatalogInline('${type}', '${id}')" class="text-green-500 hover:text-green-700 p-1"><i class="fas fa-save"></i></button>
+            <button onclick="location.reload()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-times"></i></button>
+        </td>
+    `;
+
+    row.innerHTML = editHtml + estatusHtml + actionsHtml;
+}
+
+async function saveCatalogInline(type, id) {
+    const table = DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)];
+    const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
+
+    let updateData = {
+        estatus: document.getElementById(`edit-estatus-${id}`).value
+    };
+
+    if (type === 'choferes') {
+        updateData.nombre = document.getElementById(`edit-nombre-${id}`).value;
+        updateData.licencia = document.getElementById(`edit-licencia-${id}`).value;
+        updateData.id_unidad = document.getElementById(`edit-unidad-${id}`).value;
+    } else if (type === 'unidades') {
+        updateData.nombre_unidad = document.getElementById(`edit-nombre-${id}`).value;
+        updateData.placas = document.getElementById(`edit-placas-${id}`).value;
+        updateData.id_chofer = document.getElementById(`edit-chofer-${id}`).value;
+    } else if (type === 'clientes') {
+        updateData.rfc = document.getElementById(`edit-rfc-${id}`).value;
+        updateData.contacto_nombre = document.getElementById(`edit-contacto-${id}`).value;
+    } else if (type === 'proveedores') {
+        updateData.nombre_proveedor = document.getElementById(`edit-nombre-${id}`).value;
+        updateData.tipo_proveedor = document.getElementById(`edit-tipo-${id}`).value;
+        updateData.telefono = document.getElementById(`edit-tel-${id}`).value;
+    }
+
+    try {
+        const { error } = await window.supabaseClient.from(table).update(updateData).eq(idCol, id);
+        if (error) throw error;
+        alert('Cambios guardados con éxito.');
+        location.reload();
+    } catch (err) {
+        alert('Error al guardar: ' + err.message);
+    }
+}
+// --- TRIPS INLINE EDITING ---
+function editTripInline(id) {
+    const row = Array.from(document.querySelectorAll('#trips-table-body tr')).find(tr => tr.innerHTML.includes(id));
+    if (!row) return;
+
+    const v = allTripsData.find(x => x.id_viaje === id);
+    if (!v) return;
+
+    row.innerHTML = `
+        <td class="px-6 py-4 font-bold text-slate-800 text-sm">${v.id_viaje}</td>
+        <td class="px-6 py-4">
+            <input type="text" id="edit-cliente-${id}" value="${v.cliente}" class="w-full p-1 text-xs border rounded mb-1">
+            <input type="text" id="edit-ruta-${id}" value="${v.origen} - ${v.destino}" class="w-full p-1 text-[10px] border rounded" placeholder="Origen - Destino">
+        </td>
+        <td class="px-6 py-4">
+            <input type="text" id="edit-unidad-${id}" value="${v.id_unidad}" class="w-full p-1 text-xs border rounded mb-1">
+            <input type="text" id="edit-chofer-${id}" value="${v.id_chofer}" class="w-full p-1 text-xs border rounded">
+        </td>
+        <td class="px-6 py-4">
+            <input type="number" id="edit-flete-${id}" value="${v.monto_flete}" class="w-full p-1 text-xs border rounded font-bold">
+        </td>
+        <td class="px-6 py-4">
+            <select id="edit-status-${id}" class="text-[10px] p-1 border rounded">
+                <option value="Pendiente" ${v.estatus_pago === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                <option value="Pagado" ${v.estatus_pago === 'Pagado' ? 'selected' : ''}>Pagado</option>
+            </select>
+        </td>
+        <td class="px-6 py-4 text-right space-x-1">
+            <button onclick="saveTripInline('${id}')" class="text-green-600 hover:text-green-800 p-1" title="Guardar"><i class="fas fa-save"></i></button>
+            <button onclick="renderTripsTable(allTripsData)" class="text-slate-400 hover:text-slate-600 p-1" title="Cancelar"><i class="fas fa-times"></i></button>
+        </td>
+    `;
+}
+
+async function saveTripInline(id) {
+    const rutaParts = document.getElementById(`edit-ruta-${id}`).value.split('-').map(x => x.trim());
+    const updateData = {
+        cliente: document.getElementById(`edit-cliente-${id}`).value,
+        origen: rutaParts[0] || '',
+        destino: rutaParts[1] || '',
+        id_unidad: document.getElementById(`edit-unidad-${id}`).value,
+        id_chofer: document.getElementById(`edit-chofer-${id}`).value,
+        monto_flete: parseFloat(document.getElementById(`edit-flete-${id}`).value),
+        estatus_pago: document.getElementById(`edit-status-${id}`).value
+    };
+
+    try {
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableViajes).update(updateData).eq('id_viaje', id);
+        if (error) throw error;
+        alert('Viaje actualizado.');
+        loadTripsList();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+// --- EXPENSES INLINE EDITING ---
+function editExpenseInline(id) {
+    const row = Array.from(document.querySelectorAll('#expenses-table-body tr')).find(tr => tr.innerHTML.includes(id));
+    if (!row) return;
+
+    const g = allExpensesData.find(x => x.id_gasto === id);
+    if (!g) return;
+
+    row.innerHTML = `
+        <td class="px-6 py-4 font-bold text-slate-800 text-sm">${g.id_gasto}</td>
+        <td class="px-6 py-4">
+            <input type="text" id="edit-viaje-${id}" value="${g.id_viaje}" class="w-full p-1 text-xs border rounded mb-1">
+            <input type="text" id="edit-unidad-exp-${id}" value="${g.id_unidad || g.id_unit_eco}" class="w-full p-1 text-[10px] border rounded">
+        </td>
+        <td class="px-6 py-4">
+            <input type="text" id="edit-concepto-${id}" value="${g.concepto}" class="w-full p-1 text-xs border rounded mb-1 font-bold">
+            <input type="text" id="edit-chofer-exp-${id}" value="${g.id_chofer}" class="w-full p-1 text-xs border rounded">
+        </td>
+        <td class="px-6 py-4">
+            <input type="number" id="edit-monto-exp-${id}" value="${g.monto}" class="w-full p-1 text-xs border rounded font-bold text-red-600">
+        </td>
+        <td class="px-6 py-4">
+            <input type="number" id="edit-km-${id}" value="${g.kmts_recorridos}" class="w-full p-1 text-[10px] border rounded">
+        </td>
+        <td class="px-6 py-4">
+            <select id="edit-status-exp-${id}" class="text-[10px] p-1 border rounded">
+                <option value="Pendiente" ${g.estatus_pago === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                <option value="Pagado" ${g.estatus_pago === 'Pagado' ? 'selected' : ''}>Pagado</option>
+            </select>
+        </td>
+        <td class="px-6 py-4 text-right space-x-1">
+            <button onclick="saveExpenseInline('${id}')" class="text-green-600 hover:text-green-800 p-1" title="Guardar"><i class="fas fa-save"></i></button>
+            <button onclick="renderExpensesTable(allExpensesData)" class="text-slate-400 hover:text-slate-600 p-1" title="Cancelar"><i class="fas fa-times"></i></button>
+        </td>
+    `;
+}
+
+async function saveExpenseInline(id) {
+    const updateData = {
+        id_viaje: document.getElementById(`edit-viaje-${id}`).value,
+        id_unidad: document.getElementById(`edit-unidad-exp-${id}`).value,
+        concepto: document.getElementById(`edit-concepto-${id}`).value,
+        id_chofer: document.getElementById(`edit-chofer-exp-${id}`).value,
+        monto: parseFloat(document.getElementById(`edit-monto-exp-${id}`).value),
+        kmts_recorridos: parseFloat(document.getElementById(`edit-km-${id}`).value),
+        estatus_pago: document.getElementById(`edit-status-exp-${id}`).value
+    };
+
+    try {
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update(updateData).eq('id_gasto', id);
+        if (error) throw error;
+        alert('Gasto actualizado.');
+        loadExpensesList();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+async function approveSettlementExpense(id, id_chofer) {
+    try {
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Aprobado' }).eq('id_gasto', id);
+        if (error) throw error;
+        loadDriverSettlementDetail(id_chofer);
+        loadExpensesList(); // Update background list too
+    } catch (err) { alert('Error: ' + err.message); }
+}
+
+async function rejectSettlementExpense(id, id_chofer) {
+    const motivo = prompt('Motivo del rechazo:');
+    if (motivo === null) return;
+    try {
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Rechazado' }).eq('id_gasto', id);
+        if (error) throw error;
+        loadDriverSettlementDetail(id_chofer);
+        loadExpensesList(); // Update background list too
+    } catch (err) { alert('Error: ' + err.message); }
+}
