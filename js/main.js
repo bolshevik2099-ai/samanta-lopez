@@ -22,18 +22,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const viajeForm = document.getElementById('viaje-form');
     if (viajeForm) viajeForm.addEventListener('submit', (e) => {
-        enviarViaje(e).then(() => {
-            // CXC Automática al guardar viaje
+        enviarViaje(e).then(async () => {
             const idViaje = document.getElementById('V_ID_Viaje').value;
             const monto = parseFloat(document.getElementById('V_Monto_Flete').value) || 0;
+            const comision = parseFloat(document.getElementById('V_Comision_Chofer').value) || 0;
             const cliente = document.getElementById('V_Cliente').value;
             const noInterno = document.getElementById('V_No_Interno').value;
-            if (idViaje && monto > 0) crearCXCAutomatica(idViaje, monto, cliente, noInterno);
+            const idChofer = document.getElementById('V_ID_Chofer').value;
+            const idUnidad = document.getElementById('V_ID_Unidad').value;
+
+            // 1. CXC Automática al guardar viaje
+            if (idViaje && monto > 0) await crearCXCAutomatica(idViaje, monto, cliente, noInterno);
+
+            // 2. Registro Automático de Comisión como Gasto
+            if (idViaje && comision > 0) {
+                await crearGastoComisionAutomatica({
+                    id_viaje: idViaje,
+                    monto: comision,
+                    id_chofer: idChofer,
+                    id_unidad: idUnidad
+                });
+            }
         });
     });
 
     const accountForm = document.getElementById('account-form');
     if (accountForm) accountForm.addEventListener('submit', enviarCuenta);
+
+    // Live Commission Calculation (15%)
+    const fleteInput = document.getElementById('V_Monto_Flete');
+    const commInput = document.getElementById('V_Comision_Chofer');
+    if (fleteInput && commInput) {
+        fleteInput.addEventListener('input', () => {
+            const flete = parseFloat(fleteInput.value) || 0;
+            commInput.value = (flete * 0.15).toFixed(2);
+        });
+    }
 
     // Inicializar Dashboard Nativo por API
     if (document.getElementById('period-table-body')) {
@@ -1131,6 +1155,21 @@ async function enviarGasto(e) {
             estatus: 'No Liquidado'
         };
         await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
+    }
+
+    async function crearGastoComisionAutomatica({ id_viaje, monto, id_chofer, id_unidad }) {
+        const data = {
+            id_gasto: 'COM-' + Date.now().toString().slice(-6),
+            fecha: new Date().toISOString().split('T')[0],
+            id_viaje: id_viaje,
+            id_unidad: id_unidad,
+            id_chofer: id_chofer,
+            concepto: 'Comisión Chofer',
+            monto: monto,
+            forma_pago: 'Crédito', // Se paga al liquidar
+            estatus_pago: 'Pendiente'
+        };
+        await window.supabaseClient.from(DB_CONFIG.tableGastos).insert([data]);
     }
 
     // --- LIQUIDACIONES LOGIC (BY DRIVER REFACTOR) ---
