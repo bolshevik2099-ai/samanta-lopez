@@ -1530,21 +1530,25 @@ async function loadDriverSettlementDetail(id_chofer) {
     // Gastos Operativos
     const expList = document.getElementById('set-expenses-list');
     let sumExp = 0;
-    expList.innerHTML = currentExpenses.map(g => {
+
+    // Filtramos SOLO los gastos de Contado (Reembolsables)
+    const reimbursableExpenses = currentExpenses.filter(g => g.forma_pago === 'Contado');
+
+    expList.innerHTML = reimbursableExpenses.map(g => {
         const estAprob = g.estatus_aprobacion || 'Pendiente';
         const isPending = estAprob === 'Pendiente';
         const aprobColor = estAprob === 'Aprobado' ? 'text-green-500' : (estAprob === 'Rechazado' ? 'text-red-500' : 'text-amber-500');
 
+        // Solo sumamos lo que se muestra
         sumExp += parseFloat(g.monto);
-        const isReimbursable = g.forma_pago === 'Contado';
 
         return `
             <div class="flex flex-col gap-1 border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs font-semibold ${isReimbursable ? 'text-slate-700' : 'text-slate-400 italic'}">
-                        ${g.concepto} (${g.id_viaje}) ${isReimbursable ? '' : '[CRÉDITO]'}
+                    <span class="text-xs font-semibold text-slate-700">
+                        ${g.concepto} (${g.id_viaje})
                     </span>
-                    <span class="font-mono font-bold ${isReimbursable ? '' : 'text-slate-400'}">$${parseFloat(g.monto).toLocaleString()}</span>
+                    <span class="font-mono font-bold">$${parseFloat(g.monto).toLocaleString()}</span>
                 </div>
                 <div class="flex justify-between items-center">
                     <span class="text-[8px] font-black uppercase ${aprobColor}">${estAprob}</span>
@@ -1557,7 +1561,7 @@ async function loadDriverSettlementDetail(id_chofer) {
                 </div>
             </div>
         `;
-    }).join('') || '<span class="text-slate-400 italic">Sin gastos registrados</span>';
+    }).join('') || '<span class="text-slate-400 italic">Sin gastos a reembolsar</span>';
     document.getElementById('set-sum-expenses').innerText = `$${sumExp.toLocaleString()}`;
 
     // Anticipos/Deudas (Solo se restan los "A Favor" - Anticipos)
