@@ -26,24 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
         enviarViaje(e).then(async () => {
             const idViaje = document.getElementById('V_ID_Viaje').value;
             const monto = parseFloat(document.getElementById('V_Monto_Flete').value) || 0;
-            const comision = parseFloat(document.getElementById('V_Comision_Chofer').value) || 0;
             const cliente = document.getElementById('V_Cliente').value;
             const noInterno = document.getElementById('V_No_Interno').value;
-            const idChofer = document.getElementById('V_ID_Chofer').value;
-            const idUnidad = document.getElementById('V_ID_Unidad').value;
 
             // 1. CXC Automática al guardar viaje
             if (idViaje && monto > 0) await crearCXCAutomatica(idViaje, monto, cliente, noInterno);
-
-            // 2. Registro Automático de Comisión como Gasto
-            if (idViaje && comision > 0) {
-                await crearGastoComisionAutomatica({
-                    id_viaje: idViaje,
-                    monto: comision,
-                    id_chofer: idChofer,
-                    id_unidad: idUnidad
-                });
-            }
         });
     });
 
@@ -1431,8 +1418,9 @@ async function crearGastoComisionAutomatica({ id_viaje, monto, id_chofer, id_uni
         id_chofer: id_chofer,
         concepto: 'Comisión Chofer',
         monto: monto,
-        forma_pago: 'Crédito', // Se paga al liquidar
-        estatus_pago: 'Pendiente'
+        forma_pago: 'Contado',
+        estatus_pago: 'Pagado',
+        estatus_aprobacion: 'Aprobado'
     };
     await window.supabaseClient.from(DB_CONFIG.tableGastos).insert([data]);
 }
@@ -1583,10 +1571,20 @@ async function finalizeSettlement() {
             await window.supabaseClient.from(DB_CONFIG.tableCuentas).update({ estatus: 'Liquidado' }).in('id_cuenta', ids);
         }
 
-        // 3. Marcar viajes como operativamente 'Liquidado'
+        // 3. Marcar viajes como operativamente 'Liquidado' y generar comisiones
         if (pendingTripsForDriver.length > 0) {
             const ids = pendingTripsForDriver.map(t => t.id_viaje);
             await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_viaje: 'Liquidado', estatus_pago: 'Pagado' }).in('id_viaje', ids);
+
+            // Generar gastos de comisión por cada viaje
+            for (const t of pendingTripsForDriver) {
+                await crearGastoComisionAutomatica({
+                    id_viaje: t.id_viaje,
+                    monto: parseFloat(t.comision_chofer) || (parseFloat(t.monto_flete) * 0.15),
+                    id_chofer: t.id_chofer,
+                    id_unidad: t.id_unidad
+                });
+            }
         }
 
         alert('✅ Liquidación consolidada guardada y cuentas cerradas.');
