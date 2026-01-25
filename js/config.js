@@ -7,9 +7,9 @@
 
 const DB_CONFIG = {
     // Configuración de Tablas (Supabase)
-    tableGastos: 'reg_gastos',   // app_reg_gastos_v1
-    tableUsuarios: 'usuarios',     // app_usuarios_v1
-    tableViajes: 'reg_viajes',      // app_reg_viajes_v1
+    tableGastos: 'reg_gastos',
+    tableUsuarios: 'usuarios',
+    tableViajes: 'reg_viajes',
     tableChoferes: 'cat_choferes',
     tableUnidades: 'cat_unidades',
     tableClientes: 'cat_clientes',

@@ -545,9 +545,13 @@ async function enviarGasto(e) {
             kmts_actuales: parseFloat(getVal('Kmts_Actuales')) || 0,
             kmts_recorridos: parseFloat(getVal('Kmts_Recorridos')) || 0,
             forma_pago: formaPago,
-            estatus_pago: formaPago === 'Crédito' ? 'Pendiente' : 'Pagado',
-            acreedor_nombre: document.getElementById('Exp_Acreedor')?.value || ''
+            estatus_pago: formaPago === 'Crédito' ? 'Pendiente' : 'Pagado'
         };
+
+        const acreedorVal = document.getElementById('Exp_Acreedor')?.value;
+        if (acreedorVal) {
+            expenseData.acreedor_nombre = acreedorVal;
+        }
 
         // Upload photo if exists
         const file = document.getElementById('Ticket_Foto')?.files[0];
@@ -572,7 +576,7 @@ async function enviarGasto(e) {
                 id_gasto: expenseData.id_gasto,
                 monto: expenseData.monto,
                 concepto: `Gasto Crédito: ${expenseData.concepto} (${expenseData.id_gasto})`,
-                actor: expenseData.acreedor_nombre || expenseData.id_chofer
+                actor: expenseData.acreedor_nombre || expenseData.id_chofer || 'Sin Asignar'
             });
         }
 
@@ -600,10 +604,6 @@ async function enviarGasto(e) {
     }
 }
 
-function checkAuth() {
-    const session = localStorage.getItem('crm_session');
-    return session ? JSON.parse(session) : null;
-}
 
 // --- INICIALIZACIÓN DE FORMULARIOS ---
 

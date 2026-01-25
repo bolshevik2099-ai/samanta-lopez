@@ -320,55 +320,12 @@
         </form>
     </div>
 
-    <!-- Hidden Configuration Trigger (Cog) -->
-    <button onclick="openSetup()"
-        class="fixed bottom-24 right-6 text-slate-300 hover:text-slate-500 transition-all opacity-0 hover:opacity-100 z-50">
-        <i class="fas fa-cog"></i>
-    </button>
 
-    <!-- Configuration Modal (Keep original logic) -->
-    <div id="setup-modal"
-        class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 z-[200] hidden">
-        <div class="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 border border-slate-200">
-            <div class="text-center mb-6">
-                <i class="fas fa-key text-amber-500 text-3xl mb-4"></i>
-                <h3 class="text-xl font-bold text-slate-800">Parámetros de API</h3>
-            </div>
-            <div class="space-y-4">
-                <input type="text" id="setup-app-id"
-                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                    placeholder="App ID">
-                <input type="password" id="setup-access-key"
-                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                    placeholder="Access Key">
-                <input type="text" id="setup-bridge-url"
-                    class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                    placeholder="URL Puente (GAS)">
-                <button onclick="handleSetup()"
-                    class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow-lg transition-all">Guardar</button>
-            </div>
-            <button onclick="closeSetup()"
-                class="w-full mt-4 text-[10px] text-slate-400 uppercase tracking-widest font-bold">Cerrar</button>
-        </div>
-    </div>
-
-    <script src="./js/config.js?v=5.1"></script>
+    <script src="./js/config.js?v=5.2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=5.1"></script>
-    <script src="./js/auth_v3.6.js?v=5.1"></script>
-    <script src="./js/chat.js?v=5.1"></script>
-    <script>
-        // Configuración adicional (Setup Modal)
-        function openSetup() { document.getElementById('setup-modal').classList.remove('hidden'); }
-        function closeSetup() { document.getElementById('setup-modal').classList.add('hidden'); }
-        function handleSetup() {
-            const bridgeUrl = document.getElementById('setup-bridge-url').value;
-            if (bridgeUrl) {
-                localStorage.setItem('GAS_BRIDGE_URL', bridgeUrl.trim());
-                location.reload();
-            }
-        }
-    </script>
+    <script src="./js/supabase-client.js?v=5.2"></script>
+    <script src="./js/auth.js"></script>
+    <script src="./js/chat.js?v=5.2"></script>
 </body>
 
 </html>
