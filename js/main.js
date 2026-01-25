@@ -878,137 +878,170 @@ let clientsChartInstance = null;
 let expensesChartInstance = null;
 let statusChartInstance = null;
 
-function renderAdvancedCharts(viajes, gastos) {
-    // 1. Top 5 Clientes (Bar Chart)
-    const clientsCanvas = document.getElementById('clientsChart');
-    if (clientsCanvas) {
-        // Agrupar por Cliente
-        const clientMap = {};
-        viajes.forEach(v => {
-            const client = v.cliente || 'Desconocido';
-            clientMap[client] = (clientMap[client] || 0) + (parseFloat(v.monto_flete) || 0);
-        });
+const chartInstances = {};
 
-        // Sort and Take Top 5
-        const sortedClients = Object.entries(clientMap)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5);
+function renderChartInstance(canvasId, type, data) {
+    const ctx = document.getElementById(canvasId)?.getContext('2d');
+    if (!ctx) return;
 
-        const ctx = clientsCanvas.getContext('2d');
-        if (clientsChartInstance) clientsChartInstance.destroy();
-
-        clientsChartInstance = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: sortedClients.map(c => c[0]),
-                datasets: [{
-                    label: 'Ventas ($)',
-                    data: sortedClients.map(c => c[1]),
-                    backgroundColor: [
-                        'rgba(59, 130, 246, 0.8)', // Blue
-                        'rgba(16, 185, 129, 0.8)', // Green
-                        'rgba(245, 158, 11, 0.8)', // Amber
-                        'rgba(139, 92, 246, 0.8)', // Violet
-                        'rgba(236, 72, 153, 0.8)'  // Pink
-                    ],
-                    borderRadius: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function (context) {
-                                return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(context.raw);
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { callback: v => '$' + v.toLocaleString() },
-                        grid: { display: false }
-                    },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
+    if (chartInstances[canvasId]) {
+        chartInstances[canvasId].destroy();
     }
+
+    chartInstances[canvasId] = new Chart(ctx, {
+        type: type,
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#94a3b8' } }
+            }
+        }
+    });
+}
+
+function renderAdvancedCharts(viajesData, gastosData) {
+    // 1. Top 5 Clientes (Bar Chart)
+    const clientRevenue = {};
+    viajesData.forEach(v => {
+        const client = v.cliente || 'Sin Cliente';
+        const amount = parseFloat(v.monto_flete) || 0;
+        clientRevenue[client] = (clientRevenue[client] || 0) + amount;
+    });
+
+    const topClients = Object.entries(clientRevenue)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+    renderChartInstance('clientsChart', 'bar', {
+        labels: topClients.map(c => c[0]),
+        datasets: [{
+            label: 'Ingresos',
+            data: topClients.map(c => c[1]),
+            backgroundColor: 'rgba(234, 179, 8, 0.7)',
+            borderColor: 'rgba(234, 179, 8, 1)',
+            borderWidth: 1
+        }]
+    });
 
     // 2. Desglose de Gastos (Doughnut)
-    const expensesCanvas = document.getElementById('expensesChart');
-    if (expensesCanvas) {
-        const conceptMap = {};
-        gastos.forEach(g => {
-            const concept = g.concepto || 'Otro';
-            conceptMap[concept] = (conceptMap[concept] || 0) + (parseFloat(g.monto) || 0);
-        });
+    const expenseBreakdown = {};
+    gastosData.forEach(g => {
+        const concept = g.concepto || 'Varios';
+        const amount = parseFloat(g.monto) || 0;
+        expenseBreakdown[concept] = (expenseBreakdown[concept] || 0) + amount;
+    });
 
-        const sortedExpenses = Object.entries(conceptMap).sort((a, b) => b[1] - a[1]);
+    const topExpenses = Object.entries(expenseBreakdown)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6);
 
-        const ctx = expensesCanvas.getContext('2d');
-        if (expensesChartInstance) expensesChartInstance.destroy();
+    renderChartInstance('expensesChart', 'doughnut', {
+        labels: topExpenses.map(e => e[0]),
+        datasets: [{
+            data: topExpenses.map(e => e[1]),
+            backgroundColor: [
+                'rgba(239, 68, 68, 0.7)',
+                'rgba(59, 130, 246, 0.7)',
+                'rgba(16, 185, 129, 0.7)',
+                'rgba(245, 158, 11, 0.7)',
+                'rgba(139, 92, 246, 0.7)',
+                'rgba(107, 114, 128, 0.7)',
+            ],
+            borderWidth: 0
+        }]
+    });
 
-        expensesChartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: sortedExpenses.map(e => e[0]),
-                datasets: [{
-                    data: sortedExpenses.map(e => e[1]),
-                    backgroundColor: [
-                        '#ef4444', '#f97316', '#eab308', '#84cc16', '#06b6d4', '#6366f1'
-                    ],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '70%',
-                plugins: {
-                    legend: { position: 'right', labels: { boxWidth: 10, usePointStyle: true, color: '#94a3b8' } }
-                }
-            }
-        });
+    // 3. Estatus Operativo (Viajes)
+    const statusCounts = {};
+    viajesData.forEach(v => {
+        const s = v.estatus_pago || 'Pendiente';
+        statusCounts[s] = (statusCounts[s] || 0) + 1;
+    });
+
+    renderChartInstance('statusChart', 'pie', {
+        labels: Object.keys(statusCounts),
+        datasets: [{
+            data: Object.values(statusCounts),
+            backgroundColor: [
+                'rgba(251, 191, 36, 0.7)',
+                'rgba(59, 130, 246, 0.7)',
+                'rgba(16, 185, 129, 0.7)',
+                'rgba(200, 50, 50, 0.7)',
+            ],
+            borderWidth: 0
+        }]
+    });
+
+    // 4. Eficiencia de Combustible (Yield)
+    const dieselExpenses = gastosData.filter(g => g.concepto === 'Diesel' && g.id_unidad);
+    const { unitYields, fleetAvg } = calculateFleetEfficiency(dieselExpenses);
+
+    const kpiEl = document.getElementById('period-rendimiento');
+    if (kpiEl) {
+        kpiEl.innerHTML = `${fleetAvg.toFixed(2)} <span class="text-sm font-bold text-slate-500">km/l</span>`;
     }
 
-    // 3. Estatus de Viajes (Pie/Doughnut)
-    const statusCanvas = document.getElementById('statusChart');
-    if (statusCanvas) {
-        const statusMap = {};
-        viajes.forEach(v => {
-            const status = v.estatus_viaje || 'Sin Estatus';
-            statusMap[status] = (statusMap[status] || 0) + 1;
-        });
+    const sortedYields = Object.entries(unitYields)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
 
-        const ctx = statusCanvas.getContext('2d');
-        if (statusChartInstance) statusChartInstance.destroy();
+    renderChartInstance('yieldChart', 'bar', {
+        indexAxis: 'y',
+        labels: sortedYields.map(u => u[0]),
+        datasets: [{
+            label: 'Rendimiento (km/l)',
+            data: sortedYields.map(u => u[1]),
+            backgroundColor: 'rgba(245, 158, 11, 0.7)',
+            borderColor: 'rgba(245, 158, 11, 1)',
+            borderWidth: 1
+        }]
+    });
+}
 
-        statusChartInstance = new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: Object.keys(statusMap),
-                datasets: [{
-                    data: Object.values(statusMap),
-                    backgroundColor: [
-                        '#3b82f6', '#10b981', '#6b7280', '#f43f5e'
-                    ],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, color: '#94a3b8' } }
+function calculateFleetEfficiency(dieselExpenses) {
+    const unitGroups = {};
+    dieselExpenses.forEach(e => {
+        if (!unitGroups[e.id_unidad]) unitGroups[e.id_unidad] = [];
+        unitGroups[e.id_unidad].push(e);
+    });
+
+    const unitYields = {};
+    let totalYieldSum = 0;
+    let validCount = 0;
+
+    for (const unitId in unitGroups) {
+        const sorted = unitGroups[unitId].sort((a, b) => (parseFloat(a.kmts_actuales) || 0) - (parseFloat(b.kmts_actuales) || 0));
+        let sumY = 0;
+        let countY = 0;
+
+        for (let i = 1; i < sorted.length; i++) {
+            const km1 = parseFloat(sorted[i - 1].kmts_actuales) || 0;
+            const km2 = parseFloat(sorted[i].kmts_actuales) || 0;
+            const lts = parseFloat(sorted[i].litros) || 0;
+
+            if (km2 > km1 && lts > 0) {
+                const y = (km2 - km1) / lts;
+                if (y > 0.5 && y < 15) {
+                    sumY += y;
+                    countY++;
                 }
             }
-        });
+        }
+
+        if (countY > 0) {
+            const avg = sumY / countY;
+            unitYields[unitId] = avg;
+            totalYieldSum += avg;
+            validCount++;
+        }
     }
+
+    return {
+        unitYields,
+        fleetAvg: validCount > 0 ? (totalYieldSum / validCount) : 0
+    };
 }
 
 // --- MANEJO DE FORMULARIOS ---
