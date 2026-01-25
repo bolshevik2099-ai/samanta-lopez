@@ -308,11 +308,17 @@ async function updateDashboardByPeriod() {
         safeSetText('period-venta', fmt(totalVenta));
         safeSetText('period-gasto', fmt(totalGasto));
         safeSetText('period-ganancia', fmt(totalGanancia));
+        safeSetText('period-viajes-count', viajes.length);
         safeSetText('period-label', `Periodo: ${start} al ${end}`);
 
-        // Renderizar Tabla y Gráfico
+        // Renderizar Tabla y Gráfico Principal
         renderPeriodTable(viajes, gastos);
         renderChart(viajes, gastos);
+
+        // Renderizar Gráficos Avanzados (si existen los containers)
+        if (typeof renderAdvancedCharts === 'function') {
+            renderAdvancedCharts(viajes, gastos);
+        }
 
     } catch (error) {
         console.error('Error al actualizar dashboard:', error);
@@ -437,6 +443,145 @@ async function fetchSupabaseData(tableName) {
     } catch (e) {
         console.error(`Error en Supabase (${tableName}):`, e);
         throw e;
+    }
+}
+
+// --- GRÁFICOS AVANZADOS ---
+
+let clientsChartInstance = null;
+let expensesChartInstance = null;
+let statusChartInstance = null;
+
+function renderAdvancedCharts(viajes, gastos) {
+    // 1. Top 5 Clientes (Bar Chart)
+    const clientsCanvas = document.getElementById('clientsChart');
+    if (clientsCanvas) {
+        // Agrupar por Cliente
+        const clientMap = {};
+        viajes.forEach(v => {
+            const client = v.cliente || 'Desconocido';
+            clientMap[client] = (clientMap[client] || 0) + (parseFloat(v.monto_flete) || 0);
+        });
+
+        // Sort and Take Top 5
+        const sortedClients = Object.entries(clientMap)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
+
+        const ctx = clientsCanvas.getContext('2d');
+        if (clientsChartInstance) clientsChartInstance.destroy();
+
+        clientsChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedClients.map(c => c[0]),
+                datasets: [{
+                    label: 'Ventas ($)',
+                    data: sortedClients.map(c => c[1]),
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.8)', // Blue
+                        'rgba(16, 185, 129, 0.8)', // Green
+                        'rgba(245, 158, 11, 0.8)', // Amber
+                        'rgba(139, 92, 246, 0.8)', // Violet
+                        'rgba(236, 72, 153, 0.8)'  // Pink
+                    ],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(context.raw);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => '$' + v.toLocaleString() },
+                        grid: { display: false }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // 2. Desglose de Gastos (Doughnut)
+    const expensesCanvas = document.getElementById('expensesChart');
+    if (expensesCanvas) {
+        const conceptMap = {};
+        gastos.forEach(g => {
+            const concept = g.concepto || 'Otro';
+            conceptMap[concept] = (conceptMap[concept] || 0) + (parseFloat(g.monto) || 0);
+        });
+
+        const sortedExpenses = Object.entries(conceptMap).sort((a, b) => b[1] - a[1]);
+
+        const ctx = expensesCanvas.getContext('2d');
+        if (expensesChartInstance) expensesChartInstance.destroy();
+
+        expensesChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: sortedExpenses.map(e => e[0]),
+                datasets: [{
+                    data: sortedExpenses.map(e => e[1]),
+                    backgroundColor: [
+                        '#ef4444', '#f97316', '#eab308', '#84cc16', '#06b6d4', '#6366f1'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: { position: 'right', labels: { boxWidth: 10, usePointStyle: true, color: '#94a3b8' } }
+                }
+            }
+        });
+    }
+
+    // 3. Estatus de Viajes (Pie/Doughnut)
+    const statusCanvas = document.getElementById('statusChart');
+    if (statusCanvas) {
+        const statusMap = {};
+        viajes.forEach(v => {
+            const status = v.estatus_viaje || 'Sin Estatus';
+            statusMap[status] = (statusMap[status] || 0) + 1;
+        });
+
+        const ctx = statusCanvas.getContext('2d');
+        if (statusChartInstance) statusChartInstance.destroy();
+
+        statusChartInstance = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(statusMap),
+                datasets: [{
+                    data: Object.values(statusMap),
+                    backgroundColor: [
+                        '#3b82f6', '#10b981', '#6b7280', '#f43f5e'
+                    ],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, color: '#94a3b8' } }
+                }
+            }
+        });
     }
 }
 
