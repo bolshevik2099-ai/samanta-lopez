@@ -2746,7 +2746,7 @@ switchTreasuryTab('favor');
 // --- UNIVERSAL INLINE EDITING ---
 
 async function editCatalogInline(type, id) {
-    const row = document.getElementById(`row - ${type} - ${id}`);
+    const row = document.getElementById(`row-${type}-${id}`);
     if (!row) return;
 
     // Obtener datos actuales del servidor o una caché si existiera
@@ -2763,6 +2763,7 @@ async function editCatalogInline(type, id) {
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-licencia-${id}" value="${item.licencia || ''}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-unidad-${id}" value="${item.id_unidad || ''}" class="w-full p-1 border rounded"></td>
+            <td class="px-6 py-4 text-slate-400 text-xs">No editable aquí</td>
         `;
     } else if (type === 'unidades') {
         editHtml = `
@@ -2770,6 +2771,7 @@ async function editCatalogInline(type, id) {
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_unidad}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-placas-${id}" value="${item.placas || ''}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-chofer-${id}" value="${item.id_chofer || ''}" class="w-full p-1 border rounded"></td>
+           <td class="px-6 py-4 text-slate-400 text-xs">No editable aquí</td>
         `;
     } else if (type === 'clientes') {
         editHtml = `
@@ -2807,24 +2809,24 @@ async function saveCatalogInline(type, id) {
     const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
 
     let updateData = {
-        estatus: document.getElementById(`edit - estatus - ${id}`).value
+        estatus: document.getElementById(`edit-estatus-${id}`).value
     };
 
     if (type === 'choferes') {
-        updateData.nombre = document.getElementById(`edit - nombre - ${id}`).value;
-        updateData.licencia = document.getElementById(`edit - licencia - ${id}`).value;
-        updateData.id_unidad = document.getElementById(`edit - unidad - ${id}`).value;
+        updateData.nombre = document.getElementById(`edit-nombre-${id}`).value;
+        updateData.licencia = document.getElementById(`edit-licencia-${id}`).value;
+        updateData.id_unidad = document.getElementById(`edit-unidad-${id}`).value;
     } else if (type === 'unidades') {
-        updateData.nombre_unidad = document.getElementById(`edit - nombre - ${id}`).value;
-        updateData.placas = document.getElementById(`edit - placas - ${id}`).value;
-        updateData.id_chofer = document.getElementById(`edit - chofer - ${id}`).value;
+        updateData.nombre_unidad = document.getElementById(`edit-nombre-${id}`).value;
+        updateData.placas = document.getElementById(`edit-placas-${id}`).value;
+        updateData.id_chofer = document.getElementById(`edit-chofer-${id}`).value;
     } else if (type === 'clientes') {
-        updateData.rfc = document.getElementById(`edit - rfc - ${id}`).value;
-        updateData.contacto_nombre = document.getElementById(`edit - contacto - ${id}`).value;
+        updateData.rfc = document.getElementById(`edit-rfc-${id}`).value;
+        updateData.contacto_nombre = document.getElementById(`edit-contacto-${id}`).value;
     } else if (type === 'proveedores') {
-        updateData.nombre_proveedor = document.getElementById(`edit - nombre - ${id}`).value;
-        updateData.tipo_proveedor = document.getElementById(`edit - tipo - ${id}`).value;
-        updateData.telefono = document.getElementById(`edit - tel - ${id}`).value;
+        updateData.nombre_proveedor = document.getElementById(`edit-nombre-${id}`).value;
+        updateData.tipo_proveedor = document.getElementById(`edit-tipo-${id}`).value;
+        updateData.telefono = document.getElementById(`edit-tel-${id}`).value;
     }
 
     try {
@@ -2834,6 +2836,53 @@ async function saveCatalogInline(type, id) {
         location.reload();
     } catch (err) {
         alert('Error al guardar: ' + err.message);
+    }
+}
+
+// --- CATALOG DETAIL MODAL ---
+async function showDetailModal(type, id) {
+    const table = DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)];
+    const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
+
+    try {
+        const { data: item, error } = await window.supabaseClient.from(table).select('*').eq(idCol, id).single();
+        if (error) throw error;
+
+        // Simple Overlay Construction
+        let modal = document.querySelector('#dynamic-detail-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'dynamic-detail-modal';
+            modal.className = 'fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200';
+            document.body.appendChild(modal);
+        }
+
+        modal.innerHTML = `
+            <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+                <div class="bg-blue-600 p-6">
+                    <h3 class="text-xl font-bold text-white flex justify-between items-center">
+                        <span>Detalle de Registro</span>
+                        <button onclick="document.querySelector('#dynamic-detail-modal').remove()" class="text-blue-100 hover:text-white"><i class="fas fa-times"></i></button>
+                    </h3>
+                </div>
+                <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-sm text-slate-700">
+                    ${Object.entries(item).map(([k, v]) => `
+                        <div class="flex justify-between border-b border-slate-50 pb-2">
+                            <span class="font-bold text-slate-500 uppercase text-[10px]">${k.replace(/_/g, ' ')}</span>
+                            <span class="text-slate-800 text-right font-mono">${v !== null ? v : '-'}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="bg-slate-50 p-4 border-t border-slate-100 text-right">
+                    <button onclick="document.querySelector('#dynamic-detail-modal').remove()" class="bg-slate-200 text-slate-600 font-bold py-2 px-4 rounded-lg hover:bg-slate-300 transition block w-full md:w-auto md:inline-block">Cerrar</button>
+                </div>
+            </div>
+        `;
+
+        modal.classList.remove('hidden');
+
+    } catch (err) {
+        alert('Error obteniendo detalle: ' + err.message);
     }
 }
 // --- TRIPS INLINE EDITING ---
