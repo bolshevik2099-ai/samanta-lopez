@@ -443,351 +443,437 @@ async function fetchSupabaseData(tableName) {
     }
 }
 
-// Funciones de Formulario (Mantenidas)
-async function enviarViaje(e) {
+// --- MANEJO DE FORMULARIOS ---
+
+// State for editing (GLOBAL)
+let isEditingTrip = false;
+let editingTripId = null;
+let isEditingExpense = false;
+let editingExpenseId = null;
+let isRegisteringExpenseFromTrip = false;
+
+// Event Listeners (Solo si los elementos existen en la página actual)
+const tripForm = document.getElementById('viaje-form');
+if (tripForm) tripForm.addEventListener('submit', handleTripSubmit);
+
+const expenseForm = document.getElementById('gasto-form');
+if (expenseForm) expenseForm.addEventListener('submit', handleExpenseSubmit);
+
+// Helper to get form value
+const getVal = (id) => document.getElementById(id)?.value || '';
+
+async function handleTripSubmit(e) {
     e.preventDefault();
     const session = checkAuth();
     if (!session) return;
-    // --- MANEJO DE FORMULARIOS ---
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerText;
+    btn.innerText = 'Guardando...';
+    btn.disabled = true;
 
-    // State for editing
-    let isEditingTrip = false;
-    let editingTripId = null;
-    let isEditingExpense = false;
-    let editingExpenseId = null;
-    let isRegisteringExpenseFromTrip = false;
+    try {
+        const tripData = {
+            fecha: getVal('V_Fecha'),
+            id_unidad: getVal('V_ID_Unidad'),
+            id_chofer: getVal('V_ID_Chofer'),
+            cliente: getVal('V_Cliente'),
+            origen: getVal('V_Origen'),
+            destino: getVal('V_Destino'),
+            monto_flete: parseFloat(getVal('V_Monto_Flete')) || 0,
+            estatus_viaje: getVal('V_Estatus_Viaje'),
+            comision_chofer: parseFloat(getVal('V_Comision_Chofer')) || 0,
+            estatus_pago: getVal('V_Estatus_Pago')
+        };
 
-    document.getElementById('viaje-form').addEventListener('submit', handleTripSubmit);
-    document.getElementById('gasto-form').addEventListener('submit', handleExpenseSubmit);
-    // Assuming these forms exist and need handlers
-    // document.getElementById('account-form').addEventListener('submit', handleAccountSubmit);
-    // document.getElementById('catalog-form').addEventListener('submit', handleCatalogSubmit);
+        let error;
+        if (isEditingTrip && editingTripId) {
+            const { error: updateError } = await window.supabaseClient
+                .from(DB_CONFIG.tableViajes)
+                .update(tripData)
+                .eq('id_viaje', editingTripId);
+            error = updateError;
+        } else {
+            // Generar ID SOLO si es nuevo
+            const id = getVal('V_ID_Viaje') || 'V-' + Date.now().toString().slice(-6);
+            tripData.id_viaje = id;
+            const { error: insertError } = await window.supabaseClient
+                .from(DB_CONFIG.tableViajes)
+                .insert([tripData]);
+            error = insertError;
+        }
 
-    // Helper to get form value
-    const getVal = (id) => document.getElementById(id)?.value || '';
+        if (error) throw error;
 
-    async function handleTripSubmit(e) {
-        e.preventDefault();
-        const session = checkAuth();
-        if (!session) return;
-        const btn = e.target.querySelector('button[type="submit"]');
-        const originalText = btn.innerText;
-        btn.innerText = 'Guardando...';
-        btn.disabled = true;
+        alert(isEditingTrip ? 'Viaje actualizado correctamente.' : 'Viaje registrado correctamente.');
+        e.target.reset();
+        isEditingTrip = false;
+        editingTripId = null;
+        btn.innerText = 'Guardar Viaje'; // Reset text
+
+        document.getElementById('V_Fecha').value = new Date().toISOString().split('T')[0];
+        if (typeof generateTripID === 'function') generateTripID();
+
+        // Return to list view
+        if (document.getElementById('viajes-list-view')) {
+            toggleSectionView('viajes', 'list');
+            // Check which load function exists
+            if (typeof loadTrips === 'function') loadTrips();
+            else if (typeof loadTripsList === 'function') loadTripsList();
+        }
+    } catch (err) {
+        console.error('Error enviando viaje:', err);
+        alert('❌ ERROR AL GUARDAR VIAJE:\n' + err.message);
+        btn.innerText = originalText;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function handleExpenseSubmit(e) {
+    e.preventDefault();
+    const session = checkAuth();
+    if (!session) return;
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML; // Usar innerHTML por si tiene iconos
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+
+    try {
+        const tripID = getVal('ID_Viaje');
+
+        // Validación básica
+        if (!tripID) throw new Error('El ID de Viaje es obligatorio.');
+
+        const formaPago = document.getElementById('Exp_Forma_Pago')?.value || 'Contado';
+
+        const expenseData = {
+            fecha: getVal('Fecha'),
+            id_viaje: tripID,
+            id_unidad: getVal('ID_Unidad'),
+            id_chofer: (document.getElementById('ID_Chofer') ? (getVal('ID_Chofer') || null) : (session.id_contacto || session.usuario)),
+            concepto: getVal('Concepto'),
+            monto: parseFloat(getVal('Monto')) || 0,
+            litros_rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
+            kmts_anteriores: parseFloat(getVal('Kmts_Anteriores')) || 0,
+            kmts_actuales: parseFloat(getVal('Kmts_Actuales')) || 0,
+            kmts_recorridos: parseFloat(getVal('Kmts_Recorridos')) || 0,
+            forma_pago: formaPago,
+            estatus_pago: 'Pendiente' // Regla de negocio: Todo nace/renace pendiente de revisión
+        };
+
+        const acreedorVal = document.getElementById('Exp_Acreedor')?.value;
+        if (acreedorVal) {
+            expenseData.acreedor_nombre = acreedorVal;
+        } else {
+            expenseData.acreedor_nombre = null;
+        }
+
+        // Upload photo logic
+        const file = document.getElementById('Ticket_Foto')?.files[0];
+        if (file) {
+            const fileName = `${Date.now()}_${file.name}`;
+            const { error: uploadError } = await window.supabaseClient.storage
+                .from('tickets-gastos')
+                .upload(fileName, file);
+            if (uploadError) throw uploadError;
+            expenseData.ticket_url = fileName;
+        }
+
+        let error;
+        if (isEditingExpense && editingExpenseId) {
+            const { error: updateError } = await window.supabaseClient
+                .from(DB_CONFIG.tableGastos)
+                .update(expenseData)
+                .eq('id_gasto', editingExpenseId);
+            error = updateError;
+        } else {
+            const id = getVal('ID_Gasto') || 'GAS-' + Date.now().toString().slice(-6);
+            expenseData.id_gasto = id;
+            expenseData.estatus_aprobacion = 'Pendiente';
+
+            const { error: insertError } = await window.supabaseClient
+                .from(DB_CONFIG.tableGastos)
+                .insert([expenseData]);
+            error = insertError;
+        }
+
+        if (error) throw error;
+
+        alert(isEditingExpense ? 'Gasto actualizado.' : 'Gasto registrado correctamente.');
+        e.target.reset();
+        isEditingExpense = false;
+        editingExpenseId = null;
+        btn.innerHTML = 'Registrar Gasto';
+
+        if (document.getElementById('gastos-list-view')) {
+            toggleSectionView('gastos', 'list');
+            if (typeof loadExpenses === 'function') loadExpenses();
+            else if (typeof loadExpensesList === 'function') loadExpensesList();
+            // Note: In render it's called loadExpenses(), but let's be safe.
+        }
+
+    } catch (err) {
+        console.error('Error procesando gasto:', err);
+        alert('Error: ' + err.message);
+        btn.innerHTML = originalText;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// --- FUNCIONES DE EDICIÓN Y ACCIONES RÁPIDAS ---
+
+function registerExpenseFromTrip(tripId, unitId, driverId) {
+    showSection('gastos');
+    toggleSectionView('gastos', 'form');
+
+    // Pre-llenar datos
+    document.getElementById('ID_Viaje').value = tripId;
+    document.getElementById('ID_Unidad').value = unitId;
+
+    // Seleccionar chofer si existe en la lista y no es null
+    const choferSelect = document.getElementById('ID_Chofer');
+    if (choferSelect && driverId && driverId !== 'null' && driverId !== 'undefined') {
+        choferSelect.value = driverId;
+    }
+
+    // Generar ID Gasto nuevo y fecha hoy
+    document.getElementById('ID_Gasto').value = 'GAS-' + Date.now().toString().slice(-6);
+    document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
+
+    isEditingExpense = false;
+    const btn = document.querySelector('#gasto-form button[type="submit"]');
+    if (btn) btn.innerText = 'Registrar Gasto';
+}
+
+function editTrip(id) {
+    const trip = allTripsData.find(t => t.id_viaje === id);
+    if (!trip) return;
+
+    isEditingTrip = true;
+    editingTripId = id;
+
+    // Switch view
+    toggleSectionView('viajes', 'form');
+
+    // Fill form
+    document.getElementById('V_ID_Viaje').value = trip.id_viaje;
+    document.getElementById('V_Fecha').value = trip.fecha;
+    document.getElementById('V_ID_Unidad').value = trip.id_unidad;
+    document.getElementById('V_ID_Chofer').value = trip.id_chofer;
+    document.getElementById('V_Cliente').value = trip.cliente;
+    document.getElementById('V_Origen').value = trip.origen;
+    document.getElementById('V_Destino').value = trip.destino;
+    document.getElementById('V_Monto_Flete').value = trip.monto_flete;
+    document.getElementById('V_Estatus_Viaje').value = trip.estatus_viaje;
+    document.getElementById('V_Comision_Chofer').value = trip.comision_chofer;
+    document.getElementById('V_Estatus_Pago').value = trip.estatus_pago;
+
+    // Change Button Text
+    const btn = document.querySelector('#viaje-form button[type="submit"]');
+    if (btn) btn.innerText = 'Actualizar Viaje';
+}
+
+function editExpense(id) {
+    // Buscar en la lista de gastos actual (dependiendo de la tab, puede ser allExpensesData o filtered)
+    // Usaremos allExpensesData si existe, o currentExpensesRaw si está definido globalmente
+    let expense = null;
+    if (typeof allExpensesData !== 'undefined') expense = allExpensesData.find(g => g.id_gasto === id);
+    // Fallback variable
+    if (!expense && typeof currentExpensesRaw !== 'undefined') expense = currentExpensesRaw.find(g => g.id_gasto === id);
+
+    if (!expense) return;
+
+    isEditingExpense = true;
+    editingExpenseId = id;
+
+    toggleSectionView('gastos', 'form');
+
+    document.getElementById('ID_Gasto').value = expense.id_gasto;
+    document.getElementById('Fecha').value = expense.fecha;
+    document.getElementById('ID_Viaje').value = expense.id_viaje;
+    document.getElementById('ID_Unidad').value = expense.id_unidad;
+    if (document.getElementById('ID_Chofer')) document.getElementById('ID_Chofer').value = expense.id_chofer || '';
+    document.getElementById('Concepto').value = expense.concepto;
+    document.getElementById('Monto').value = expense.monto;
+    document.getElementById('Litros_Rellenados').value = expense.litros_rellenados;
+    document.getElementById('Kmts_Anteriores').value = expense.kmts_anteriores;
+    document.getElementById('Kmts_Actuales').value = expense.kmts_actuales;
+    document.getElementById('Kmts_Recorridos').value = expense.kmts_recorridos;
+
+    // Handle Forma Pago and Acreedor
+    const formaPagoSelect = document.getElementById('Exp_Forma_Pago');
+    if (formaPagoSelect) {
+        formaPagoSelect.value = expense.forma_pago;
+        toggleAcreedorField(); // Trigger visibility logic
+    }
+
+    if (expense.acreedor_nombre && document.getElementById('Exp_Acreedor')) {
+        document.getElementById('Exp_Acreedor').value = expense.acreedor_nombre;
+    }
+
+    const btn = document.querySelector('#gasto-form button[type="submit"]');
+    if (btn) btn.innerText = 'Actualizar Gasto';
+}
+
+
+// --- INICIALIZACIÓN DE FORMULARIOS ---
+
+async function initFormCatalogs() {
+    const selects = {
+        'V_ID_Unidad': DB_CONFIG.tableUnidades,
+        'V_ID_Chofer': DB_CONFIG.tableChoferes,
+        'V_Cliente': DB_CONFIG.tableClientes,
+        'ID_Unidad': DB_CONFIG.tableUnidades,
+        'ID_Chofer': DB_CONFIG.tableChoferes,
+        'acc-id-viaje-cta': DB_CONFIG.tableViajes
+    };
+
+    for (const [id, table] of Object.entries(selects)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
 
         try {
-            const tripData = {
-                fecha: getVal('V_Fecha'),
-                id_unidad: getVal('V_ID_Unidad'),
-                id_chofer: getVal('V_ID_Chofer'),
-                cliente: getVal('V_Cliente'), // Se asume que el value del select es el nombre del cliente
-                origen: getVal('V_Origen'),
-                destino: getVal('V_Destino'),
-                monto_flete: parseFloat(getVal('V_Monto_Flete')) || 0,
-                estatus_viaje: getVal('V_Estatus_Viaje'),
-                comision_chofer: parseFloat(getVal('V_Comision_Chofer')) || 0,
-                estatus_pago: getVal('V_Estatus_Pago')
-            };
+            const data = await fetchSupabaseData(table);
+            const activeData = data.filter(item => (item.estatus || 'Activo') === 'Activo');
 
-            let error;
-            if (isEditingTrip && editingTripId) {
-                const { error: updateError } = await window.supabaseClient
-                    .from(DB_CONFIG.tableViajes)
-                    .update(tripData)
-                    .eq('id_viaje', editingTripId);
-                error = updateError;
-            } else {
-                if (error) throw error;
+            // Texto por defecto vacío o "Selecciona"
+            el.innerHTML = `<option value="">-- Selecciona una opción --</option>`;
 
-                alert(isEditingTrip ? 'Viaje actualizado correctamente.' : 'Viaje registrado correctamente.');
-                e.target.reset();
-                isEditingTrip = false;
-                editingTripId = null;
-                btn.innerText = 'Guardar Viaje'; // Reset text
+            activeData.forEach(item => {
+                let text = '';
+                let val = '';
 
-                // Return to list view
-                if (document.getElementById('viajes-list-view')) {
-                    toggleSectionView('viajes', 'list');
-                    loadTrips(); // Assuming loadTrips() exists, or previous loadTripsList()?
-                    // The previous code used loadTripsList(), but new code used loadTrips(). 
-                    // Checks renderTripsTable() caller... usually loadTripsList() in this file context?
-                    // Wait, 'loadSettlementTrips' exists. 'loadTripsList' exists in snippet context (line 516).
-                    // Let's use loadTripsList() to be safe or redefine it.
-                    // Actually, let's look at the file. `loadTripsList` was used in the `catch` block of previous code.
-                    if (typeof loadTripsList === 'function') loadTripsList();
-                    else if (typeof loadTrips === 'function') loadTrips();
+                if (table === DB_CONFIG.tableUnidades) {
+                    text = `${item.id_unidad} (${item.nombre_unidad || 'Sin nombre'})`;
+                    val = item.id_unidad;
+                } else if (table === DB_CONFIG.tableChoferes) {
+                    text = `${item.nombre} [${item.id_chofer}]`;
+                    val = item.id_chofer;
+                } else if (table === DB_CONFIG.tableClientes) {
+                    text = item.nombre_cliente;
+                    val = item.nombre_cliente;
+                } else if (table === DB_CONFIG.tableViajes) {
+                    text = `${item.id_viaje} - ${item.cliente}`;
+                    val = item.id_viaje;
                 }
-            } catch (err) {
-                console.error('Error enviando viaje:', err);
-                alert('❌ ERROR AL GUARDAR VIAJE:\n' + err.message);
-                btn.innerText = originalText;
-            } finally {
-                btn.disabled = false;
-            }
+
+                if (val) el.innerHTML += `<option value="${val}">${text}</option>`;
+            });
+        } catch (err) {
+            console.error(`Error cargando catálogo para ${id}:`, err);
+            el.innerHTML = `<option value="">Error al cargar datos</option>`;
         }
+    }
 
-async function enviarGasto(e) {
-            e.preventDefault();
-            const session = checkAuth();
-            if (!session) return;
-            const btn = e.target.querySelector('button[type="submit"]');
-            const originalText = btn.innerHTML;
+    // Special case for Acreedor (Drivers + Clients + Providers)
+    const acreedorSelect = document.getElementById('Exp_Acreedor');
+    if (acreedorSelect) {
+        try {
+            const [choferes, clientes, proveedores] = await Promise.all([
+                fetchSupabaseData(DB_CONFIG.tableChoferes),
+                fetchSupabaseData(DB_CONFIG.tableClientes),
+                fetchSupabaseData(DB_CONFIG.tableProveedores)
+            ]);
 
-            try {
-                btn.disabled = true;
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Validando viaje...';
-
-                const getVal = (id) => document.getElementById(id)?.value || '';
-                const tripID = getVal('ID_Viaje');
-
-                // Validación manual de existencia de viaje before proceeding
-                const { data: tripCheck, error: tripError } = await window.supabaseClient
-                    .from(DB_CONFIG.tableViajes)
-                    .select('id_viaje')
-                    .eq('id_viaje', tripID)
-                    .single();
-
-                if (tripError || !tripCheck) {
-                    alert('❌ El ID de Viaje "' + tripID + '" no existe en el sistema. Por favor, verifícalo.');
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
-                    return;
-                }
-
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando Gasto...';
-                const formaPago = document.getElementById('Exp_Forma_Pago')?.value || 'Contado';
-
-                const expenseData = {
-                    id_gasto: getVal('ID_Gasto'),
-                    fecha: getVal('Fecha'),
-                    id_viaje: tripID,
-                    id_unidad: getVal('ID_Unidad'),
-                    id_chofer: (document.getElementById('ID_Chofer') ? (getVal('ID_Chofer') || null) : (session.id_contacto || session.usuario)),
-                    concepto: getVal('Concepto'),
-                    monto: parseFloat(getVal('Monto')) || 0,
-                    litros_rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
-                    kmts_anteriores: parseFloat(getVal('Kmts_Anteriores')) || 0,
-                    kmts_actuales: parseFloat(getVal('Kmts_Actuales')) || 0,
-                    kmts_recorridos: parseFloat(getVal('Kmts_Recorridos')) || 0,
-                    forma_pago: formaPago,
-                    estatus_pago: 'Pendiente'
-                };
-
-                const acreedorVal = document.getElementById('Exp_Acreedor')?.value;
-                if (acreedorVal) {
-                    expenseData.acreedor_nombre = acreedorVal;
-                }
-
-                // Upload photo if exists
-                const file = document.getElementById('Ticket_Foto')?.files[0];
-                if (file) {
-                    const fileName = `${Date.now()}_${file.name}`;
-                    const { error: uploadError } = await window.supabaseClient.storage
-                        .from('tickets-gastos')
-                        .upload(fileName, file);
-                    if (uploadError) throw uploadError;
-                    expenseData.ticket_url = fileName;
-                }
-
-                const { error } = await window.supabaseClient
-                    .from(DB_CONFIG.tableGastos)
-                    .insert([expenseData]);
-
-                if (error) throw error;
-
-                // CXP Automática si es Crédito
-                if (formaPago === 'Crédito') {
-                    await crearCXPAutomatica({
-                        id_gasto: expenseData.id_gasto,
-                        monto: expenseData.monto,
-                        concepto: `Gasto Crédito: ${expenseData.concepto} (${expenseData.id_gasto})`,
-                        actor: expenseData.acreedor_nombre || expenseData.id_chofer || 'Sin Asignar'
-                    });
-                }
-
-                alert('✅ Gasto registrado con éxito');
-                e.target.reset();
-                if (document.getElementById('Fecha')) document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
-                if (document.getElementById('ID_Gasto')) document.getElementById('ID_Gasto').value = 'G-' + Date.now().toString().slice(-6);
-
-                if (document.getElementById('gastos-list-view')) {
-                    toggleSectionView('gastos', 'list');
-                    loadExpensesList();
-                    initFormCatalogs();
-                } else if (typeof showToast === 'function') {
-                    showToast('Gasto registrado con éxito.');
-                }
-
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-
-            } catch (err) {
-                console.error('Error enviando gasto:', err);
-                alert('❌ ERROR AL GUARDAR EN SUPABASE:\n\n' + (err.message || JSON.stringify(err)));
-                btn.disabled = false;
-                if (typeof originalText !== 'undefined') btn.innerHTML = originalText;
-            }
+            acreedorSelect.innerHTML = '<option value="">-- Selecciona Acreedor (Opcional) --</option>';
+            choferes.filter(x => (x.estatus || 'Activo') === 'Activo').forEach(x => {
+                acreedorSelect.innerHTML += `<option value="${x.nombre}">${x.nombre} (Chofer)</option>`;
+            });
+            clientes.filter(x => (x.estatus || 'Activo') === 'Activo').forEach(x => {
+                acreedorSelect.innerHTML += `<option value="${x.nombre_cliente}">${x.nombre_cliente} (Cliente)</option>`;
+            });
+            proveedores.filter(x => (x.estatus || 'Activo') === 'Activo').forEach(x => {
+                acreedorSelect.innerHTML += `<option value="${x.nombre_proveedor}">${x.nombre_proveedor} (Proveedor)</option>`;
+            });
+        } catch (err) {
+            console.error('Error cargando catálogo de acreedores:', err);
         }
+    }
 
+    // Auto-generar ID de Viaje al iniciar
+    generateTripID();
+}
 
-        // --- INICIALIZACIÓN DE FORMULARIOS ---
-
-        async function initFormCatalogs() {
-            const selects = {
-                'V_ID_Unidad': DB_CONFIG.tableUnidades,
-                'V_ID_Chofer': DB_CONFIG.tableChoferes,
-                'V_Cliente': DB_CONFIG.tableClientes,
-                'ID_Unidad': DB_CONFIG.tableUnidades,
-                'ID_Chofer': DB_CONFIG.tableChoferes,
-                'acc-id-viaje-cta': DB_CONFIG.tableViajes
-            };
-
-            for (const [id, table] of Object.entries(selects)) {
-                const el = document.getElementById(id);
-                if (!el) continue;
-
-                try {
-                    const data = await fetchSupabaseData(table);
-                    const activeData = data.filter(item => (item.estatus || 'Activo') === 'Activo');
-
-                    // Texto por defecto vacío o "Selecciona"
-                    el.innerHTML = `<option value="">-- Selecciona una opción --</option>`;
-
-                    activeData.forEach(item => {
-                        let text = '';
-                        let val = '';
-
-                        if (table === DB_CONFIG.tableUnidades) {
-                            text = `${item.id_unidad} (${item.nombre_unidad || 'Sin nombre'})`;
-                            val = item.id_unidad;
-                        } else if (table === DB_CONFIG.tableChoferes) {
-                            text = `${item.nombre} [${item.id_chofer}]`;
-                            val = item.id_chofer;
-                        } else if (table === DB_CONFIG.tableClientes) {
-                            text = item.nombre_cliente;
-                            val = item.nombre_cliente;
-                        } else if (table === DB_CONFIG.tableViajes) {
-                            text = `${item.id_viaje} - ${item.cliente}`;
-                            val = item.id_viaje;
-                        }
-
-                        if (val) el.innerHTML += `<option value="${val}">${text}</option>`;
-                    });
-                } catch (err) {
-                    console.error(`Error cargando catálogo para ${id}:`, err);
-                    el.innerHTML = `<option value="">Error al cargar datos</option>`;
-                }
-            }
-
-            // Special case for Acreedor (Drivers + Clients + Providers)
+function toggleAcreedorField() {
+    const formaPago = document.getElementById('Exp_Forma_Pago')?.value;
+    const container = document.getElementById('acreedor-container');
+    if (container) {
+        if (formaPago === 'Crédito') {
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
             const acreedorSelect = document.getElementById('Exp_Acreedor');
-            if (acreedorSelect) {
-                try {
-                    const [choferes, clientes, proveedores] = await Promise.all([
-                        fetchSupabaseData(DB_CONFIG.tableChoferes),
-                        fetchSupabaseData(DB_CONFIG.tableClientes),
-                        fetchSupabaseData(DB_CONFIG.tableProveedores)
-                    ]);
-
-                    acreedorSelect.innerHTML = '<option value="">-- Selecciona Acreedor (Opcional) --</option>';
-                    choferes.filter(x => (x.estatus || 'Activo') === 'Activo').forEach(x => {
-                        acreedorSelect.innerHTML += `<option value="${x.nombre}">${x.nombre} (Chofer)</option>`;
-                    });
-                    clientes.filter(x => (x.estatus || 'Activo') === 'Activo').forEach(x => {
-                        acreedorSelect.innerHTML += `<option value="${x.nombre_cliente}">${x.nombre_cliente} (Cliente)</option>`;
-                    });
-                    proveedores.filter(x => (x.estatus || 'Activo') === 'Activo').forEach(x => {
-                        acreedorSelect.innerHTML += `<option value="${x.nombre_proveedor}">${x.nombre_proveedor} (Proveedor)</option>`;
-                    });
-                } catch (err) {
-                    console.error('Error cargando catálogo de acreedores:', err);
-                }
-            }
-
-            // Auto-generar ID de Viaje al iniciar
-            generateTripID();
+            if (acreedorSelect) acreedorSelect.value = '';
         }
+    }
+}
 
-        function toggleAcreedorField() {
-            const formaPago = document.getElementById('Exp_Forma_Pago')?.value;
-            const container = document.getElementById('acreedor-container');
-            if (container) {
-                if (formaPago === 'Crédito') {
-                    container.classList.remove('hidden');
-                } else {
-                    container.classList.add('hidden');
-                    const acreedorSelect = document.getElementById('Exp_Acreedor');
-                    if (acreedorSelect) acreedorSelect.value = '';
-                }
-            }
-        }
+function generateTripID() {
+    const el = document.getElementById('V_ID_Viaje');
+    if (!el) return;
+    const now = new Date();
+    const datePart = now.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
+    const randomPart = Math.random().toString(36).substring(2, 5).toUpperCase();
+    el.value = `V-${datePart}-${randomPart}`;
+}
 
-        function generateTripID() {
-            const el = document.getElementById('V_ID_Viaje');
-            if (!el) return;
-            const now = new Date();
-            const datePart = now.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
-            const randomPart = Math.random().toString(36).substring(2, 5).toUpperCase();
-            el.value = `V-${datePart}-${randomPart}`;
-        }
+// Re-vincular al abrir el formulario de Viaje
+function showSection(sectionId) {
+    document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+    document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
 
-        // Re-vincular al abrir el formulario de Viaje
-        function showSection(sectionId) {
-            document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
-            document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+    const section = document.getElementById('section-' + sectionId);
+    const nav = document.getElementById('nav-' + sectionId);
 
-            const section = document.getElementById('section-' + sectionId);
-            const nav = document.getElementById('nav-' + sectionId);
+    if (section) section.classList.remove('hidden');
+    if (nav) nav.classList.add('active');
 
-            if (section) section.classList.remove('hidden');
-            if (nav) nav.classList.add('active');
+    if (section) section.classList.remove('hidden');
+    if (nav) nav.classList.add('active');
 
-            if (section) section.classList.remove('hidden');
-            if (nav) nav.classList.add('active');
+    // Refrescar catálogos al entrar a secciones relevantes
+    if (['viajes', 'gastos', 'tesoreria', 'liquidaciones'].includes(sectionId)) {
+        initFormCatalogs();
+    }
+}
+// --- LÓGICA DE LISTADOS Y BÚSQUEDA ---
 
-            // Refrescar catálogos al entrar a secciones relevantes
-            if (['viajes', 'gastos', 'tesoreria', 'liquidaciones'].includes(sectionId)) {
-                initFormCatalogs();
-            }
-        }
-        // --- LÓGICA DE LISTADOS Y BÚSQUEDA ---
+function toggleSectionView(section, view) {
+    const listView = document.getElementById(`${section}-list-view`);
+    const formView = document.getElementById(`${section}-form-view`);
+    if (!listView || !formView) return;
 
-        function toggleSectionView(section, view) {
-            const listView = document.getElementById(`${section}-list-view`);
-            const formView = document.getElementById(`${section}-form-view`);
-            if (!listView || !formView) return;
+    if (view === 'list') {
+        listView.classList.remove('hidden');
+        formView.classList.add('hidden');
+    } else {
+        listView.classList.add('hidden');
+        formView.classList.remove('hidden');
+    }
 
-            if (view === 'list') {
-                listView.classList.remove('hidden');
-                formView.classList.add('hidden');
-            } else {
-                listView.classList.add('hidden');
-                formView.classList.remove('hidden');
-            }
+    // Auto-reset forms on toggle if needed
+    if (view === 'form' && section === 'tesoreria') {
+        document.getElementById('account-form')?.reset();
+    }
+}
 
-            // Auto-reset forms on toggle if needed
-            if (view === 'form' && section === 'tesoreria') {
-                document.getElementById('account-form')?.reset();
-            }
-        }
+async function loadTripsList() {
+    const loader = document.getElementById('trips-loader');
+    const tbody = document.getElementById('trips-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-        async function loadTripsList() {
-            const loader = document.getElementById('trips-loader');
-            const tbody = document.getElementById('trips-table-body');
-            if (loader) loader.classList.remove('hidden');
-            if (tbody) tbody.innerHTML = '';
+    allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
 
-            allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
+    if (loader) loader.classList.add('hidden');
+    renderTripsTable(allTripsData);
+}
 
-            if (loader) loader.classList.add('hidden');
-            renderTripsTable(allTripsData);
-        }
-
-        function renderTripsTable(data) {
-            const tbody = document.getElementById('trips-table-body');
-            if (!tbody) return;
-            tbody.innerHTML = data.map(v => `
+function renderTripsTable(data) {
+    const tbody = document.getElementById('trips-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = data.map(v => `
         <tr class="hover:bg-slate-50 transition-colors">
             <td class="px-6 py-4">
                 <div class="font-bold text-slate-800 text-sm">${v.id_viaje}</div>
@@ -825,112 +911,112 @@ async function enviarGasto(e) {
             </td>
         </tr>
     `).join('');
-        }
+}
 
-        function filterTrips(query) {
-            const q = query.toLowerCase();
-            const filtered = allTripsData.filter(v =>
-                String(v.id_viaje).toLowerCase().includes(q) ||
-                String(v.cliente).toLowerCase().includes(q) ||
-                String(v.id_chofer).toLowerCase().includes(q) ||
-                String(v.id_unidad).toLowerCase().includes(q)
-            );
-            renderTripsTable(filtered);
-        }
+function filterTrips(query) {
+    const q = query.toLowerCase();
+    const filtered = allTripsData.filter(v =>
+        String(v.id_viaje).toLowerCase().includes(q) ||
+        String(v.cliente).toLowerCase().includes(q) ||
+        String(v.id_chofer).toLowerCase().includes(q) ||
+        String(v.id_unidad).toLowerCase().includes(q)
+    );
+    renderTripsTable(filtered);
+}
 
-        // --- CATALOG MANAGEMENT LOGIC ---
-        let currentCatalog = 'choferes';
-        let catalogData = [];
+// --- CATALOG MANAGEMENT LOGIC ---
+let currentCatalog = 'choferes';
+let catalogData = [];
 
-        function switchCatalogTab(type) {
-            currentCatalog = type;
-            document.querySelectorAll('.catalog-tab').forEach(btn => {
-                btn.classList.remove('bg-blue-600', 'text-white');
-                btn.classList.add('text-slate-500', 'hover:bg-slate-50');
-            });
-            document.getElementById(`tab-${type}`).classList.add('bg-blue-600', 'text-white');
-            document.getElementById(`tab-${type}`).classList.remove('text-slate-500', 'hover:bg-slate-50');
+function switchCatalogTab(type) {
+    currentCatalog = type;
+    document.querySelectorAll('.catalog-tab').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white');
+        btn.classList.add('text-slate-500', 'hover:bg-slate-50');
+    });
+    document.getElementById(`tab-${type}`).classList.add('bg-blue-600', 'text-white');
+    document.getElementById(`tab-${type}`).classList.remove('text-slate-500', 'hover:bg-slate-50');
 
-            const titles = {
-                'choferes': 'Listado de Choferes',
-                'unidades': 'Listado de Unidades',
-                'clientes': 'Listado de Clientes',
-                'proveedores': 'Listado de Proveedores'
-            };
-            document.getElementById('catalog-title').innerText = titles[type];
-            hideCatalogForm();
-            loadCatalog(type);
-        }
+    const titles = {
+        'choferes': 'Listado de Choferes',
+        'unidades': 'Listado de Unidades',
+        'clientes': 'Listado de Clientes',
+        'proveedores': 'Listado de Proveedores'
+    };
+    document.getElementById('catalog-title').innerText = titles[type];
+    hideCatalogForm();
+    loadCatalog(type);
+}
 
-        async function loadCatalog(type) {
-            const loader = document.getElementById('catalog-loader');
-            const tbody = document.getElementById('catalog-table-body');
-            const thead = document.getElementById('catalog-table-head');
+async function loadCatalog(type) {
+    const loader = document.getElementById('catalog-loader');
+    const tbody = document.getElementById('catalog-table-body');
+    const thead = document.getElementById('catalog-table-head');
 
-            if (loader) loader.classList.remove('hidden');
-            if (tbody) tbody.innerHTML = '';
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-            const tables = {
-                'choferes': DB_CONFIG.tableChoferes,
-                'unidades': DB_CONFIG.tableUnidades,
-                'clientes': DB_CONFIG.tableClientes,
-                'proveedores': DB_CONFIG.tableProveedores
-            };
+    const tables = {
+        'choferes': DB_CONFIG.tableChoferes,
+        'unidades': DB_CONFIG.tableUnidades,
+        'clientes': DB_CONFIG.tableClientes,
+        'proveedores': DB_CONFIG.tableProveedores
+    };
 
-            catalogData = await fetchSupabaseData(tables[type]);
-            if (loader) loader.classList.add('hidden');
+    catalogData = await fetchSupabaseData(tables[type]);
+    if (loader) loader.classList.add('hidden');
 
-            renderCatalogTable(type, catalogData);
-        }
+    renderCatalogTable(type, catalogData);
+}
 
-        function renderCatalogTable(type, data) {
-            const thead = document.getElementById('catalog-table-head');
-            const tbody = document.getElementById('catalog-table-body');
-            if (!thead || !tbody) return;
+function renderCatalogTable(type, data) {
+    const thead = document.getElementById('catalog-table-head');
+    const tbody = document.getElementById('catalog-table-body');
+    if (!thead || !tbody) return;
 
-            const config = {
-                'choferes': {
-                    headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada'],
-                    row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_chofer}</td>
+    const config = {
+        'choferes': {
+            headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_chofer}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre}</td>
                        <td class="px-6 py-4 text-slate-500">${d.licencia || '-'}</td>
                        <td class="px-6 py-4 text-blue-600 font-bold">${d.id_unidad || '<span class="text-slate-300 font-normal">Sin asignar</span>'}</td>`
-                },
-                'unidades': {
-                    headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado'],
-                    row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_unidad}</td>
+        },
+        'unidades': {
+            headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_unidad}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre_unidad}</td>
                        <td class="px-6 py-4 text-slate-500">${d.placas || '-'}</td>
                        <td class="px-6 py-4 text-green-600 font-bold">${d.id_chofer || '<span class="text-slate-300 font-normal">Sin asignar</span>'}</td>`
-                },
-                'clientes': {
-                    headers: ['Nombre', 'RFC/Razón Social', 'Contacto'],
-                    row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.nombre_cliente}</td>
+        },
+        'clientes': {
+            headers: ['Nombre', 'RFC/Razón Social', 'Contacto'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.nombre_cliente}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700 text-xs">${d.rfc} / ${d.razon_social}</td>
                        <td class="px-6 py-4 text-slate-500 text-xs">${d.contacto_nombre} <br/> ${d.email}</td>`
-                },
-                'proveedores': {
-                    headers: ['ID', 'Proveedor', 'Tipo', 'Teléfono'],
-                    row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_proveedor}</td>
+        },
+        'proveedores': {
+            headers: ['ID', 'Proveedor', 'Tipo', 'Teléfono'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_proveedor}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre_proveedor}</td>
                        <td class="px-6 py-4 text-slate-500">${d.tipo_proveedor}</td>
                        <td class="px-6 py-4 text-slate-500">${d.telefono || '-'}</td>`
-                }
-            };
+        }
+    };
 
-            const c = config[type];
-            thead.innerHTML = `<tr>${c.headers.map(h => `<th class="px-6 py-4">${h}</th>`).join('')}<th class="px-6 py-4">Estatus</th><th class="px-6 py-4 text-right">Acciones</th></tr>`;
+    const c = config[type];
+    thead.innerHTML = `<tr>${c.headers.map(h => `<th class="px-6 py-4">${h}</th>`).join('')}<th class="px-6 py-4">Estatus</th><th class="px-6 py-4 text-right">Acciones</th></tr>`;
 
-            if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="${c.headers.length + 2}" class="px-6 py-12 text-center text-slate-400 italic">No hay registros aún</td></tr>`;
-                return;
-            }
+    if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="${c.headers.length + 2}" class="px-6 py-12 text-center text-slate-400 italic">No hay registros aún</td></tr>`;
+        return;
+    }
 
-            tbody.innerHTML = data.map(d => {
-                const id = d.id_chofer || d.id_unidad || d.nombre_cliente || d.id_proveedor;
-                const idCol = d.id_chofer ? 'id_chofer' : (d.id_unidad ? 'id_unidad' : (d.nombre_cliente ? 'nombre_cliente' : 'id_proveedor'));
+    tbody.innerHTML = data.map(d => {
+        const id = d.id_chofer || d.id_unidad || d.nombre_cliente || d.id_proveedor;
+        const idCol = d.id_chofer ? 'id_chofer' : (d.id_unidad ? 'id_unidad' : (d.nombre_cliente ? 'nombre_cliente' : 'id_proveedor'));
 
-                return `
+        return `
             <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0" id="row-${type}-${id}">
                 ${c.row(d)}
                 <td class="px-6 py-4">
@@ -945,195 +1031,195 @@ async function enviarGasto(e) {
                 </td>
             </tr>
         `;
-            }).join('');
-        }
+    }).join('');
+}
 
-        async function deleteItem(table, id, idCol) {
-            if (!confirm('¿Desea eliminar definitivamente este registro?')) return;
-            try {
-                const { error } = await window.supabaseClient.from(table).delete().eq(idCol, id);
-                if (error) throw error;
-                alert('Registro eliminado.');
-                location.reload(); // Recarga simple para actualizar listas
-            } catch (err) {
-                alert('Error al eliminar: ' + err.message);
-            }
-        }
+async function deleteItem(table, id, idCol) {
+    if (!confirm('¿Desea eliminar definitivamente este registro?')) return;
+    try {
+        const { error } = await window.supabaseClient.from(table).delete().eq(idCol, id);
+        if (error) throw error;
+        alert('Registro eliminado.');
+        location.reload(); // Recarga simple para actualizar listas
+    } catch (err) {
+        alert('Error al eliminar: ' + err.message);
+    }
+}
 
-        function showCatalogForm() {
-            document.getElementById('catalog-list-view').classList.add('hidden');
-            document.getElementById('catalog-form-view').classList.remove('hidden');
+function showCatalogForm() {
+    document.getElementById('catalog-list-view').classList.add('hidden');
+    document.getElementById('catalog-form-view').classList.remove('hidden');
 
-            const fieldsContainer = document.getElementById('catalog-form-fields');
-            const config = {
-                'choferes': [
-                    { id: 'C_ID', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01' },
-                    { id: 'C_Nombre', label: 'Nombre Completo', type: 'text', placeholder: 'Nombre Apellido' },
-                    { id: 'C_Licencia', label: 'Num. Licencia', type: 'text', placeholder: 'LIC-000' },
-                    { id: 'C_Telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
-                    { id: 'C_Unidad', label: 'Unidad Asignada (ID ECO)', type: 'text', placeholder: 'ECO-01' }
-                ],
-                'unidades': [
-                    { id: 'U_ID', label: 'ID Unidad (ECO)', type: 'text', placeholder: 'ECO-01' },
-                    { id: 'U_Nombre', label: 'Nombre/Alias', type: 'text', placeholder: 'Kenworth T680' },
-                    { id: 'U_Placas', label: 'Placas', type: 'text', placeholder: '00-AA-00' },
-                    { id: 'U_Modelo', label: 'Modelo', type: 'text', placeholder: '2024' },
-                    { id: 'U_Marca', label: 'Marca', type: 'text', placeholder: 'Freightliner' },
-                    { id: 'U_Chofer', label: 'Chofer Asignado (ID)', type: 'text', placeholder: 'CHO-01' }
-                ],
-                'clientes': [
-                    { id: 'CL_ID', label: 'ID Cliente (Opcional)', type: 'text', placeholder: 'CLI-01' },
-                    { id: 'CL_Nombre', label: 'Nombre Comercial', type: 'text', placeholder: 'Empresa S.A.' },
-                    { id: 'CL_Razon', label: 'Razón Social', type: 'text', placeholder: 'Logística Total S.A. de C.V.' },
-                    { id: 'CL_RFC', label: 'RFC', type: 'text', placeholder: 'RFC000000AAA' },
-                    { id: 'CL_Contacto', label: 'Nombre de Contacto', type: 'text', placeholder: 'Juan Pérez' },
-                    { id: 'CL_Email', label: 'Email', type: 'email', placeholder: 'contacto@empresa.com' },
-                    { id: 'CL_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
-                ],
-                'proveedores': [
-                    { id: 'P_ID', label: 'ID Proveedor', type: 'text', placeholder: 'PROV-01' },
-                    { id: 'P_Nombre', label: 'Nombre/Razón Social', type: 'text', placeholder: 'Gasolinera Plus' },
-                    { id: 'P_Tipo', label: 'Tipo Proveedor', type: 'text', placeholder: 'Diesel / Refacciones' },
-                    { id: 'P_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
-                ]
-            };
+    const fieldsContainer = document.getElementById('catalog-form-fields');
+    const config = {
+        'choferes': [
+            { id: 'C_ID', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01' },
+            { id: 'C_Nombre', label: 'Nombre Completo', type: 'text', placeholder: 'Nombre Apellido' },
+            { id: 'C_Licencia', label: 'Num. Licencia', type: 'text', placeholder: 'LIC-000' },
+            { id: 'C_Telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
+            { id: 'C_Unidad', label: 'Unidad Asignada (ID ECO)', type: 'text', placeholder: 'ECO-01' }
+        ],
+        'unidades': [
+            { id: 'U_ID', label: 'ID Unidad (ECO)', type: 'text', placeholder: 'ECO-01' },
+            { id: 'U_Nombre', label: 'Nombre/Alias', type: 'text', placeholder: 'Kenworth T680' },
+            { id: 'U_Placas', label: 'Placas', type: 'text', placeholder: '00-AA-00' },
+            { id: 'U_Modelo', label: 'Modelo', type: 'text', placeholder: '2024' },
+            { id: 'U_Marca', label: 'Marca', type: 'text', placeholder: 'Freightliner' },
+            { id: 'U_Chofer', label: 'Chofer Asignado (ID)', type: 'text', placeholder: 'CHO-01' }
+        ],
+        'clientes': [
+            { id: 'CL_ID', label: 'ID Cliente (Opcional)', type: 'text', placeholder: 'CLI-01' },
+            { id: 'CL_Nombre', label: 'Nombre Comercial', type: 'text', placeholder: 'Empresa S.A.' },
+            { id: 'CL_Razon', label: 'Razón Social', type: 'text', placeholder: 'Logística Total S.A. de C.V.' },
+            { id: 'CL_RFC', label: 'RFC', type: 'text', placeholder: 'RFC000000AAA' },
+            { id: 'CL_Contacto', label: 'Nombre de Contacto', type: 'text', placeholder: 'Juan Pérez' },
+            { id: 'CL_Email', label: 'Email', type: 'email', placeholder: 'contacto@empresa.com' },
+            { id: 'CL_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+        ],
+        'proveedores': [
+            { id: 'P_ID', label: 'ID Proveedor', type: 'text', placeholder: 'PROV-01' },
+            { id: 'P_Nombre', label: 'Nombre/Razón Social', type: 'text', placeholder: 'Gasolinera Plus' },
+            { id: 'P_Tipo', label: 'Tipo Proveedor', type: 'text', placeholder: 'Diesel / Refacciones' },
+            { id: 'P_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+        ]
+    };
 
-            fieldsContainer.innerHTML = config[currentCatalog].map(f => `
+    fieldsContainer.innerHTML = config[currentCatalog].map(f => `
         <div>
             <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">${f.label}</label>
             <input type="${f.type}" id="${f.id}" required placeholder="${f.placeholder}"
                 class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all">
         </div>
     `).join('');
-        }
+}
 
-        function hideCatalogForm() {
-            document.getElementById('catalog-list-view').classList.remove('hidden');
-            document.getElementById('catalog-form-view').classList.add('hidden');
-        }
+function hideCatalogForm() {
+    document.getElementById('catalog-list-view').classList.remove('hidden');
+    document.getElementById('catalog-form-view').classList.add('hidden');
+}
 
-        // Inicializar envío del formulario de catálogo
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('catalog-form');
-            if (form) form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const btn = e.target.querySelector('button[type="submit"]');
-                const originalText = btn.innerText;
+// Inicializar envío del formulario de catálogo
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('catalog-form');
+    if (form) form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        const originalText = btn.innerText;
 
-                try {
-                    btn.disabled = true;
-                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
 
-                    const getVal = id => document.getElementById(id)?.value || '';
-                    let data = {};
-                    let table = '';
+            const getVal = id => document.getElementById(id)?.value || '';
+            let data = {};
+            let table = '';
 
-                    if (currentCatalog === 'choferes') {
-                        data = {
-                            id_chofer: getVal('C_ID'),
-                            nombre: getVal('C_Nombre'),
-                            licencia: getVal('C_Licencia'),
-                            telefono: getVal('C_Telefono'),
-                            id_unidad: getVal('C_Unidad')
-                        };
-                        table = DB_CONFIG.tableChoferes;
-                    } else if (currentCatalog === 'unidades') {
-                        data = {
-                            id_unidad: getVal('U_ID'),
-                            nombre_unidad: getVal('U_Nombre'),
-                            placas: getVal('U_Placas'),
-                            modelo: getVal('U_Modelo'),
-                            marca: getVal('U_Marca'),
-                            id_chofer: getVal('U_Chofer')
-                        };
-                        table = DB_CONFIG.tableUnidades;
-                    } else if (currentCatalog === 'clientes') {
-                        data = { id_cliente: getVal('CL_ID') || 'CLI-' + Date.now(), nombre_cliente: getVal('CL_Nombre'), razon_social: getVal('CL_Razon'), rfc: getVal('CL_RFC'), contacto_nombre: getVal('CL_Contacto'), email: getVal('CL_Email'), telefono: getVal('CL_Tel') };
-                        table = DB_CONFIG.tableClientes;
-                    } else if (currentCatalog === 'proveedores') {
-                        data = { id_proveedor: getVal('P_ID'), nombre_proveedor: getVal('P_Nombre'), tipo_proveedor: getVal('P_Tipo'), telefono: getVal('P_Tel') };
-                        table = DB_CONFIG.tableProveedores;
-                    }
-
-                    const { error } = await window.supabaseClient.from(table).insert([data]);
-                    if (error) throw error;
-
-                    alert('✅ Registro guardado correctamente');
-                    hideCatalogForm();
-                    loadCatalog(currentCatalog);
-                } catch (err) {
-                    console.error('Error al guardar catálogo:', err);
-                    alert('❌ Error al guardar: ' + err.message);
-                } finally {
-                    btn.disabled = false;
-                    btn.innerText = originalText;
-                }
-            });
-        });
-
-        async function loadTripsList() {
-            const loader = document.getElementById('trips-loader');
-            const tbody = document.getElementById('trips-table-body');
-            if (loader) loader.classList.remove('hidden');
-            if (tbody) tbody.innerHTML = '';
-
-            allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
-
-            if (loader) loader.classList.add('hidden');
-            renderTripsTable(allTripsData);
-        }
-
-        async function loadExpensesList() {
-            const loader = document.getElementById('expenses-loader');
-            const tbody = document.getElementById('expenses-table-body');
-            if (loader) loader.classList.remove('hidden');
-            if (tbody) tbody.innerHTML = '';
-
-            allExpensesData = await fetchSupabaseData(DB_CONFIG.tableGastos);
-
-            // Update pending count
-            const pendingCount = allExpensesData.filter(g => g.estatus_aprobacion === 'Pendiente').length;
-            const badge = document.getElementById('pending-expenses-count');
-            if (badge) {
-                badge.innerText = pendingCount;
-                badge.classList.toggle('hidden', pendingCount === 0);
+            if (currentCatalog === 'choferes') {
+                data = {
+                    id_chofer: getVal('C_ID'),
+                    nombre: getVal('C_Nombre'),
+                    licencia: getVal('C_Licencia'),
+                    telefono: getVal('C_Telefono'),
+                    id_unidad: getVal('C_Unidad')
+                };
+                table = DB_CONFIG.tableChoferes;
+            } else if (currentCatalog === 'unidades') {
+                data = {
+                    id_unidad: getVal('U_ID'),
+                    nombre_unidad: getVal('U_Nombre'),
+                    placas: getVal('U_Placas'),
+                    modelo: getVal('U_Modelo'),
+                    marca: getVal('U_Marca'),
+                    id_chofer: getVal('U_Chofer')
+                };
+                table = DB_CONFIG.tableUnidades;
+            } else if (currentCatalog === 'clientes') {
+                data = { id_cliente: getVal('CL_ID') || 'CLI-' + Date.now(), nombre_cliente: getVal('CL_Nombre'), razon_social: getVal('CL_Razon'), rfc: getVal('CL_RFC'), contacto_nombre: getVal('CL_Contacto'), email: getVal('CL_Email'), telefono: getVal('CL_Tel') };
+                table = DB_CONFIG.tableClientes;
+            } else if (currentCatalog === 'proveedores') {
+                data = { id_proveedor: getVal('P_ID'), nombre_proveedor: getVal('P_Nombre'), tipo_proveedor: getVal('P_Tipo'), telefono: getVal('P_Tel') };
+                table = DB_CONFIG.tableProveedores;
             }
 
-            if (loader) loader.classList.add('hidden');
-            renderExpensesTable(allExpensesData);
+            const { error } = await window.supabaseClient.from(table).insert([data]);
+            if (error) throw error;
+
+            alert('✅ Registro guardado correctamente');
+            hideCatalogForm();
+            loadCatalog(currentCatalog);
+        } catch (err) {
+            console.error('Error al guardar catálogo:', err);
+            alert('❌ Error al guardar: ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = originalText;
         }
+    });
+});
 
-        function switchExpenseTab(tab) {
-            currentExpenseTab = tab;
-            document.querySelectorAll('.expense-tab').forEach(btn => {
-                btn.classList.remove('bg-green-600', 'text-white', 'shadow-sm');
-                btn.classList.add('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
-            });
+async function loadTripsList() {
+    const loader = document.getElementById('trips-loader');
+    const tbody = document.getElementById('trips-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-            const activeBtn = document.getElementById(`exp-tab-${tab}`);
-            if (activeBtn) {
-                activeBtn.classList.add('bg-green-600', 'text-white', 'shadow-sm');
-                activeBtn.classList.remove('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
-            }
+    allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
 
-            renderExpensesTable(allExpensesData);
-        }
+    if (loader) loader.classList.add('hidden');
+    renderTripsTable(allTripsData);
+}
 
-        function renderExpensesTable(data) {
-            const tbody = document.getElementById('expenses-table-body');
-            if (!tbody) return;
+async function loadExpensesList() {
+    const loader = document.getElementById('expenses-loader');
+    const tbody = document.getElementById('expenses-table-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
 
-            let filtered = data;
-            if (currentExpenseTab === 'pendientes') {
-                filtered = data.filter(g => g.estatus_aprobacion === 'Pendiente');
-            }
+    allExpensesData = await fetchSupabaseData(DB_CONFIG.tableGastos);
 
-            tbody.innerHTML = filtered.map(g => {
-                const estAprob = g.estatus_aprobacion || 'Pendiente';
-                const aprobClass = estAprob === 'Aprobado' ? 'bg-green-100 text-green-700' :
-                    (estAprob === 'Rechazado' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700');
+    // Update pending count
+    const pendingCount = allExpensesData.filter(g => g.estatus_aprobacion === 'Pendiente').length;
+    const badge = document.getElementById('pending-expenses-count');
+    if (badge) {
+        badge.innerText = pendingCount;
+        badge.classList.toggle('hidden', pendingCount === 0);
+    }
 
-                return `
+    if (loader) loader.classList.add('hidden');
+    renderExpensesTable(allExpensesData);
+}
+
+function switchExpenseTab(tab) {
+    currentExpenseTab = tab;
+    document.querySelectorAll('.expense-tab').forEach(btn => {
+        btn.classList.remove('bg-green-600', 'text-white', 'shadow-sm');
+        btn.classList.add('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
+    });
+
+    const activeBtn = document.getElementById(`exp-tab-${tab}`);
+    if (activeBtn) {
+        activeBtn.classList.add('bg-green-600', 'text-white', 'shadow-sm');
+        activeBtn.classList.remove('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
+    }
+
+    renderExpensesTable(allExpensesData);
+}
+
+function renderExpensesTable(data) {
+    const tbody = document.getElementById('expenses-table-body');
+    if (!tbody) return;
+
+    let filtered = data;
+    if (currentExpenseTab === 'pendientes') {
+        filtered = data.filter(g => g.estatus_aprobacion === 'Pendiente');
+    }
+
+    tbody.innerHTML = filtered.map(g => {
+        const estAprob = g.estatus_aprobacion || 'Pendiente';
+        const aprobClass = estAprob === 'Aprobado' ? 'bg-green-100 text-green-700' :
+            (estAprob === 'Rechazado' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700');
+
+        return `
             <tr class="hover:bg-slate-50 transition-colors">
                 <td class="px-6 py-4">
                     <div class="font-bold text-slate-800 text-sm">${g.id_gasto || 'N/A'}</div>
@@ -1176,109 +1262,109 @@ async function enviarGasto(e) {
                 </td>
             </tr>
         `;
-            }).join('');
-        }
+    }).join('');
+}
 
-        async function approveExpense(id) {
-            if (!confirm('¿Aprobar este gasto?')) return;
-            try {
-                const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Aprobado' }).eq('id_gasto', id);
-                if (error) throw error;
-                loadExpensesList();
-            } catch (err) { alert('Error: ' + err.message); }
-        }
+async function approveExpense(id) {
+    if (!confirm('¿Aprobar este gasto?')) return;
+    try {
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Aprobado' }).eq('id_gasto', id);
+        if (error) throw error;
+        loadExpensesList();
+    } catch (err) { alert('Error: ' + err.message); }
+}
 
-        async function rejectExpense(id) {
-            const motivo = prompt('Motivo del rechazo (opcional):');
-            if (motivo === null) return;
-            try {
-                const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Rechazado' }).eq('id_gasto', id);
-                if (error) throw error;
-                loadExpensesList();
-            } catch (err) { alert('Error: ' + err.message); }
-        }
+async function rejectExpense(id) {
+    const motivo = prompt('Motivo del rechazo (opcional):');
+    if (motivo === null) return;
+    try {
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Rechazado' }).eq('id_gasto', id);
+        if (error) throw error;
+        loadExpensesList();
+    } catch (err) { alert('Error: ' + err.message); }
+}
 
-        function filterExpenses(query) {
-            const q = query.toLowerCase();
-            const filtered = allExpensesData.filter(g =>
-                String(g.id_viaje).toLowerCase().includes(q) ||
-                String(g.concepto).toLowerCase().includes(q) ||
-                String(g.id_chofer).toLowerCase().includes(q) ||
-                String(g.id_unidad).toLowerCase().includes(q) ||
-                String(g.id_unit_eco).toLowerCase().includes(q)
-            );
-            renderExpensesTable(filtered);
-        }
+function filterExpenses(query) {
+    const q = query.toLowerCase();
+    const filtered = allExpensesData.filter(g =>
+        String(g.id_viaje).toLowerCase().includes(q) ||
+        String(g.concepto).toLowerCase().includes(q) ||
+        String(g.id_chofer).toLowerCase().includes(q) ||
+        String(g.id_unidad).toLowerCase().includes(q) ||
+        String(g.id_unit_eco).toLowerCase().includes(q)
+    );
+    renderExpensesTable(filtered);
+}
 
-        // --- TESORERÍA LOGIC ---
+// --- TESORERÍA LOGIC ---
 
-        // --- TESORERÍA LOGIC (3-TAB REFACTOR) ---
+// --- TESORERÍA LOGIC (3-TAB REFACTOR) ---
 
-        let currentTreasuryTab = 'favor';
+let currentTreasuryTab = 'favor';
 
-        async function switchTreasuryTab(tab) {
-            currentTreasuryTab = tab;
-            document.querySelectorAll('.treasury-tab').forEach(btn => {
-                btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
-                btn.classList.add('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
-            });
-            const activeBtn = document.getElementById('t-tab-' + tab);
-            activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
-            activeBtn.classList.remove('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
+async function switchTreasuryTab(tab) {
+    currentTreasuryTab = tab;
+    document.querySelectorAll('.treasury-tab').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
+        btn.classList.add('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
+    });
+    const activeBtn = document.getElementById('t-tab-' + tab);
+    activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+    activeBtn.classList.remove('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
 
-            renderTreasuryHeader(tab);
-            loadTreasuryList();
-        }
+    renderTreasuryHeader(tab);
+    loadTreasuryList();
+}
 
-        function renderTreasuryHeader(tab) {
-            const thead = document.getElementById('treasury-thead');
-            if (!thead) return;
+function renderTreasuryHeader(tab) {
+    const thead = document.getElementById('treasury-thead');
+    if (!thead) return;
 
-            let html = '';
-            if (tab === 'viajes') {
-                html = `<tr>
+    let html = '';
+    if (tab === 'viajes') {
+        html = `<tr>
             <th class="px-6 py-4">Fecha / No. Interno</th>
             <th class="px-6 py-4">Cliente / Viaje</th>
             <th class="px-6 py-4">Monto Flete</th>
             <th class="px-6 py-4">Estatus Pago</th>
             <th class="px-6 py-4">Acción</th>
         </tr>`;
-            } else {
-                html = `<tr>
+    } else {
+        html = `<tr>
             <th class="px-6 py-4">Fecha / ID</th>
             <th class="px-6 py-4">Actor / Concepto</th>
             <th class="px-6 py-4">Monto</th>
             <th class="px-6 py-4">Estatus</th>
             <th class="px-6 py-4">Acción</th>
         </tr>`;
-            }
-            thead.innerHTML = html;
-        }
+    }
+    thead.innerHTML = html;
+}
 
-        async function loadTreasuryList() {
-            const tbody = document.getElementById('treasury-table-body');
-            if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
+async function loadTreasuryList() {
+    const tbody = document.getElementById('treasury-table-body');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
 
-            let data = [];
-            if (currentTreasuryTab === 'viajes') {
-                data = await fetchSupabaseData(DB_CONFIG.tableViajes);
-                // Filtrar solo los que NO están pagados si queremos ver pendientes, 
-                // pero el usuario pidió "viajes por cobrar", usualmente incluye pagados recientes o todos.
-                // Mostraremos todos los que no tengan estatus_pago = 'Pagado' por defecto.
-            } else {
-                const type = currentTreasuryTab === 'favor' ? 'A Favor' : 'En Contra';
-                const allData = await fetchSupabaseData(DB_CONFIG.tableCuentas);
-                data = allData.filter(c => c.tipo === type);
-            }
+    let data = [];
+    if (currentTreasuryTab === 'viajes') {
+        data = await fetchSupabaseData(DB_CONFIG.tableViajes);
+        // Filtrar solo los que NO están pagados si queremos ver pendientes, 
+        // pero el usuario pidió "viajes por cobrar", usualmente incluye pagados recientes o todos.
+        // Mostraremos todos los que no tengan estatus_pago = 'Pagado' por defecto.
+    } else {
+        const type = currentTreasuryTab === 'favor' ? 'A Favor' : 'En Contra';
+        const allData = await fetchSupabaseData(DB_CONFIG.tableCuentas);
+        data = allData.filter(c => c.tipo === type);
+    }
 
-            let total = 0;
+    let total = 0;
 
-            tbody.innerHTML = data.map(item => {
-                if (currentTreasuryTab === 'viajes') {
-                    const isPaid = item.estatus_pago === 'Pagado';
-                    if (!isPaid) total += parseFloat(item.monto_flete) || 0;
-                    return `
+    tbody.innerHTML = data.map(item => {
+        if (currentTreasuryTab === 'viajes') {
+            const isPaid = item.estatus_pago === 'Pagado';
+            if (!isPaid) total += parseFloat(item.monto_flete) || 0;
+            return `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
                     <td class="px-6 py-4">
                         <div class="font-bold text-slate-800 text-xs">${item.no_interno || 'S/N'}</div>
@@ -1303,10 +1389,10 @@ async function enviarGasto(e) {
                     </td>
                 </tr>
             `;
-                } else {
-                    const monto = parseFloat(item.monto) || 0;
-                    if (item.estatus !== 'Liquidado') total += monto;
-                    return `
+        } else {
+            const monto = parseFloat(item.monto) || 0;
+            if (item.estatus !== 'Liquidado') total += monto;
+            return `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
                     <td class="px-6 py-4">
                         <div class="font-bold text-slate-800 text-xs">${item.id_cuenta}</div>
@@ -1331,188 +1417,188 @@ async function enviarGasto(e) {
                     </td>
                 </tr>
             `;
-                }
-            }).join('') || '<tr><td colspan="6" class="p-10 text-center text-slate-400">No hay registros en esta categoría</td></tr>';
-
-            if (currentTreasuryTab === 'favor') document.getElementById('total-favor').innerText = `$${total.toLocaleString()}`;
-            if (currentTreasuryTab === 'contra') document.getElementById('total-contra').innerText = `$${total.toLocaleString()}`;
         }
+    }).join('') || '<tr><td colspan="6" class="p-10 text-center text-slate-400">No hay registros en esta categoría</td></tr>';
 
-        async function markTripAsPaid(id_viaje) {
-            if (!confirm('¿Marcar este viaje como PAGADO por el cliente?')) return;
-            const { error } = await window.supabaseClient
-                .from(DB_CONFIG.tableViajes)
+    if (currentTreasuryTab === 'favor') document.getElementById('total-favor').innerText = `$${total.toLocaleString()}`;
+    if (currentTreasuryTab === 'contra') document.getElementById('total-contra').innerText = `$${total.toLocaleString()}`;
+}
+
+async function markTripAsPaid(id_viaje) {
+    if (!confirm('¿Marcar este viaje como PAGADO por el cliente?')) return;
+    const { error } = await window.supabaseClient
+        .from(DB_CONFIG.tableViajes)
+        .update({ estatus_pago: 'Pagado' })
+        .eq('id_viaje', id_viaje);
+
+    if (error) alert('Error: ' + error.message);
+    else loadTreasuryList();
+}
+
+async function loadActorOptions() {
+    const type = document.getElementById('acc-actor-type').value;
+    const select = document.getElementById('acc-actor');
+    const manualInput = document.getElementById('acc-actor-manual');
+
+    select.innerHTML = '<option value="">Cargando...</option>';
+    manualInput.classList.add('hidden');
+    select.classList.remove('hidden');
+
+    if (type === 'otro') {
+        select.classList.add('hidden');
+        manualInput.classList.remove('hidden');
+        return;
+    }
+
+    const tableMap = {
+        'chofer': DB_CONFIG.tableChoferes,
+        'proveedor': DB_CONFIG.tableProveedores,
+        'cliente': DB_CONFIG.tableClientes
+    };
+
+    const data = await fetchSupabaseData(tableMap[type]);
+    const active = data.filter(i => (i.estatus || 'Activo') === 'Activo');
+
+    select.innerHTML = '<option value="">Seleccione...</option>' + active.map(i => {
+        const name = i.nombre || i.nombre_cliente || i.nombre_proveedor;
+        return `<option value="${name}">${name}</option>`;
+    }).join('');
+}
+
+async function crearCXCAutomatica(idViaje, monto, cliente, noInterno) {
+    const data = {
+        id_cuenta: 'CXC-' + Date.now().toString().slice(-6),
+        fecha: new Date().toISOString().split('T')[0],
+        tipo: 'A Favor',
+        actor_nombre: cliente,
+        concepto: 'Pago de flete via auto-CXC',
+        monto: monto,
+        id_viaje: idViaje,
+        no_interno: noInterno,
+        estatus: 'No Liquidado'
+    };
+    await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
+}
+
+function showAccountForm() { toggleSectionView('treasury', 'form'); loadActorOptions(); }
+function hideAccountForm() { toggleSectionView('treasury', 'list'); }
+
+async function enviarCuenta(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const original = btn.innerText;
+
+    try {
+        btn.disabled = true;
+        btn.innerText = 'Guardando...';
+
+        const getVal = id => document.getElementById(id)?.value || '';
+        const actorType = getVal('acc-actor-type');
+        const actor = actorType === 'otro' ? getVal('acc-actor-manual') : getVal('acc-actor');
+
+        const data = {
+            id_cuenta: 'ACC-' + Date.now().toString().slice(-6),
+            fecha: new Date().toISOString().split('T')[0],
+            tipo: getVal('acc-tipo'),
+            actor_nombre: actor,
+            concepto: getVal('acc-concepto'),
+            monto: parseFloat(getVal('acc-monto')) || 0,
+            id_viaje: getVal('acc-id-viaje-cta') || null,
+            no_interno: getVal('acc-no-interno-cta') || null,
+            estatus: 'No Liquidado'
+        };
+
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
+        if (error) throw error;
+
+        alert('✅ Cuenta registrada con éxito.');
+        e.target.reset();
+        hideAccountForm();
+        loadTreasuryList();
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = original;
+    }
+}
+
+async function markAccountLiquidated(id) {
+    if (!confirm('¿Desea marcar esta cuenta como liquidada?')) return;
+
+    // 1. Obtener datos de la cuenta para ver si está ligada a un gasto
+    const { data: account } = await window.supabaseClient
+        .from(DB_CONFIG.tableCuentas)
+        .select('*')
+        .eq('id_cuenta', id)
+        .single();
+
+    const { error } = await window.supabaseClient
+        .from(DB_CONFIG.tableCuentas)
+        .update({ estatus: 'Liquidado' })
+        .eq('id_cuenta', id);
+
+    if (error) {
+        alert('Error: ' + error.message);
+    } else {
+        // 2. Si la cuenta era un gasto a crédito, marcar el gasto como pagado
+        if (account && account.id_gasto_ref) {
+            await window.supabaseClient
+                .from(DB_CONFIG.tableGastos)
                 .update({ estatus_pago: 'Pagado' })
-                .eq('id_viaje', id_viaje);
-
-            if (error) alert('Error: ' + error.message);
-            else loadTreasuryList();
+                .eq('id_gasto', account.id_gasto_ref);
         }
+        loadTreasuryList();
+    }
+}
 
-        async function loadActorOptions() {
-            const type = document.getElementById('acc-actor-type').value;
-            const select = document.getElementById('acc-actor');
-            const manualInput = document.getElementById('acc-actor-manual');
+async function crearCXPAutomatica({ id_gasto, monto, concepto, actor }) {
+    const data = {
+        id_cuenta: 'CXP-' + Date.now().toString().slice(-6),
+        fecha: new Date().toISOString().split('T')[0],
+        tipo: 'En Contra',
+        actor_nombre: actor,
+        concepto: concepto,
+        monto: monto,
+        id_gasto_ref: id_gasto,
+        estatus: 'No Liquidado'
+    };
+    await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
+}
 
-            select.innerHTML = '<option value="">Cargando...</option>';
-            manualInput.classList.add('hidden');
-            select.classList.remove('hidden');
+async function crearGastoComisionAutomatica({ id_viaje, monto, id_chofer, id_unidad }) {
+    const data = {
+        id_gasto: 'COM-' + Date.now().toString().slice(-6),
+        fecha: new Date().toISOString().split('T')[0],
+        id_viaje: id_viaje,
+        id_unidad: id_unidad,
+        id_chofer: id_chofer,
+        concepto: 'Comisión Chofer',
+        monto: monto,
+        forma_pago: 'Contado',
+        estatus_pago: 'Pagado',
+        estatus_aprobacion: 'Aprobado'
+    };
+    await window.supabaseClient.from(DB_CONFIG.tableGastos).insert([data]);
+}
 
-            if (type === 'otro') {
-                select.classList.add('hidden');
-                manualInput.classList.remove('hidden');
-                return;
-            }
+// --- LIQUIDACIONES LOGIC (BY DRIVER REFACTOR) ---
 
-            const tableMap = {
-                'chofer': DB_CONFIG.tableChoferes,
-                'proveedor': DB_CONFIG.tableProveedores,
-                'cliente': DB_CONFIG.tableClientes
-            };
+let selectedDriverForSettlement = null;
+let currentExpenses = [];
+let currentDebts = [];
+let pendingTripsForDriver = [];
 
-            const data = await fetchSupabaseData(tableMap[type]);
-            const active = data.filter(i => (i.estatus || 'Activo') === 'Activo');
+async function loadSettlementTrips() {
+    const list = document.getElementById('liquidation-driver-list');
+    if (!list) return;
+    list.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin"></i></div>';
 
-            select.innerHTML = '<option value="">Seleccione...</option>' + active.map(i => {
-                const name = i.nombre || i.nombre_cliente || i.nombre_proveedor;
-                return `<option value="${name}">${name}</option>`;
-            }).join('');
-        }
+    // 1. Obtener choferes activos
+    const drivers = await fetchSupabaseData(DB_CONFIG.tableChoferes);
+    const activeDrivers = drivers.filter(d => (d.estatus || 'Activo') === 'Activo');
 
-        async function crearCXCAutomatica(idViaje, monto, cliente, noInterno) {
-            const data = {
-                id_cuenta: 'CXC-' + Date.now().toString().slice(-6),
-                fecha: new Date().toISOString().split('T')[0],
-                tipo: 'A Favor',
-                actor_nombre: cliente,
-                concepto: 'Pago de flete via auto-CXC',
-                monto: monto,
-                id_viaje: idViaje,
-                no_interno: noInterno,
-                estatus: 'No Liquidado'
-            };
-            await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
-        }
-
-        function showAccountForm() { toggleSectionView('treasury', 'form'); loadActorOptions(); }
-        function hideAccountForm() { toggleSectionView('treasury', 'list'); }
-
-        async function enviarCuenta(e) {
-            e.preventDefault();
-            const btn = e.target.querySelector('button[type="submit"]');
-            const original = btn.innerText;
-
-            try {
-                btn.disabled = true;
-                btn.innerText = 'Guardando...';
-
-                const getVal = id => document.getElementById(id)?.value || '';
-                const actorType = getVal('acc-actor-type');
-                const actor = actorType === 'otro' ? getVal('acc-actor-manual') : getVal('acc-actor');
-
-                const data = {
-                    id_cuenta: 'ACC-' + Date.now().toString().slice(-6),
-                    fecha: new Date().toISOString().split('T')[0],
-                    tipo: getVal('acc-tipo'),
-                    actor_nombre: actor,
-                    concepto: getVal('acc-concepto'),
-                    monto: parseFloat(getVal('acc-monto')) || 0,
-                    id_viaje: getVal('acc-id-viaje-cta') || null,
-                    no_interno: getVal('acc-no-interno-cta') || null,
-                    estatus: 'No Liquidado'
-                };
-
-                const { error } = await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
-                if (error) throw error;
-
-                alert('✅ Cuenta registrada con éxito.');
-                e.target.reset();
-                hideAccountForm();
-                loadTreasuryList();
-            } catch (err) {
-                alert('❌ Error: ' + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = original;
-            }
-        }
-
-        async function markAccountLiquidated(id) {
-            if (!confirm('¿Desea marcar esta cuenta como liquidada?')) return;
-
-            // 1. Obtener datos de la cuenta para ver si está ligada a un gasto
-            const { data: account } = await window.supabaseClient
-                .from(DB_CONFIG.tableCuentas)
-                .select('*')
-                .eq('id_cuenta', id)
-                .single();
-
-            const { error } = await window.supabaseClient
-                .from(DB_CONFIG.tableCuentas)
-                .update({ estatus: 'Liquidado' })
-                .eq('id_cuenta', id);
-
-            if (error) {
-                alert('Error: ' + error.message);
-            } else {
-                // 2. Si la cuenta era un gasto a crédito, marcar el gasto como pagado
-                if (account && account.id_gasto_ref) {
-                    await window.supabaseClient
-                        .from(DB_CONFIG.tableGastos)
-                        .update({ estatus_pago: 'Pagado' })
-                        .eq('id_gasto', account.id_gasto_ref);
-                }
-                loadTreasuryList();
-            }
-        }
-
-        async function crearCXPAutomatica({ id_gasto, monto, concepto, actor }) {
-            const data = {
-                id_cuenta: 'CXP-' + Date.now().toString().slice(-6),
-                fecha: new Date().toISOString().split('T')[0],
-                tipo: 'En Contra',
-                actor_nombre: actor,
-                concepto: concepto,
-                monto: monto,
-                id_gasto_ref: id_gasto,
-                estatus: 'No Liquidado'
-            };
-            await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
-        }
-
-        async function crearGastoComisionAutomatica({ id_viaje, monto, id_chofer, id_unidad }) {
-            const data = {
-                id_gasto: 'COM-' + Date.now().toString().slice(-6),
-                fecha: new Date().toISOString().split('T')[0],
-                id_viaje: id_viaje,
-                id_unidad: id_unidad,
-                id_chofer: id_chofer,
-                concepto: 'Comisión Chofer',
-                monto: monto,
-                forma_pago: 'Contado',
-                estatus_pago: 'Pagado',
-                estatus_aprobacion: 'Aprobado'
-            };
-            await window.supabaseClient.from(DB_CONFIG.tableGastos).insert([data]);
-        }
-
-        // --- LIQUIDACIONES LOGIC (BY DRIVER REFACTOR) ---
-
-        let selectedDriverForSettlement = null;
-        let currentExpenses = [];
-        let currentDebts = [];
-        let pendingTripsForDriver = [];
-
-        async function loadSettlementTrips() {
-            const list = document.getElementById('liquidation-driver-list');
-            if (!list) return;
-            list.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin"></i></div>';
-
-            // 1. Obtener choferes activos
-            const drivers = await fetchSupabaseData(DB_CONFIG.tableChoferes);
-            const activeDrivers = drivers.filter(d => (d.estatus || 'Activo') === 'Activo');
-
-            list.innerHTML = activeDrivers.map(d => `
+    list.innerHTML = activeDrivers.map(d => `
         <button onclick="loadDriverSettlementDetail('${d.id_chofer}')" 
             class="w-full text-left p-4 rounded-xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all flex justify-between items-center group">
             <div>
@@ -1522,57 +1608,57 @@ async function enviarGasto(e) {
             <i class="fas fa-chevron-right text-slate-200 group-hover:text-blue-500 transition-all"></i>
         </button>
     `).join('') || '<p class="text-sm p-4 text-slate-400">No hay choferes disponibles.</p>';
-        }
+}
 
-        async function loadDriverSettlementDetail(id_chofer) {
-            selectedDriverForSettlement = id_chofer;
-            const detail = document.getElementById('settlement-detail');
-            const empty = document.getElementById('settlement-empty');
-            if (!detail) return;
+async function loadDriverSettlementDetail(id_chofer) {
+    selectedDriverForSettlement = id_chofer;
+    const detail = document.getElementById('settlement-detail');
+    const empty = document.getElementById('settlement-empty');
+    if (!detail) return;
 
-            detail.classList.remove('hidden');
-            empty.classList.add('hidden');
+    detail.classList.remove('hidden');
+    empty.classList.add('hidden');
 
-            // Cargar datos: Viajes Terminados/En Proceso no liquidados + Gastos + Cuentas (Solo Anticipos/A Favor)
-            const [trips, expenses, accounts] = await Promise.all([
-                window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_chofer', id_chofer).neq('estatus_viaje', 'Liquidado'),
-                window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_chofer', id_chofer).neq('estatus_pago', 'Pagado'),
-                window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').eq('actor_nombre', id_chofer).eq('estatus', 'No Liquidado').eq('tipo', 'A Favor')
-            ]);
+    // Cargar datos: Viajes Terminados/En Proceso no liquidados + Gastos + Cuentas (Solo Anticipos/A Favor)
+    const [trips, expenses, accounts] = await Promise.all([
+        window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_chofer', id_chofer).neq('estatus_viaje', 'Liquidado'),
+        window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_chofer', id_chofer).neq('estatus_pago', 'Pagado'),
+        window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').eq('actor_nombre', id_chofer).eq('estatus', 'No Liquidado').eq('tipo', 'A Favor')
+    ]);
 
-            pendingTripsForDriver = trips.data || [];
-            currentExpenses = expenses.data || [];
-            currentDebts = accounts.data || [];
+    pendingTripsForDriver = trips.data || [];
+    currentExpenses = expenses.data || [];
+    currentDebts = accounts.data || [];
 
-            // Llenar UI
-            document.getElementById('set-trip-id').innerText = `LIQUIDACIÓN: ${id_chofer}`;
-            document.getElementById('set-trip-info').innerText = `Consolidado de ${pendingTripsForDriver.length} viajes pendientes.`;
+    // Llenar UI
+    document.getElementById('set-trip-id').innerText = `LIQUIDACIÓN: ${id_chofer}`;
+    document.getElementById('set-trip-info').innerText = `Consolidado de ${pendingTripsForDriver.length} viajes pendientes.`;
 
-            let sumFletes = 0;
-            let sumComisionesBrutas = 0;
-            pendingTripsForDriver.forEach(t => {
-                sumFletes += parseFloat(t.monto_flete) || 0;
-                sumComisionesBrutas += parseFloat(t.comision_chofer) || 0;
-            });
+    let sumFletes = 0;
+    let sumComisionesBrutas = 0;
+    pendingTripsForDriver.forEach(t => {
+        sumFletes += parseFloat(t.monto_flete) || 0;
+        sumComisionesBrutas += parseFloat(t.comision_chofer) || 0;
+    });
 
-            document.getElementById('set-flete').innerText = `$${sumFletes.toLocaleString()}`;
+    document.getElementById('set-flete').innerText = `$${sumFletes.toLocaleString()}`;
 
-            // Gastos Operativos
-            const expList = document.getElementById('set-expenses-list');
-            let sumExp = 0;
+    // Gastos Operativos
+    const expList = document.getElementById('set-expenses-list');
+    let sumExp = 0;
 
-            // Filtramos SOLO los gastos de Contado/Efectivo (Reembolsables)
-            const reimbursableExpenses = currentExpenses.filter(g => ['Contado', 'Efectivo'].includes(g.forma_pago));
+    // Filtramos SOLO los gastos de Contado/Efectivo (Reembolsables)
+    const reimbursableExpenses = currentExpenses.filter(g => ['Contado', 'Efectivo'].includes(g.forma_pago));
 
-            expList.innerHTML = reimbursableExpenses.map(g => {
-                const estAprob = g.estatus_aprobacion || 'Pendiente';
-                const isPending = estAprob === 'Pendiente';
-                const aprobColor = estAprob === 'Aprobado' ? 'text-green-500' : (estAprob === 'Rechazado' ? 'text-red-500' : 'text-amber-500');
+    expList.innerHTML = reimbursableExpenses.map(g => {
+        const estAprob = g.estatus_aprobacion || 'Pendiente';
+        const isPending = estAprob === 'Pendiente';
+        const aprobColor = estAprob === 'Aprobado' ? 'text-green-500' : (estAprob === 'Rechazado' ? 'text-red-500' : 'text-amber-500');
 
-                // Solo sumamos lo que se muestra
-                sumExp += parseFloat(g.monto);
+        // Solo sumamos lo que se muestra
+        sumExp += parseFloat(g.monto);
 
-                return `
+        return `
             <div class="flex flex-col gap-1 border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
                 <div class="flex justify-between items-center">
                     <span class="text-xs font-semibold text-slate-700">
@@ -1591,276 +1677,276 @@ async function enviarGasto(e) {
                 </div>
             </div>
         `;
-            }).join('') || '<span class="text-slate-400 italic">Sin gastos a reembolsar</span>';
-            document.getElementById('set-sum-expenses').innerText = `$${sumExp.toLocaleString()}`;
+    }).join('') || '<span class="text-slate-400 italic">Sin gastos a reembolsar</span>';
+    document.getElementById('set-sum-expenses').innerText = `$${sumExp.toLocaleString()}`;
 
-            // Anticipos/Deudas (Solo se restan los "A Favor" - Anticipos)
-            const debtList = document.getElementById('set-debts-list');
-            let sumDebtNeto = 0;
-            debtList.innerHTML = currentDebts.map(d => {
-                const monto = parseFloat(d.monto) || 0;
-                sumDebtNeto += monto;
-                return `<div class="flex justify-between text-amber-700"><span>${d.concepto} (Anticipo)</span><span class="font-mono">-$${monto.toLocaleString()}</span></div>`;
-            }).join('') || '<span class="text-amber-400 italic">Sin anticipos pendientes</span>';
-            document.getElementById('set-sum-debts').innerText = `-$${sumDebtNeto.toLocaleString()}`;
+    // Anticipos/Deudas (Solo se restan los "A Favor" - Anticipos)
+    const debtList = document.getElementById('set-debts-list');
+    let sumDebtNeto = 0;
+    debtList.innerHTML = currentDebts.map(d => {
+        const monto = parseFloat(d.monto) || 0;
+        sumDebtNeto += monto;
+        return `<div class="flex justify-between text-amber-700"><span>${d.concepto} (Anticipo)</span><span class="font-mono">-$${monto.toLocaleString()}</span></div>`;
+    }).join('') || '<span class="text-amber-400 italic">Sin anticipos pendientes</span>';
+    document.getElementById('set-sum-debts').innerText = `-$${sumDebtNeto.toLocaleString()}`;
 
-            // Totales finales
-            const approvedExpenses = currentExpenses.filter(g =>
-                (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
-                g.forma_pago === 'Contado'
-            );
-            const sumApprovedExp = approvedExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
-            const neto = sumComisionesBrutas + sumApprovedExp - sumDebtNeto;
+    // Totales finales
+    const approvedExpenses = currentExpenses.filter(g =>
+        (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
+        g.forma_pago === 'Contado'
+    );
+    const sumApprovedExp = approvedExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+    const neto = sumComisionesBrutas + sumApprovedExp - sumDebtNeto;
 
-            document.getElementById('set-comm-bruta').innerText = `$${sumComisionesBrutas.toLocaleString()}`;
-            document.getElementById('set-sum-expenses').innerText = `$${sumApprovedExp.toLocaleString()}`;
-            document.getElementById('set-retencion').innerText = `-$${sumDebtNeto.toLocaleString()}`;
-            document.getElementById('set-pago-neto').innerText = `$${neto.toLocaleString()}`;
+    document.getElementById('set-comm-bruta').innerText = `$${sumComisionesBrutas.toLocaleString()}`;
+    document.getElementById('set-sum-expenses').innerText = `$${sumApprovedExp.toLocaleString()}`;
+    document.getElementById('set-retencion').innerText = `-$${sumDebtNeto.toLocaleString()}`;
+    document.getElementById('set-pago-neto').innerText = `$${neto.toLocaleString()}`;
+}
+
+async function finalizeSettlement() {
+    if (!selectedDriverForSettlement) return;
+
+    // Check for unapproved expenses
+    const unapproved = currentExpenses.filter(g => (g.estatus_aprobacion || 'Pendiente') === 'Pendiente');
+    if (unapproved.length > 0) {
+        alert('❌ No se puede finalizar la liquidación: Hay ' + unapproved.length + ' gastos pendientes de aprobación.');
+        return;
+    }
+
+    const settleData = calculateCurrentSettlement();
+    if (!settleData || settleData.monto_neto <= 0) {
+        if (!confirm('La liquidación es de $0.00 o menor. ¿Desea continuar de todos modos?')) return;
+    }
+
+    if (!confirm(`¿Desea cerrar la liquidación para ${selectedDriverForSettlement}? \nTotal Neto: $${settleData.monto_neto.toLocaleString()}`)) return;
+
+    try {
+        // 1. Guardar Maestro de Liquidación
+        const { error: lErr } = await window.supabaseClient.from(DB_CONFIG.tableLiquidaciones).insert([{
+            id_chofer: selectedDriverForSettlement,
+            fecha_inicio: pendingTripsForDriver.length > 0 ? pendingTripsForDriver[0].fecha : new Date().toISOString().split('T')[0],
+            fecha_fin: new Date().toISOString().split('T')[0],
+            total_fletes: settleData.total_fletes,
+            total_gastos: settleData.total_gastos,
+            monto_comision: settleData.monto_comision,
+            monto_neto: settleData.monto_neto
+        }]);
+        if (lErr) throw lErr;
+
+        // 2. Marcar deudas como liquidadas
+        if (currentDebts.length > 0) {
+            const ids = currentDebts.map(d => d.id_cuenta);
+            await window.supabaseClient.from(DB_CONFIG.tableCuentas).update({ estatus: 'Liquidado' }).in('id_cuenta', ids);
         }
 
-        async function finalizeSettlement() {
-            if (!selectedDriverForSettlement) return;
+        // 3. Marcar viajes como operativamente 'Liquidado' y generar comisiones
+        if (pendingTripsForDriver.length > 0) {
+            const ids = pendingTripsForDriver.map(t => t.id_viaje);
+            await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_viaje: 'Liquidado', estatus_pago: 'Pagado' }).in('id_viaje', ids);
 
-            // Check for unapproved expenses
-            const unapproved = currentExpenses.filter(g => (g.estatus_aprobacion || 'Pendiente') === 'Pendiente');
-            if (unapproved.length > 0) {
-                alert('❌ No se puede finalizar la liquidación: Hay ' + unapproved.length + ' gastos pendientes de aprobación.');
-                return;
-            }
-
-            const settleData = calculateCurrentSettlement();
-            if (!settleData || settleData.monto_neto <= 0) {
-                if (!confirm('La liquidación es de $0.00 o menor. ¿Desea continuar de todos modos?')) return;
-            }
-
-            if (!confirm(`¿Desea cerrar la liquidación para ${selectedDriverForSettlement}? \nTotal Neto: $${settleData.monto_neto.toLocaleString()}`)) return;
-
-            try {
-                // 1. Guardar Maestro de Liquidación
-                const { error: lErr } = await window.supabaseClient.from(DB_CONFIG.tableLiquidaciones).insert([{
-                    id_chofer: selectedDriverForSettlement,
-                    fecha_inicio: pendingTripsForDriver.length > 0 ? pendingTripsForDriver[0].fecha : new Date().toISOString().split('T')[0],
-                    fecha_fin: new Date().toISOString().split('T')[0],
-                    total_fletes: settleData.total_fletes,
-                    total_gastos: settleData.total_gastos,
-                    monto_comision: settleData.monto_comision,
-                    monto_neto: settleData.monto_neto
-                }]);
-                if (lErr) throw lErr;
-
-                // 2. Marcar deudas como liquidadas
-                if (currentDebts.length > 0) {
-                    const ids = currentDebts.map(d => d.id_cuenta);
-                    await window.supabaseClient.from(DB_CONFIG.tableCuentas).update({ estatus: 'Liquidado' }).in('id_cuenta', ids);
-                }
-
-                // 3. Marcar viajes como operativamente 'Liquidado' y generar comisiones
-                if (pendingTripsForDriver.length > 0) {
-                    const ids = pendingTripsForDriver.map(t => t.id_viaje);
-                    await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_viaje: 'Liquidado', estatus_pago: 'Pagado' }).in('id_viaje', ids);
-
-                    // Generar gastos de comisión por cada viaje
-                    for (const t of pendingTripsForDriver) {
-                        await crearGastoComisionAutomatica({
-                            id_viaje: t.id_viaje,
-                            monto: parseFloat(t.comision_chofer) || (parseFloat(t.monto_flete) * 0.15),
-                            id_chofer: t.id_chofer,
-                            id_unidad: t.id_unidad
-                        });
-                    }
-                }
-
-                // 4. Marcar gastos como pagados
-                // 4. Marcar gastos como pagados (SOLO LOS REEMBOLSABLES: Contado o Efectivo)
-                // OJO: Si pagamos todo lo 'Aprobado', podríamos pagar créditos por error si no filtramos.
-                // La lógica visual solo muestra Contado/Efectivo, así que solo debemos liquidar esos.
-                const approvedExpenses = currentExpenses.filter(g =>
-                    (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
-                    ['Contado', 'Efectivo'].includes(g.forma_pago)
-                );
-
-                if (approvedExpenses.length > 0) {
-                    const ids = approvedExpenses.map(g => g.id_gasto);
-                    await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_pago: 'Pagado' }).in('id_gasto', ids);
-                }
-
-                alert('✅ Liquidación consolidada guardada y cuentas cerradas.');
-                loadSettlementTrips();
-                document.getElementById('settlement-detail').classList.add('hidden');
-                document.getElementById('settlement-empty').classList.remove('hidden');
-            } catch (err) {
-                alert('Error: ' + err.message);
+            // Generar gastos de comisión por cada viaje
+            for (const t of pendingTripsForDriver) {
+                await crearGastoComisionAutomatica({
+                    id_viaje: t.id_viaje,
+                    monto: parseFloat(t.comision_chofer) || (parseFloat(t.monto_flete) * 0.15),
+                    id_chofer: t.id_chofer,
+                    id_unidad: t.id_unidad
+                });
             }
         }
 
-        function calculateCurrentSettlement() {
-            const totalFletes = pendingTripsForDriver.reduce((sum, t) => sum + (parseFloat(t.monto_flete) || 0), 0);
-            const approvedReimbursable = currentExpenses.filter(g =>
-                (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
-                ['Contado', 'Efectivo'].includes(g.forma_pago)
-            );
-            const totalGastosAprobados = approvedReimbursable.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+        // 4. Marcar gastos como pagados
+        // 4. Marcar gastos como pagados (SOLO LOS REEMBOLSABLES: Contado o Efectivo)
+        // OJO: Si pagamos todo lo 'Aprobado', podríamos pagar créditos por error si no filtramos.
+        // La lógica visual solo muestra Contado/Efectivo, así que solo debemos liquidar esos.
+        const approvedExpenses = currentExpenses.filter(g =>
+            (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
+            ['Contado', 'Efectivo'].includes(g.forma_pago)
+        );
 
-            // totalDebts = Solo A Favor (Se recuperan de la liquidación)
-            const totalDebts = currentDebts.reduce((sum, d) => {
-                return d.tipo === 'A Favor' ? sum + (parseFloat(d.monto) || 0) : sum;
-            }, 0);
-
-            const comm = totalFletes * 0.15;
-            const neto = comm + totalGastosAprobados - totalDebts;
-
-            return {
-                total_fletes: totalFletes,
-                total_gastos: totalGastosAprobados,
-                monto_comision: comm,
-                monto_neto: neto
-            };
+        if (approvedExpenses.length > 0) {
+            const ids = approvedExpenses.map(g => g.id_gasto);
+            await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_pago: 'Pagado' }).in('id_gasto', ids);
         }
 
-        // Inicializar vista de tesorería al cargar
-        switchTreasuryTab('favor');
+        alert('✅ Liquidación consolidada guardada y cuentas cerradas.');
+        loadSettlementTrips();
+        document.getElementById('settlement-detail').classList.add('hidden');
+        document.getElementById('settlement-empty').classList.remove('hidden');
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
 
-        async // --- FUNCIONES EXTRA (Edición Completa y Acciones) ---
+function calculateCurrentSettlement() {
+    const totalFletes = pendingTripsForDriver.reduce((sum, t) => sum + (parseFloat(t.monto_flete) || 0), 0);
+    const approvedReimbursable = currentExpenses.filter(g =>
+        (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
+        ['Contado', 'Efectivo'].includes(g.forma_pago)
+    );
+    const totalGastosAprobados = approvedReimbursable.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
 
-        function registerExpenseFromTrip(tripId, unitId, driverId) {
-            showSection('gastos');
-            toggleSectionView('gastos', 'form');
+    // totalDebts = Solo A Favor (Se recuperan de la liquidación)
+    const totalDebts = currentDebts.reduce((sum, d) => {
+        return d.tipo === 'A Favor' ? sum + (parseFloat(d.monto) || 0) : sum;
+    }, 0);
 
-            // Pre-llenar datos
-            document.getElementById('ID_Viaje').value = tripId;
-            document.getElementById('ID_Unidad').value = unitId;
-            // Seleccionar chofer si existe en la lista
-            const choferSelect = document.getElementById('ID_Chofer');
-            if (driverId && driverId !== 'null' && driverId !== 'undefined') {
-                choferSelect.value = driverId;
-            }
+    const comm = totalFletes * 0.15;
+    const neto = comm + totalGastosAprobados - totalDebts;
 
-            // Generar ID Gasto nuevo
-            document.getElementById('ID_Gasto').value = 'GAS-' + Date.now().toString().slice(-6);
-            document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
+    return {
+        total_fletes: totalFletes,
+        total_gastos: totalGastosAprobados,
+        monto_comision: comm,
+        monto_neto: neto
+    };
+}
 
-            isEditingExpense = false;
-            document.querySelector('#gasto-form button[type="submit"]').innerText = 'Registrar Gasto';
-        }
+// Inicializar vista de tesorería al cargar
+switchTreasuryTab('favor');
 
-        function editTrip(id) {
-            const trip = allTripsData.find(t => t.id_viaje === id);
-            if (!trip) return;
+async // --- FUNCIONES EXTRA (Edición Completa y Acciones) ---
 
-            isEditingTrip = true;
-            editingTripId = id;
+function registerExpenseFromTrip(tripId, unitId, driverId) {
+    showSection('gastos');
+    toggleSectionView('gastos', 'form');
 
-            // Switch view
-            toggleSectionView('viajes', 'form');
+    // Pre-llenar datos
+    document.getElementById('ID_Viaje').value = tripId;
+    document.getElementById('ID_Unidad').value = unitId;
+    // Seleccionar chofer si existe en la lista
+    const choferSelect = document.getElementById('ID_Chofer');
+    if (driverId && driverId !== 'null' && driverId !== 'undefined') {
+        choferSelect.value = driverId;
+    }
 
-            // Fill form
-            document.getElementById('V_ID_Viaje').value = trip.id_viaje;
-            document.getElementById('V_Fecha').value = trip.fecha;
-            document.getElementById('V_ID_Unidad').value = trip.id_unidad;
-            document.getElementById('V_ID_Chofer').value = trip.id_chofer;
-            document.getElementById('V_Cliente').value = trip.cliente;
-            document.getElementById('V_Origen').value = trip.origen;
-            document.getElementById('V_Destino').value = trip.destino;
-            document.getElementById('V_Monto_Flete').value = trip.monto_flete;
-            document.getElementById('V_Estatus_Viaje').value = trip.estatus_viaje;
-            document.getElementById('V_Comision_Chofer').value = trip.comision_chofer;
-            document.getElementById('V_Estatus_Pago').value = trip.estatus_pago;
+    // Generar ID Gasto nuevo
+    document.getElementById('ID_Gasto').value = 'GAS-' + Date.now().toString().slice(-6);
+    document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
 
-            // Change Button Text
-            document.querySelector('#viaje-form button[type="submit"]').innerText = 'Actualizar Viaje';
-        }
+    isEditingExpense = false;
+    document.querySelector('#gasto-form button[type="submit"]').innerText = 'Registrar Gasto';
+}
 
-        function editExpense(id) {
-            const expense = currentExpensesRaw.find(g => g.id_gasto === id);
-            if (!expense) return;
+function editTrip(id) {
+    const trip = allTripsData.find(t => t.id_viaje === id);
+    if (!trip) return;
 
-            isEditingExpense = true;
-            editingExpenseId = id;
+    isEditingTrip = true;
+    editingTripId = id;
 
-            toggleSectionView('gastos', 'form');
+    // Switch view
+    toggleSectionView('viajes', 'form');
 
-            document.getElementById('ID_Gasto').value = expense.id_gasto;
-            document.getElementById('Fecha').value = expense.fecha;
-            document.getElementById('ID_Viaje').value = expense.id_viaje;
-            document.getElementById('ID_Unidad').value = expense.id_unidad;
-            document.getElementById('ID_Chofer').value = expense.id_chofer || '';
-            document.getElementById('Concepto').value = expense.concepto;
-            document.getElementById('Monto').value = expense.monto;
-            document.getElementById('Litros_Rellenados').value = expense.litros_rellenados;
-            document.getElementById('Kmts_Anteriores').value = expense.kmts_anteriores;
-            document.getElementById('Kmts_Actuales').value = expense.kmts_actuales;
-            document.getElementById('Kmts_Recorridos').value = expense.kmts_recorridos;
+    // Fill form
+    document.getElementById('V_ID_Viaje').value = trip.id_viaje;
+    document.getElementById('V_Fecha').value = trip.fecha;
+    document.getElementById('V_ID_Unidad').value = trip.id_unidad;
+    document.getElementById('V_ID_Chofer').value = trip.id_chofer;
+    document.getElementById('V_Cliente').value = trip.cliente;
+    document.getElementById('V_Origen').value = trip.origen;
+    document.getElementById('V_Destino').value = trip.destino;
+    document.getElementById('V_Monto_Flete').value = trip.monto_flete;
+    document.getElementById('V_Estatus_Viaje').value = trip.estatus_viaje;
+    document.getElementById('V_Comision_Chofer').value = trip.comision_chofer;
+    document.getElementById('V_Estatus_Pago').value = trip.estatus_pago;
 
-            // Handle Forma Pago and Acreedor
-            document.getElementById('Exp_Forma_Pago').value = expense.forma_pago;
-            toggleAcreedorField(); // Trigger visibility logic
-            if (expense.acreedor_nombre) {
-                document.getElementById('Exp_Acreedor').value = expense.acreedor_nombre;
-            }
+    // Change Button Text
+    document.querySelector('#viaje-form button[type="submit"]').innerText = 'Actualizar Viaje';
+}
 
-            document.querySelector('#gasto-form button[type="submit"]').innerText = 'Actualizar Gasto';
-        }
+function editExpense(id) {
+    const expense = currentExpensesRaw.find(g => g.id_gasto === id);
+    if (!expense) return;
 
-        function prepareAdvance(tripId, driverId) {
-            showSection('tesoreria');
-            showAccountForm();
+    isEditingExpense = true;
+    editingExpenseId = id;
 
-            setTimeout(() => {
-                const selectTipo = document.getElementById('acc-tipo');
-                if (selectTipo) selectTipo.value = 'A Favor';
-                const inputActor = document.getElementById('acc-actor');
-                if (inputActor) inputActor.value = driverId;
-                const inputConcepto = document.getElementById('acc-concepto');
-                if (inputConcepto) inputConcepto.value = 'Anticipo para viaje ' + tripId;
-                const inputViaje = document.getElementById('acc-id-viaje-cta');
-                if (inputViaje) inputViaje.value = tripId;
-            }, 100);
-        }
+    toggleSectionView('gastos', 'form');
 
-        // --- UNIVERSAL INLINE EDITING ---
+    document.getElementById('ID_Gasto').value = expense.id_gasto;
+    document.getElementById('Fecha').value = expense.fecha;
+    document.getElementById('ID_Viaje').value = expense.id_viaje;
+    document.getElementById('ID_Unidad').value = expense.id_unidad;
+    document.getElementById('ID_Chofer').value = expense.id_chofer || '';
+    document.getElementById('Concepto').value = expense.concepto;
+    document.getElementById('Monto').value = expense.monto;
+    document.getElementById('Litros_Rellenados').value = expense.litros_rellenados;
+    document.getElementById('Kmts_Anteriores').value = expense.kmts_anteriores;
+    document.getElementById('Kmts_Actuales').value = expense.kmts_actuales;
+    document.getElementById('Kmts_Recorridos').value = expense.kmts_recorridos;
 
-        async function editCatalogInline(type, id) {
-            const row = document.getElementById(`row-${type}-${id}`);
-            if (!row) return;
+    // Handle Forma Pago and Acreedor
+    document.getElementById('Exp_Forma_Pago').value = expense.forma_pago;
+    toggleAcreedorField(); // Trigger visibility logic
+    if (expense.acreedor_nombre) {
+        document.getElementById('Exp_Acreedor').value = expense.acreedor_nombre;
+    }
 
-            // Obtener datos actuales del servidor o una caché si existiera
-            const table = DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)];
-            const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
+    document.querySelector('#gasto-form button[type="submit"]').innerText = 'Actualizar Gasto';
+}
 
-            const { data: item } = await window.supabaseClient.from(table).select('*').eq(idCol, id).single();
-            if (!item) return;
+function prepareAdvance(tripId, driverId) {
+    showSection('tesoreria');
+    showAccountForm();
 
-            let editHtml = '';
-            if (type === 'choferes') {
-                editHtml = `
+    setTimeout(() => {
+        const selectTipo = document.getElementById('acc-tipo');
+        if (selectTipo) selectTipo.value = 'A Favor';
+        const inputActor = document.getElementById('acc-actor');
+        if (inputActor) inputActor.value = driverId;
+        const inputConcepto = document.getElementById('acc-concepto');
+        if (inputConcepto) inputConcepto.value = 'Anticipo para viaje ' + tripId;
+        const inputViaje = document.getElementById('acc-id-viaje-cta');
+        if (inputViaje) inputViaje.value = tripId;
+    }, 100);
+}
+
+// --- UNIVERSAL INLINE EDITING ---
+
+async function editCatalogInline(type, id) {
+    const row = document.getElementById(`row-${type}-${id}`);
+    if (!row) return;
+
+    // Obtener datos actuales del servidor o una caché si existiera
+    const table = DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)];
+    const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
+
+    const { data: item } = await window.supabaseClient.from(table).select('*').eq(idCol, id).single();
+    if (!item) return;
+
+    let editHtml = '';
+    if (type === 'choferes') {
+        editHtml = `
             <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_chofer}" class="w-20 p-1 border rounded" readonly></td>
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-licencia-${id}" value="${item.licencia || ''}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-unidad-${id}" value="${item.id_unidad || ''}" class="w-full p-1 border rounded"></td>
         `;
-            } else if (type === 'unidades') {
-                editHtml = `
+    } else if (type === 'unidades') {
+        editHtml = `
             <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_unidad}" class="w-20 p-1 border rounded" readonly></td>
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_unidad}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-placas-${id}" value="${item.placas || ''}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-chofer-${id}" value="${item.id_chofer || ''}" class="w-full p-1 border rounded"></td>
         `;
-            } else if (type === 'clientes') {
-                editHtml = `
+    } else if (type === 'clientes') {
+        editHtml = `
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_cliente}" class="w-full p-1 border rounded" readonly></td>
             <td class="px-6 py-4"><input type="text" id="edit-rfc-${id}" value="${item.rfc || ''}" class="w-24 p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-contacto-${id}" value="${item.contacto_nombre || ''}" class="w-full p-1 border rounded"></td>
         `;
-            } else if (type === 'proveedores') {
-                editHtml = `
+    } else if (type === 'proveedores') {
+        editHtml = `
             <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_proveedor}" class="w-20 p-1 border rounded" readonly></td>
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_proveedor}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-tipo-${id}" value="${item.tipo_proveedor || ''}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-tel-${id}" value="${item.telefono || ''}" class="w-full p-1 border rounded"></td>
         `;
-            }
+    }
 
-            const estatusHtml = `
+    const estatusHtml = `
         <td class="px-6 py-4">
             <select id="edit-estatus-${id}" class="p-1 border rounded text-xs">
                 <option value="Activo" ${item.estatus === 'Activo' ? 'selected' : ''}>Activo</option>
@@ -1869,59 +1955,59 @@ async function enviarGasto(e) {
         </td>
     `;
 
-            const actionsHtml = `
+    const actionsHtml = `
         <td class="px-6 py-4 text-right space-x-2">
             <button onclick="saveCatalogInline('${type}', '${id}')" class="text-green-500 hover:text-green-700 p-1"><i class="fas fa-save"></i></button>
             <button onclick="location.reload()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-times"></i></button>
         </td>
     `;
 
-            row.innerHTML = editHtml + estatusHtml + actionsHtml;
-        }
+    row.innerHTML = editHtml + estatusHtml + actionsHtml;
+}
 
-        async function saveCatalogInline(type, id) {
-            const table = DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)];
-            const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
+async function saveCatalogInline(type, id) {
+    const table = DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)];
+    const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
 
-            let updateData = {
-                estatus: document.getElementById(`edit-estatus-${id}`).value
-            };
+    let updateData = {
+        estatus: document.getElementById(`edit-estatus-${id}`).value
+    };
 
-            if (type === 'choferes') {
-                updateData.nombre = document.getElementById(`edit-nombre-${id}`).value;
-                updateData.licencia = document.getElementById(`edit-licencia-${id}`).value;
-                updateData.id_unidad = document.getElementById(`edit-unidad-${id}`).value;
-            } else if (type === 'unidades') {
-                updateData.nombre_unidad = document.getElementById(`edit-nombre-${id}`).value;
-                updateData.placas = document.getElementById(`edit-placas-${id}`).value;
-                updateData.id_chofer = document.getElementById(`edit-chofer-${id}`).value;
-            } else if (type === 'clientes') {
-                updateData.rfc = document.getElementById(`edit-rfc-${id}`).value;
-                updateData.contacto_nombre = document.getElementById(`edit-contacto-${id}`).value;
-            } else if (type === 'proveedores') {
-                updateData.nombre_proveedor = document.getElementById(`edit-nombre-${id}`).value;
-                updateData.tipo_proveedor = document.getElementById(`edit-tipo-${id}`).value;
-                updateData.telefono = document.getElementById(`edit-tel-${id}`).value;
-            }
+    if (type === 'choferes') {
+        updateData.nombre = document.getElementById(`edit-nombre-${id}`).value;
+        updateData.licencia = document.getElementById(`edit-licencia-${id}`).value;
+        updateData.id_unidad = document.getElementById(`edit-unidad-${id}`).value;
+    } else if (type === 'unidades') {
+        updateData.nombre_unidad = document.getElementById(`edit-nombre-${id}`).value;
+        updateData.placas = document.getElementById(`edit-placas-${id}`).value;
+        updateData.id_chofer = document.getElementById(`edit-chofer-${id}`).value;
+    } else if (type === 'clientes') {
+        updateData.rfc = document.getElementById(`edit-rfc-${id}`).value;
+        updateData.contacto_nombre = document.getElementById(`edit-contacto-${id}`).value;
+    } else if (type === 'proveedores') {
+        updateData.nombre_proveedor = document.getElementById(`edit-nombre-${id}`).value;
+        updateData.tipo_proveedor = document.getElementById(`edit-tipo-${id}`).value;
+        updateData.telefono = document.getElementById(`edit-tel-${id}`).value;
+    }
 
-            try {
-                const { error } = await window.supabaseClient.from(table).update(updateData).eq(idCol, id);
-                if (error) throw error;
-                alert('Cambios guardados con éxito.');
-                location.reload();
-            } catch (err) {
-                alert('Error al guardar: ' + err.message);
-            }
-        }
-        // --- TRIPS INLINE EDITING ---
-        function editTripInline(id) {
-            const row = Array.from(document.querySelectorAll('#trips-table-body tr')).find(tr => tr.innerHTML.includes(id));
-            if (!row) return;
+    try {
+        const { error } = await window.supabaseClient.from(table).update(updateData).eq(idCol, id);
+        if (error) throw error;
+        alert('Cambios guardados con éxito.');
+        location.reload();
+    } catch (err) {
+        alert('Error al guardar: ' + err.message);
+    }
+}
+// --- TRIPS INLINE EDITING ---
+function editTripInline(id) {
+    const row = Array.from(document.querySelectorAll('#trips-table-body tr')).find(tr => tr.innerHTML.includes(id));
+    if (!row) return;
 
-            const v = allTripsData.find(x => x.id_viaje === id);
-            if (!v) return;
+    const v = allTripsData.find(x => x.id_viaje === id);
+    if (!v) return;
 
-            row.innerHTML = `
+    row.innerHTML = `
         <td class="px-6 py-4 font-bold text-slate-800 text-sm">${v.id_viaje}</td>
         <td class="px-6 py-4">
             <input type="text" id="edit-cliente-${id}" value="${v.cliente}" class="w-full p-1 text-xs border rounded mb-1">
@@ -1945,39 +2031,39 @@ async function enviarGasto(e) {
             <button onclick="renderTripsTable(allTripsData)" class="text-slate-400 hover:text-slate-600 p-1" title="Cancelar"><i class="fas fa-times"></i></button>
         </td>
     `;
-        }
+}
 
-        async function saveTripInline(id) {
-            const rutaParts = document.getElementById(`edit-ruta-${id}`).value.split('-').map(x => x.trim());
-            const updateData = {
-                cliente: document.getElementById(`edit-cliente-${id}`).value,
-                origen: rutaParts[0] || '',
-                destino: rutaParts[1] || '',
-                id_unidad: document.getElementById(`edit-unidad-${id}`).value,
-                id_chofer: document.getElementById(`edit-chofer-${id}`).value,
-                monto_flete: parseFloat(document.getElementById(`edit-flete-${id}`).value),
-                estatus_pago: document.getElementById(`edit-status-${id}`).value
-            };
+async function saveTripInline(id) {
+    const rutaParts = document.getElementById(`edit-ruta-${id}`).value.split('-').map(x => x.trim());
+    const updateData = {
+        cliente: document.getElementById(`edit-cliente-${id}`).value,
+        origen: rutaParts[0] || '',
+        destino: rutaParts[1] || '',
+        id_unidad: document.getElementById(`edit-unidad-${id}`).value,
+        id_chofer: document.getElementById(`edit-chofer-${id}`).value,
+        monto_flete: parseFloat(document.getElementById(`edit-flete-${id}`).value),
+        estatus_pago: document.getElementById(`edit-status-${id}`).value
+    };
 
-            try {
-                const { error } = await window.supabaseClient.from(DB_CONFIG.tableViajes).update(updateData).eq('id_viaje', id);
-                if (error) throw error;
-                alert('Viaje actualizado.');
-                loadTripsList();
-            } catch (err) {
-                alert('Error: ' + err.message);
-            }
-        }
+    try {
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableViajes).update(updateData).eq('id_viaje', id);
+        if (error) throw error;
+        alert('Viaje actualizado.');
+        loadTripsList();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
 
-        // --- EXPENSES INLINE EDITING ---
-        function editExpenseInline(id) {
-            const row = Array.from(document.querySelectorAll('#expenses-table-body tr')).find(tr => tr.innerHTML.includes(id));
-            if (!row) return;
+// --- EXPENSES INLINE EDITING ---
+function editExpenseInline(id) {
+    const row = Array.from(document.querySelectorAll('#expenses-table-body tr')).find(tr => tr.innerHTML.includes(id));
+    if (!row) return;
 
-            const g = allExpensesData.find(x => x.id_gasto === id);
-            if (!g) return;
+    const g = allExpensesData.find(x => x.id_gasto === id);
+    if (!g) return;
 
-            row.innerHTML = `
+    row.innerHTML = `
         <td class="px-6 py-4 font-bold text-slate-800 text-sm">${g.id_gasto}</td>
         <td class="px-6 py-4">
             <input type="text" id="edit-viaje-${id}" value="${g.id_viaje}" class="w-full p-1 text-xs border rounded mb-1">
@@ -2004,44 +2090,44 @@ async function enviarGasto(e) {
             <button onclick="renderExpensesTable(allExpensesData)" class="text-slate-400 hover:text-slate-600 p-1" title="Cancelar"><i class="fas fa-times"></i></button>
         </td>
     `;
-        }
+}
 
-        async function saveExpenseInline(id) {
-            const updateData = {
-                id_viaje: document.getElementById(`edit-viaje-${id}`).value,
-                id_unidad: document.getElementById(`edit-unidad-exp-${id}`).value,
-                concepto: document.getElementById(`edit-concepto-${id}`).value,
-                id_chofer: document.getElementById(`edit-chofer-exp-${id}`).value,
-                monto: parseFloat(document.getElementById(`edit-monto-exp-${id}`).value),
-                kmts_recorridos: parseFloat(document.getElementById(`edit-km-${id}`).value),
-                estatus_pago: document.getElementById(`edit-status-exp-${id}`).value
-            };
+async function saveExpenseInline(id) {
+    const updateData = {
+        id_viaje: document.getElementById(`edit-viaje-${id}`).value,
+        id_unidad: document.getElementById(`edit-unidad-exp-${id}`).value,
+        concepto: document.getElementById(`edit-concepto-${id}`).value,
+        id_chofer: document.getElementById(`edit-chofer-exp-${id}`).value,
+        monto: parseFloat(document.getElementById(`edit-monto-exp-${id}`).value),
+        kmts_recorridos: parseFloat(document.getElementById(`edit-km-${id}`).value),
+        estatus_pago: document.getElementById(`edit-status-exp-${id}`).value
+    };
 
-            try {
-                const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update(updateData).eq('id_gasto', id);
-                if (error) throw error;
-                alert('Gasto actualizado.');
-                loadExpensesList();
-            } catch (err) {
-                alert('Error: ' + err.message);
-            }
-        }
-        async function approveSettlementExpense(id, id_chofer) {
-            try {
-                const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Aprobado' }).eq('id_gasto', id);
-                if (error) throw error;
-                loadDriverSettlementDetail(id_chofer);
-                loadExpensesList(); // Update background list too
-            } catch (err) { alert('Error: ' + err.message); }
-        }
+    try {
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update(updateData).eq('id_gasto', id);
+        if (error) throw error;
+        alert('Gasto actualizado.');
+        loadExpensesList();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+async function approveSettlementExpense(id, id_chofer) {
+    try {
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Aprobado' }).eq('id_gasto', id);
+        if (error) throw error;
+        loadDriverSettlementDetail(id_chofer);
+        loadExpensesList(); // Update background list too
+    } catch (err) { alert('Error: ' + err.message); }
+}
 
-        async function rejectSettlementExpense(id, id_chofer) {
-            const motivo = prompt('Motivo del rechazo:');
-            if (motivo === null) return;
-            try {
-                const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Rechazado' }).eq('id_gasto', id);
-                if (error) throw error;
-                loadDriverSettlementDetail(id_chofer);
-                loadExpensesList(); // Update background list too
-            } catch (err) { alert('Error: ' + err.message); }
-        }
+async function rejectSettlementExpense(id, id_chofer) {
+    const motivo = prompt('Motivo del rechazo:');
+    if (motivo === null) return;
+    try {
+        const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Rechazado' }).eq('id_gasto', id);
+        if (error) throw error;
+        loadDriverSettlementDetail(id_chofer);
+        loadExpensesList(); // Update background list too
+    } catch (err) { alert('Error: ' + err.message); }
+}
