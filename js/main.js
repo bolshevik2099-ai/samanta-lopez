@@ -1503,11 +1503,11 @@ async function loadDriverSettlementDetail(id_chofer) {
     detail.classList.remove('hidden');
     empty.classList.add('hidden');
 
-    // Cargar datos: Viajes Terminados/En Proceso no liquidados + Gastos + Cuentas
+    // Cargar datos: Viajes Terminados/En Proceso no liquidados + Gastos + Cuentas (Solo Anticipos/A Favor)
     const [trips, expenses, accounts] = await Promise.all([
         window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_chofer', id_chofer).neq('estatus_viaje', 'Liquidado'),
         window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_chofer', id_chofer).neq('estatus_pago', 'Pagado'),
-        window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').eq('actor_nombre', id_chofer).eq('estatus', 'No Liquidado')
+        window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').eq('actor_nombre', id_chofer).eq('estatus', 'No Liquidado').eq('tipo', 'A Favor')
     ]);
 
     pendingTripsForDriver = trips.data || [];
@@ -1560,20 +1560,15 @@ async function loadDriverSettlementDetail(id_chofer) {
     }).join('') || '<span class="text-slate-400 italic">Sin gastos registrados</span>';
     document.getElementById('set-sum-expenses').innerText = `$${sumExp.toLocaleString()}`;
 
-    // Anticipos/Deudas
+    // Anticipos/Deudas (Solo se restan los "A Favor" - Anticipos)
     const debtList = document.getElementById('set-debts-list');
-    let sumDebtNeto = 0; // A Favor - En Contra
+    let sumDebtNeto = 0;
     debtList.innerHTML = currentDebts.map(d => {
         const monto = parseFloat(d.monto) || 0;
-        if (d.tipo === 'A Favor') {
-            sumDebtNeto += monto;
-            return `<div class="flex justify-between text-amber-700"><span>${d.concepto} (Anticipo)</span><span class="font-mono">-$${monto.toLocaleString()}</span></div>`;
-        } else {
-            sumDebtNeto -= monto;
-            return `<div class="flex justify-between text-green-700"><span>${d.concepto} (A Favor Chofer)</span><span class="font-mono">+$${monto.toLocaleString()}</span></div>`;
-        }
-    }).join('') || '<span class="text-amber-400 italic">Sin deudas pendientes</span>';
-    document.getElementById('set-sum-debts').innerText = `$${sumDebtNeto.toLocaleString()}`;
+        sumDebtNeto += monto;
+        return `<div class="flex justify-between text-amber-700"><span>${d.concepto} (Anticipo)</span><span class="font-mono">-$${monto.toLocaleString()}</span></div>`;
+    }).join('') || '<span class="text-amber-400 italic">Sin anticipos pendientes</span>';
+    document.getElementById('set-sum-debts').innerText = `-$${sumDebtNeto.toLocaleString()}`;
 
     // Totales finales
     const approvedExpenses = currentExpenses.filter(g =>
@@ -1584,8 +1579,8 @@ async function loadDriverSettlementDetail(id_chofer) {
     const neto = sumComisionesBrutas + sumApprovedExp - sumDebtNeto;
 
     document.getElementById('set-comm-bruta').innerText = `$${sumComisionesBrutas.toLocaleString()}`;
-    document.getElementById('set-sum-expenses').innerText = `$${sumApprovedExp.toLocaleString()}`; // Solo mostramos los aprobados en el total a sumar
-    document.getElementById('set-retencion').innerText = sumDebtNeto > 0 ? `-$${sumDebtNeto.toLocaleString()}` : `+$${Math.abs(sumDebtNeto).toLocaleString()}`;
+    document.getElementById('set-sum-expenses').innerText = `$${sumApprovedExp.toLocaleString()}`;
+    document.getElementById('set-retencion').innerText = `-$${sumDebtNeto.toLocaleString()}`;
     document.getElementById('set-pago-neto').innerText = `$${neto.toLocaleString()}`;
 }
 
@@ -1665,10 +1660,9 @@ function calculateCurrentSettlement() {
     );
     const totalGastosAprobados = approvedReimbursable.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
 
-    // totalDebts = A Favor (Resta) - En Contra (Suma)
+    // totalDebts = Solo A Favor (Se recuperan de la liquidación)
     const totalDebts = currentDebts.reduce((sum, d) => {
-        const m = parseFloat(d.monto) || 0;
-        return d.tipo === 'A Favor' ? sum + m : sum - m;
+        return d.tipo === 'A Favor' ? sum + (parseFloat(d.monto) || 0) : sum;
     }, 0);
 
     const comm = totalFletes * 0.15;
