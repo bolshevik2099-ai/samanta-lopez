@@ -1381,6 +1381,7 @@ async function loadTreasuryList() {
                         ${!isPaid ? `<button onclick="markTripAsPaid('${item.id_viaje}')" class="text-xs text-blue-500 hover:underline">Marcar Pagado</button>` : '<span class="text-slate-300">-</span>'}
                     </td>
                     <td class="px-6 py-4 text-right space-x-2">
+                        <button onclick="editTrip('${item.id_viaje}')" title="Editar Viaje" class="text-blue-400 hover:text-blue-600 p-1"><i class="fas fa-edit"></i></button>
                         <button onclick="showDetailModal('viajes', '${item.id_viaje}')" title="Ver Detalle" class="text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-eye"></i></button>
                         <button onclick="deleteItem('${DB_CONFIG.tableViajes}', '${item.id_viaje}', 'id_viaje')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
                     </td>
@@ -1409,6 +1410,7 @@ async function loadTreasuryList() {
                         ${item.estatus !== 'Liquidado' ? `<button onclick="markAccountLiquidated('${item.id_cuenta}')" class="text-xs text-green-500 hover:underline">Liquidar</button>` : '<span class="text-slate-300">-</span>'}
                     </td>
                     <td class="px-6 py-4 text-right space-x-2">
+                         ${item.id_cuenta.startsWith('ACC-') ? `<button onclick="editAccount('${item.id_cuenta}')" title="Editar Cuenta" class="text-blue-400 hover:text-blue-600 p-1"><i class="fas fa-edit"></i></button>` : '<span title="Generado Automáticamente" class="text-slate-200 cursor-not-allowed mx-1"><i class="fas fa-edit"></i></span>'}
                         <button onclick="deleteItem('${DB_CONFIG.tableCuentas}', '${item.id_cuenta}', 'id_cuenta')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
                     </td>
                 </tr>
@@ -1418,6 +1420,47 @@ async function loadTreasuryList() {
 
     // updateTreasurySummary se encarga de los totales globales
     updateTreasurySummary();
+}
+
+// Variables globales para edición de cuenta
+let isEditingAccount = false;
+let editingAccountId = null;
+
+async function editAccount(id) {
+    const { data: account, error } = await window.supabaseClient
+        .from(DB_CONFIG.tableCuentas)
+        .select('*')
+        .eq('id_cuenta', id)
+        .single();
+
+    if (error || !account) {
+        alert('Error cargando cuenta para editar.');
+        return;
+    }
+
+    isEditingAccount = true;
+    editingAccountId = id;
+
+    showAccountForm();
+
+    // Llenar formulario
+    document.getElementById('acc-tipo').value = account.tipo;
+    // Manejo de actor manual vs select
+    // Simplificación: Asumimos 'otro' para editar nombres libres, o intentamos match
+    document.getElementById('acc-actor-type').value = 'otro';
+    await loadActorOptions();
+    document.getElementById('acc-actor-manual').value = account.actor_nombre;
+    document.getElementById('acc-actor-manual').classList.remove('hidden');
+    document.getElementById('acc-actor').classList.add('hidden');
+
+    document.getElementById('acc-concepto').value = account.concepto;
+    document.getElementById('acc-monto').value = account.monto;
+    document.getElementById('acc-id-viaje-cta').value = account.id_viaje || '';
+    document.getElementById('acc-no-interno-cta').value = account.no_interno || '';
+
+    // Cambiar texto botón
+    const btn = document.querySelector('#account-form button[type="submit"]');
+    if (btn) btn.innerText = 'Actualizar Cuenta';
 }
 
 async function updateTreasurySummary() {
@@ -1544,7 +1587,6 @@ async function enviarCuenta(e) {
         const actor = actorType === 'otro' ? getVal('acc-actor-manual') : getVal('acc-actor');
 
         const data = {
-            id_cuenta: 'ACC-' + Date.now().toString().slice(-6),
             fecha: new Date().toISOString().split('T')[0],
             tipo: getVal('acc-tipo'),
             actor_nombre: actor,
@@ -1555,11 +1597,32 @@ async function enviarCuenta(e) {
             estatus: 'No Liquidado'
         };
 
-        const { error } = await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
+        let error;
+        if (isEditingAccount && editingAccountId) {
+            const { error: updateError } = await window.supabaseClient
+                .from(DB_CONFIG.tableCuentas)
+                .update(data)
+                .eq('id_cuenta', editingAccountId);
+            error = updateError;
+        } else {
+            data.id_cuenta = 'ACC-' + Date.now().toString().slice(-6);
+            const { error: insertError } = await window.supabaseClient
+                .from(DB_CONFIG.tableCuentas)
+                .insert([data]);
+            error = insertError;
+        }
+
         if (error) throw error;
 
-        alert('✅ Cuenta registrada con éxito.');
+        alert(isEditingAccount ? '✅ Cuenta actualizada.' : '✅ Cuenta registrada con éxito.');
         e.target.reset();
+
+        // Reset state
+        isEditingAccount = false;
+        editingAccountId = null;
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.innerText = 'Guardar Cuenta';
+
         hideAccountForm();
         loadTreasuryList();
     } catch (err) {
@@ -1646,14 +1709,14 @@ async function loadSettlementTrips() {
     const activeDrivers = drivers.filter(d => (d.estatus || 'Activo') === 'Activo');
 
     list.innerHTML = activeDrivers.map(d => `
-    < button onclick = "loadDriverSettlementDetail('${d.id_chofer}')" 
-            class= "w-full text-left p-4 rounded-xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all flex justify-between items-center group" >
+        <button onclick="loadDriverSettlementDetail('${d.id_chofer}')" 
+            class="w-full text-left p-4 rounded-xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all flex justify-between items-center group">
             <div>
                 <div class="font-black text-slate-800 truncate">${d.nombre}</div>
                 <div class="text-[10px] text-slate-400">ID: ${d.id_chofer}</div>
             </div>
             <i class="fas fa-chevron-right text-slate-200 group-hover:text-blue-500 transition-all"></i>
-        </button >
+        </button>
         `).join('') || '<p class="text-sm p-4 text-slate-400">No hay choferes disponibles.</p>';
 }
 
