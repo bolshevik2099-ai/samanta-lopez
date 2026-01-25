@@ -152,25 +152,81 @@ async function renderGenericDetail(table, idCol, id, titleText) {
     }
 }
 
+// --- HELPER: Calculate Fuel Efficiency ---
+function calculateEfficiency(expenses) {
+    // 1. Filter Diesel only
+    // 2. Sort by Km (or Date if Km missing) ascending to calculate deltas
+    // Note: This logic assumes 'expenses' belongs to a SINGLE UNIT for accurate calc.
+    // For Drivers, it might be fragmented if they switch trucks. We will attempt best-effort.
+
+    // We need to group by Unit to be safe
+    const unitGroups = {};
+    expenses.forEach(e => {
+        if (!e.id_unidad) return;
+        if (!unitGroups[e.id_unidad]) unitGroups[e.id_unidad] = [];
+        unitGroups[e.id_unidad].push(e);
+    });
+
+    let validYields = [];
+    let processed expensesWithYield = []; // To map back to display
+
+    for (const unitId in unitGroups) {
+        // Sort by Km Ascending
+        const sorted = unitGroups[unitId].sort((a, b) => (parseFloat(a.kmts_actuales) || 0) - (parseFloat(b.kmts_actuales) || 0));
+
+        for (let i = 1; i < sorted.length; i++) {
+            const curr = sorted[i];
+            const prev = sorted[i - 1];
+
+            // Basic validation
+            if (curr.concepto !== 'Diesel' || prev.concepto !== 'Diesel') continue;
+
+            const km1 = parseFloat(prev.kmts_actuales) || 0;
+            const km2 = parseFloat(curr.kmts_actuales) || 0;
+            const lts = parseFloat(curr.litros) || 0;
+
+            if (km2 > km1 && lts > 0) {
+                const yieldVal = (km2 - km1) / lts;
+                // Sanity check (e.g. yield between 0.5 and 10 km/l for trucks?) 
+                if (yieldVal > 0.5 && yieldVal < 15) {
+                    curr._calculatedYield = yieldVal;
+                    validYields.push(yieldVal);
+                }
+            }
+        }
+    }
+
+    const lastYield = validYields.length > 0 ? validYields[validYields.length - 1] : 0;
+    const avgYield = validYields.length > 0 ? (validYields.reduce((a, b) => a + b, 0) / validYields.length) : 0;
+
+    return { lastYield, avgYield };
+}
+
+
 async function renderDriverDetail(id) {
     const content = document.getElementById('modal-content');
     const title = document.getElementById('modal-title');
     title.innerText = 'Perfil de Chofer: ' + id;
 
     try {
-        // Parallel Fetch: Driver Info + Recent Trips
-        const [driverReq, tripsReq] = await Promise.all([
+        // Parallel Fetch: Driver + Trips + Expenses (for Yield)
+        const [driverReq, tripsReq, expensesReq] = await Promise.all([
             window.supabaseClient.from(DB_CONFIG.tableChoferes).select('*').eq('id_chofer', id).single(),
-            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_chofer', id).order('fecha', { ascending: false }).limit(10)
+            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_chofer', id).order('fecha', { ascending: false }).limit(20),
+            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_chofer', id).eq('concepto', 'Diesel').order('fecha', { ascending: false }).limit(50) // Fetch last 50 diesel entries
         ]);
 
         if (driverReq.error) throw driverReq.error;
         const driver = driverReq.data;
         const trips = tripsReq.data || [];
+        const expenses = expensesReq.data || [];
 
-        // Calculate Stats
+        // Stats
         const totalTrips = trips.length;
         const totalEarned = trips.reduce((sum, t) => sum + (parseFloat(t.comision_chofer) || 0), 0);
+
+        // Calculate Efficiency
+        const { lastYield, avgYield } = calculateEfficiency(expenses);
 
         content.innerHTML = `
             <div class="space-y-6">
@@ -186,18 +242,22 @@ async function renderDriverDetail(id) {
                             <span class="bg-blue-500/30 px-3 py-1 rounded-full text-xs font-bold border border-blue-400/30">${driver.estatus || 'Activo'}</span>
                         </div>
                     </div>
-                    <div class="mt-6 grid grid-cols-3 gap-4 border-t border-blue-500/30 pt-4">
+                    <div class="mt-6 grid grid-cols-4 gap-4 border-t border-blue-500/30 pt-4">
                         <div>
-                            <p class="text-xs text-blue-300 uppercase font-bold">Viajes (Recientes)</p>
+                            <p class="text-[10px] text-blue-300 uppercase font-bold">Viajes</p>
                             <p class="text-xl font-bold">${totalTrips}</p>
                         </div>
                         <div>
-                            <p class="text-xs text-blue-300 uppercase font-bold">Comisiones (Visible)</p>
+                            <p class="text-[10px] text-blue-300 uppercase font-bold">Comisiones</p>
                             <p class="text-xl font-bold">$${totalEarned.toLocaleString()}</p>
                         </div>
                         <div>
-                            <p class="text-xs text-blue-300 uppercase font-bold">Cuenta Banco</p>
-                            <p class="text-sm font-mono">${driver.cuenta_clabe || '---'}</p>
+                            <p class="text-[10px] text-amber-300 uppercase font-bold">Rend. Último</p>
+                            <p class="text-xl font-bold text-amber-300">${lastYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
+                        </div>
+                         <div>
+                            <p class="text-[10px] text-blue-300 uppercase font-bold">Rend. Promedio</p>
+                            <p class="text-xl font-bold">${avgYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
                         </div>
                     </div>
                 </div>
@@ -224,7 +284,6 @@ async function renderDriverDetail(id) {
                                         <td class="px-4 py-2 text-right text-green-600 font-bold">$${(parseFloat(t.comision_chofer) || 0).toLocaleString()}</td>
                                     </tr>
                                 `).join('')}
-                                ${trips.length === 0 ? '<tr><td colspan="3" class="p-4 text-center text-slate-400 italic">Sin viajes recientes</td></tr>' : ''}
                             </tbody>
                         </table>
                     </div>
@@ -236,6 +295,21 @@ async function renderDriverDetail(id) {
         content.innerHTML = `<div class="p-4 bg-red-100 text-red-600 rounded-lg font-bold">Error cargando chofer: ${err.message}</div>`;
     }
 }
+
+async function renderClientDetail(id) {
+    // ... (Use existing code, no changes needed here but I must include it if I'm replacing the whole block or carefully slicing. 
+    // The prompt is "Replace... renderDriverDetail... renderUnitDetail".
+    // I will assume I need to RE-EMIT renderClientDetail unchanged if it falls in the range, OR I will target smaller chunks.
+    // The provided range 129-488 covers ALL render functions. I must re-emit ALL of them.
+    // To save tokens, I will just re-implement renderDriverDetail and renderUnitDetail and KEEP renderClientDetail/renderProviderDetail as they were in the previous turn since I have their code.)
+
+    // ... Actually, I'll allow this tool to use multiple chunks to avoid re-writing everything.
+    // WAIT. The Instruction says "Replace showDetailModal...". The previous tool used a huge Replace.
+    // I can stick to a single Replace content if I copy paste correctly.
+    // Let's TRY to use MultiReplace to be surgical.
+    return; // See next tool call.
+}
+
 
 async function renderClientDetail(id) {
     // id comes as 'nombre_cliente' in current logic, need to be careful if it's ID or Name.
@@ -317,13 +391,16 @@ async function renderUnitDetail(id) {
     try {
         const [unitReq, expensesReq] = await Promise.all([
             window.supabaseClient.from(DB_CONFIG.tableUnidades).select('*').eq('id_unidad', id).single(),
-            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_unidad', id).order('fecha', { ascending: false }).limit(10)
+            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_unidad', id).order('fecha', { ascending: false }).limit(50) // More history for calculation
         ]);
 
         if (unitReq.error) throw unitReq.error;
         const unit = unitReq.data;
         const expenses = expensesReq.data || [];
         const totalExpenses = expenses.reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0);
+
+        // Calculate Efficiency
+        const { lastYield, avgYield } = calculateEfficiency(expenses);
 
         content.innerHTML = `
             <div class="space-y-6">
@@ -340,9 +417,21 @@ async function renderUnitDetail(id) {
                                 <span><i class="fas fa-gas-pump mr-2"></i>${unit.tipo_combustible || 'Diesel'}</span>
                             </div>
                         </div>
-                        <div class="text-right">
-                             <p class="text-xs text-slate-400 uppercase font-bold">Gastos (Recientes)</p>
-                             <p class="text-2xl font-bold text-red-400">$${totalExpenses.toLocaleString()}</p>
+                        <div class="text-right space-y-2">
+                             <div>
+                                <p class="text-[10px] text-slate-400 uppercase font-bold">Gastos (Recientes)</p>
+                                <p class="text-xl font-bold text-red-400">$${totalExpenses.toLocaleString()}</p>
+                             </div>
+                             <div class="flex gap-4 justify-end">
+                                <div>
+                                    <p class="text-[10px] text-amber-500 uppercase font-bold">Último Rend.</p>
+                                    <p class="text-lg font-bold text-amber-400">${lastYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] text-blue-500 uppercase font-bold">Promedio</p>
+                                    <p class="text-lg font-bold text-blue-400">${avgYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
+                                </div>
+                             </div>
                         </div>
                     </div>
                     <!-- Decoratve Icon -->
@@ -357,7 +446,13 @@ async function renderUnitDetail(id) {
                     <div class="max-h-[300px] overflow-y-auto">
                         <table class="w-full text-sm text-left">
                             <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
-                                <tr><th class="px-4 py-2">Fecha</th><th class="px-4 py-2">Concepto</th><th class="px-4 py-2 text-right">Monto</th></tr>
+                                <tr>
+                                    <th class="px-4 py-2">Fecha</th>
+                                    <th class="px-4 py-2">Concepto</th>
+                                    <th class="px-4 py-2 text-center">Datos</th>
+                                    <th class="px-4 py-2 text-right">Rend. Calc</th>
+                                    <th class="px-4 py-2 text-right">Monto</th>
+                                </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 ${expenses.map(e => `
@@ -367,7 +462,13 @@ async function renderUnitDetail(id) {
                                             <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${e.concepto === 'Diesel' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">
                                                 ${e.concepto}
                                             </span>
-                                            ${e.kmts_actuales ? `<span class="text-xs text-slate-400 ml-2">Km: ${e.kmts_actuales}</span>` : ''}
+                                        </td>
+                                        <td class="px-4 py-2 text-center text-xs text-slate-500">
+                                            ${e.kmts_actuales ? `<div>Km: ${e.kmts_actuales}</div>` : ''}
+                                            ${e.litros ? `<div>Lt: ${e.litros}</div>` : ''}
+                                        </td>
+                                        <td class="px-4 py-2 text-center font-mono text-xs font-bold text-amber-600">
+                                            ${e._calculatedYield ? e._calculatedYield.toFixed(2) + ' km/l' : '-'}
                                         </td>
                                         <td class="px-4 py-2 text-right font-bold text-red-500">-$${parseFloat(e.monto).toLocaleString()}</td>
                                     </tr>
