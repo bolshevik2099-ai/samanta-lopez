@@ -545,7 +545,7 @@ async function enviarGasto(e) {
             kmts_actuales: parseFloat(getVal('Kmts_Actuales')) || 0,
             kmts_recorridos: parseFloat(getVal('Kmts_Recorridos')) || 0,
             forma_pago: formaPago,
-            estatus_pago: formaPago === 'Crédito' ? 'Pendiente' : 'Pagado'
+            estatus_pago: 'Pendiente'
         };
 
         const acreedorVal = document.getElementById('Exp_Acreedor')?.value;
