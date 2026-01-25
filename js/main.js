@@ -168,7 +168,7 @@ function calculateEfficiency(expenses) {
     });
 
     let validYields = [];
-    let processed expensesWithYield = []; // To map back to display
+    let processedExpensesWithYield = []; // To map back to display
 
     for (const unitId in unitGroups) {
         // Sort by Km Ascending
