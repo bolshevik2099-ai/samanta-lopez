@@ -197,54 +197,43 @@ async function renderGenericDetail(table, idCol, id, titleText) {
     }
 }
 
-// --- HELPER: Calculate Fuel Efficiency ---
-function calculateEfficiency(expenses) {
-    // 1. Filter Diesel only
-    // 2. Sort by Km (or Date if Km missing) ascending to calculate deltas
-    // Note: This logic assumes 'expenses' belongs to a SINGLE UNIT for accurate calc.
-    // For Drivers, it might be fragmented if they switch trucks. We will attempt best-effort.
+// --- HELPER: Calculate Fuel Efficiency (Standardized) ---
+// Returns { last: "XX.XX km/L", avg: "XX.XX km/L" } to match string format, or raw numbers if needed. 
+// For detail views, we return the object expected by the renderers.
+function calculateEntityFuelMetrics(expenses, entityId, entityType) {
+    // Filter logic: Must have liters, and if ID provided, match it.
+    // If called from Catalog, expenses passed are ALL expenses, so we filter.
+    // If called from Detail Modal, expenses are already filtered by Supabase query, but we filter for 'Diesel' and Liters > 0 just in case.
 
-    // We need to group by Unit to be safe
-    const unitGroups = {};
-    expenses.forEach(e => {
-        if (!e.id_unidad) return;
-        if (!unitGroups[e.id_unidad]) unitGroups[e.id_unidad] = [];
-        unitGroups[e.id_unidad].push(e);
+    const fuelExpenses = expenses.filter(g => {
+        const isFuel = (parseFloat(g.litros_rellenados) > 0);
+        // If entityId is provided, double check (though usually pre-filtered)
+        const isMatch = entityId ? (entityType === 'choferes' ? g.id_chofer === entityId : (g.id_unidad === entityId || g.id_unit_eco === entityId)) : true;
+        return isFuel && isMatch;
     });
 
-    let validYields = [];
-    let processedExpensesWithYield = []; // To map back to display
+    if (fuelExpenses.length === 0) return { last: 0, avg: 0, lastStr: 'N/A', avgStr: 'N/A' };
 
-    for (const unitId in unitGroups) {
-        // Sort by Km Ascending
-        const sorted = unitGroups[unitId].sort((a, b) => (parseFloat(a.kmts_actuales) || 0) - (parseFloat(b.kmts_actuales) || 0));
+    // Sort Descending (Newest first)
+    fuelExpenses.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
-        for (let i = 1; i < sorted.length; i++) {
-            const curr = sorted[i];
-            const prev = sorted[i - 1];
+    // 1. Last Yield (Most recent fill-up)
+    const last = fuelExpenses[0];
+    const lastYield = (parseFloat(last.litros_rellenados) > 0)
+        ? (parseFloat(last.kmts_recorridos) / parseFloat(last.litros_rellenados))
+        : 0;
 
-            // Basic validation
-            if (curr.concepto !== 'Diesel' || prev.concepto !== 'Diesel') continue;
+    // 2. Historical Average (Total Km / Total Liters) - Robust Method
+    const totalKm = fuelExpenses.reduce((sum, g) => sum + (parseFloat(g.kmts_recorridos) || 0), 0);
+    const totalLiters = fuelExpenses.reduce((sum, g) => sum + (parseFloat(g.litros_rellenados) || 0), 0);
+    const avgYield = totalLiters > 0 ? (totalKm / totalLiters) : 0;
 
-            const km1 = parseFloat(prev.kmts_actuales) || 0;
-            const km2 = parseFloat(curr.kmts_actuales) || 0;
-            const lts = parseFloat(curr.litros) || 0;
-
-            if (km2 > km1 && lts > 0) {
-                const yieldVal = (km2 - km1) / lts;
-                // Sanity check (e.g. yield between 0.5 and 10 km/l for trucks?) 
-                if (yieldVal > 0.5 && yieldVal < 15) {
-                    curr._calculatedYield = yieldVal;
-                    validYields.push(yieldVal);
-                }
-            }
-        }
-    }
-
-    const lastYield = validYields.length > 0 ? validYields[validYields.length - 1] : 0;
-    const avgYield = validYields.length > 0 ? (validYields.reduce((a, b) => a + b, 0) / validYields.length) : 0;
-
-    return { lastYield, avgYield };
+    return {
+        last: lastYield,
+        avg: avgYield,
+        lastStr: lastYield.toFixed(2) + ' km/L',
+        avgStr: avgYield.toFixed(2) + ' km/L'
+    };
 }
 
 
@@ -271,7 +260,9 @@ async function renderDriverDetail(id) {
         const totalEarned = trips.reduce((sum, t) => sum + (parseFloat(t.comision_chofer) || 0), 0);
 
         // Calculate Efficiency
-        const { lastYield, avgYield } = calculateEfficiency(expenses);
+        const metrics = calculateEntityFuelMetrics(expenses, id, 'choferes');
+        const lastYield = metrics.last;
+        const avgYield = metrics.avg;
 
         content.innerHTML = `
             <div class="space-y-6">
@@ -445,7 +436,9 @@ async function renderUnitDetail(id) {
         const totalExpenses = expenses.reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0);
 
         // Calculate Efficiency
-        const { lastYield, avgYield } = calculateEfficiency(expenses);
+        const metrics = calculateEntityFuelMetrics(expenses, id, 'unidades');
+        const lastYield = metrics.last;
+        const avgYield = metrics.avg;
 
         content.innerHTML = `
             <div class="space-y-6">
@@ -1678,31 +1671,11 @@ async function loadCatalog(type) {
 }
 
 function calculateFuelMetrics(id, type, expenses) {
-    // Filter expenses: Match ID (Driver or Unit) AND has Liters > 0
-    const fuelExpenses = expenses.filter(g =>
-        (parseFloat(g.litros_rellenados) > 0) &&
-        (type === 'choferes' ? g.id_chofer === id : (g.id_unidad === id || g.id_unit_eco === id))
-    );
-
-    if (fuelExpenses.length === 0) return { last: 'N/A', avg: 'N/A' };
-
-    // Sort by Date Descending
-    fuelExpenses.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-    // 1. Last Yield
-    const last = fuelExpenses[0];
-    const lastYield = (parseFloat(last.litros_rellenados) > 0)
-        ? (parseFloat(last.kmts_recorridos) / parseFloat(last.litros_rellenados))
-        : 0;
-
-    // 2. Historical Average
-    const totalKm = fuelExpenses.reduce((sum, g) => sum + (parseFloat(g.kmts_recorridos) || 0), 0);
-    const totalLiters = fuelExpenses.reduce((sum, g) => sum + (parseFloat(g.litros_rellenados) || 0), 0);
-    const avgYield = totalLiters > 0 ? (totalKm / totalLiters) : 0;
-
+    // Wrapper for Catalog usage
+    const m = calculateEntityFuelMetrics(expenses, id, type);
     return {
-        last: lastYield.toFixed(2) + ' km/L',
-        avg: avgYield.toFixed(2) + ' km/L'
+        last: m.lastStr,
+        avg: m.avgStr
     };
 }
 
@@ -2939,119 +2912,7 @@ async function showDetailModal(type, id) {
         alert('Error obteniendo detalle: ' + err.message);
     }
 }
-// --- TRIPS INLINE EDITING ---
-function editTripInline(id) {
-    const row = Array.from(document.querySelectorAll('#trips-table-body tr')).find(tr => tr.innerHTML.includes(id));
-    if (!row) return;
 
-    const v = allTripsData.find(x => x.id_viaje === id);
-    if (!v) return;
-
-    row.innerHTML = `
-    <td class="px-6 py-4 font-bold text-slate-800 text-sm">${v.id_viaje}</td>
-    <td class="px-6 py-4">
-        <input type="text" id="edit-cliente-${id}" value="${v.cliente}" class="w-full p-1 text-xs border rounded mb-1">
-            <input type="text" id="edit-ruta-${id}" value="${v.origen} - ${v.destino}" class="w-full p-1 text-[10px] border rounded" placeholder="Origen - Destino">
-            </td>
-            <td class="px-6 py-4">
-                <input type="text" id="edit-unidad-${id}" value="${v.id_unidad}" class="w-full p-1 text-xs border rounded mb-1">
-                    <input type="text" id="edit-chofer-${id}" value="${v.id_chofer}" class="w-full p-1 text-xs border rounded">
-                    </td>
-                    <td class="px-6 py-4">
-                        <input type="number" id="edit-flete-${id}" value="${v.monto_flete}" class="w-full p-1 text-xs border rounded font-bold">
-                    </td>
-                    <td class="px-6 py-4">
-                        <select id="edit-status-${id}" class="text-[10px] p-1 border rounded">
-                            <option value="Pendiente" ${v.estatus_pago === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
-                            <option value="Pagado" ${v.estatus_pago === 'Pagado' ? 'selected' : ''}>Pagado</option>
-                        </select>
-                    </td>
-                    <td class="px-6 py-4 text-right space-x-1">
-                        <button onclick="saveTripInline('${id}')" class="text-green-600 hover:text-green-800 p-1" title="Guardar"><i class="fas fa-save"></i></button>
-                        <button onclick="renderTripsTable(allTripsData)" class="text-slate-400 hover:text-slate-600 p-1" title="Cancelar"><i class="fas fa-times"></i></button>
-                    </td>
-                    `;
-}
-
-async function saveTripInline(id) {
-    const rutaParts = document.getElementById(`edit-ruta-${id}`).value.split('-').map(x => x.trim());
-    const updateData = {
-        cliente: document.getElementById(`edit-cliente-${id}`).value,
-        origen: rutaParts[0] || '',
-        destino: rutaParts[1] || '',
-        id_unidad: document.getElementById(`edit-unidad-${id}`).value,
-        id_chofer: document.getElementById(`edit-chofer-${id}`).value,
-        monto_flete: parseFloat(document.getElementById(`edit-flete-${id}`).value),
-        estatus_pago: document.getElementById(`edit-status-${id}`).value
-    };
-
-    try {
-        const { error } = await window.supabaseClient.from(DB_CONFIG.tableViajes).update(updateData).eq('id_viaje', id);
-        if (error) throw error;
-        alert('Viaje actualizado.');
-        loadTripsList();
-    } catch (err) {
-        alert('Error: ' + err.message);
-    }
-}
-
-// --- EXPENSES INLINE EDITING ---
-function editExpenseInline(id) {
-    const row = Array.from(document.querySelectorAll('#expenses-table-body tr')).find(tr => tr.innerHTML.includes(id));
-    if (!row) return;
-
-    const g = allExpensesData.find(x => x.id_gasto === id);
-    if (!g) return;
-
-    row.innerHTML = `
-                    <td class="px-6 py-4 font-bold text-slate-800 text-sm">${g.id_gasto}</td>
-                    <td class="px-6 py-4">
-                        <input type="text" id="edit-viaje-${id}" value="${g.id_viaje}" class="w-full p-1 text-xs border rounded mb-1">
-                            <input type="text" id="edit-unidad-exp-${id}" value="${g.id_unidad || g.id_unit_eco}" class="w-full p-1 text-[10px] border rounded">
-                            </td>
-                            <td class="px-6 py-4">
-                                <input type="text" id="edit-concepto-${id}" value="${g.concepto}" class="w-full p-1 text-xs border rounded mb-1 font-bold">
-                                    <input type="text" id="edit-chofer-exp-${id}" value="${g.id_chofer}" class="w-full p-1 text-xs border rounded">
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <input type="number" id="edit-monto-exp-${id}" value="${g.monto}" class="w-full p-1 text-xs border rounded font-bold text-red-600">
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <input type="number" id="edit-km-${id}" value="${g.kmts_recorridos}" class="w-full p-1 text-[10px] border rounded">
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        <select id="edit-status-exp-${id}" class="text-[10px] p-1 border rounded">
-                                            <option value="Pendiente" ${g.estatus_pago === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
-                                            <option value="Pagado" ${g.estatus_pago === 'Pagado' ? 'selected' : ''}>Pagado</option>
-                                        </select>
-                                    </td>
-                                    <td class="px-6 py-4 text-right space-x-1">
-                                        <button onclick="saveExpenseInline('${id}')" class="text-green-600 hover:text-green-800 p-1" title="Guardar"><i class="fas fa-save"></i></button>
-                                        <button onclick="renderExpensesTable(allExpensesData)" class="text-slate-400 hover:text-slate-600 p-1" title="Cancelar"><i class="fas fa-times"></i></button>
-                                    </td>
-                                    `;
-}
-
-async function saveExpenseInline(id) {
-    const updateData = {
-        id_viaje: document.getElementById(`edit-viaje-${id}`).value,
-        id_unidad: document.getElementById(`edit-unidad-exp-${id}`).value,
-        concepto: document.getElementById(`edit-concepto-${id}`).value,
-        id_chofer: document.getElementById(`edit-chofer-exp-${id}`).value,
-        monto: parseFloat(document.getElementById(`edit-monto-exp-${id}`).value),
-        kmts_recorridos: parseFloat(document.getElementById(`edit-km-${id}`).value),
-        estatus_pago: document.getElementById(`edit-status-exp-${id}`).value
-    };
-
-    try {
-        const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update(updateData).eq('id_gasto', id);
-        if (error) throw error;
-        alert('Gasto actualizado.');
-        loadExpensesList();
-    } catch (err) {
-        alert('Error: ' + err.message);
-    }
-}
 async function approveSettlementExpense(id, id_chofer) {
     try {
         const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Aprobado' }).eq('id_gasto', id);
