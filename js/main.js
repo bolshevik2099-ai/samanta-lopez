@@ -1291,6 +1291,17 @@ async function handleExpenseSubmit(e) {
             expenseData.ticket_foto = fileName; // Corrected column name
         }
 
+        // Upload Tachometer Photo Logic
+        const fileTaco = document.getElementById('Foto_tacometro')?.files[0];
+        if (fileTaco) {
+            const fileNameTaco = `taco_${Date.now()}_${fileTaco.name}`;
+            const { error: uploadErrorTaco } = await window.supabaseClient.storage
+                .from('tickets-gastos')
+                .upload(fileNameTaco, fileTaco);
+            if (uploadErrorTaco) throw uploadErrorTaco;
+            expenseData.foto_tacometro = fileNameTaco;
+        }
+
         let error;
         if (isEditingExpense && editingExpenseId) {
             const { error: updateError } = await window.supabaseClient
