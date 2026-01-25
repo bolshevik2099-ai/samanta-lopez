@@ -537,7 +537,7 @@ async function enviarGasto(e) {
             fecha: getVal('Fecha'),
             id_viaje: tripID,
             id_unidad: getVal('ID_Unidad'),
-            id_chofer: getVal('ID_Chofer'),
+            id_chofer: getVal('ID_Chofer') || null,
             concepto: getVal('Concepto'),
             monto: parseFloat(getVal('Monto')) || 0,
             litros_rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
@@ -1536,11 +1536,15 @@ async function loadDriverSettlementDetail(id_chofer) {
         const aprobColor = estAprob === 'Aprobado' ? 'text-green-500' : (estAprob === 'Rechazado' ? 'text-red-500' : 'text-amber-500');
 
         sumExp += parseFloat(g.monto);
+        const isReimbursable = g.forma_pago === 'Contado';
+
         return `
             <div class="flex flex-col gap-1 border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs font-semibold text-slate-700">${g.concepto} (${g.id_viaje})</span>
-                    <span class="font-mono font-bold">$${parseFloat(g.monto).toLocaleString()}</span>
+                    <span class="text-xs font-semibold ${isReimbursable ? 'text-slate-700' : 'text-slate-400 italic'}">
+                        ${g.concepto} (${g.id_viaje}) ${isReimbursable ? '' : '[CRÉDITO]'}
+                    </span>
+                    <span class="font-mono font-bold ${isReimbursable ? '' : 'text-slate-400'}">$${parseFloat(g.monto).toLocaleString()}</span>
                 </div>
                 <div class="flex justify-between items-center">
                     <span class="text-[8px] font-black uppercase ${aprobColor}">${estAprob}</span>
@@ -1572,7 +1576,10 @@ async function loadDriverSettlementDetail(id_chofer) {
     document.getElementById('set-sum-debts').innerText = `$${sumDebtNeto.toLocaleString()}`;
 
     // Totales finales
-    const approvedExpenses = currentExpenses.filter(g => (g.estatus_aprobacion || 'Pendiente') === 'Aprobado');
+    const approvedExpenses = currentExpenses.filter(g =>
+        (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
+        g.forma_pago === 'Contado'
+    );
     const sumApprovedExp = approvedExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
     const neto = sumComisionesBrutas + sumApprovedExp - sumDebtNeto;
 
@@ -1652,8 +1659,11 @@ async function finalizeSettlement() {
 
 function calculateCurrentSettlement() {
     const totalFletes = pendingTripsForDriver.reduce((sum, t) => sum + (parseFloat(t.monto_flete) || 0), 0);
-    const approvedExpenses = currentExpenses.filter(g => (g.estatus_aprobacion || 'Pendiente') === 'Aprobado');
-    const totalGastosAprobados = approvedExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+    const approvedReimbursable = currentExpenses.filter(g =>
+        (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
+        g.forma_pago === 'Contado'
+    );
+    const totalGastosAprobados = approvedReimbursable.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
 
     // totalDebts = A Favor (Resta) - En Contra (Suma)
     const totalDebts = currentDebts.reduce((sum, d) => {
