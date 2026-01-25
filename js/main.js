@@ -537,7 +537,7 @@ async function enviarGasto(e) {
             fecha: getVal('Fecha'),
             id_viaje: tripID,
             id_unidad: getVal('ID_Unidad'),
-            id_chofer: getVal('ID_Chofer') || null,
+            id_chofer: (document.getElementById('ID_Chofer') ? (getVal('ID_Chofer') || null) : (session.id_contacto || session.usuario)),
             concepto: getVal('Concepto'),
             monto: parseFloat(getVal('Monto')) || 0,
             litros_rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
