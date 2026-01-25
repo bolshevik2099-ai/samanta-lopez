@@ -2606,102 +2606,7 @@ function calculateCurrentSettlement() {
 // Inicializar vista de tesorería al cargar
 switchTreasuryTab('favor');
 
-async // --- FUNCIONES EXTRA (Edición Completa y Acciones) ---
-
-function registerExpenseFromTrip(tripId, unitId, driverId) {
-    showSection('gastos');
-    toggleSectionView('gastos', 'form');
-
-    // Pre-llenar datos
-    document.getElementById('ID_Viaje').value = tripId;
-    document.getElementById('ID_Unidad').value = unitId;
-    // Seleccionar chofer si existe en la lista
-    const choferSelect = document.getElementById('ID_Chofer');
-    if (driverId && driverId !== 'null' && driverId !== 'undefined') {
-        choferSelect.value = driverId;
-    }
-
-    // Generar ID Gasto nuevo
-    document.getElementById('ID_Gasto').value = 'GAS-' + Date.now().toString().slice(-6);
-    document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
-
-    isEditingExpense = false;
-    document.querySelector('#gasto-form button[type="submit"]').innerText = 'Registrar Gasto';
-}
-
-function editTrip(id) {
-    const trip = allTripsData.find(t => t.id_viaje === id);
-    if (!trip) return;
-
-    isEditingTrip = true;
-    editingTripId = id;
-
-    // Switch view
-    toggleSectionView('viajes', 'form');
-
-    // Fill form
-    document.getElementById('V_ID_Viaje').value = trip.id_viaje;
-    document.getElementById('V_Fecha').value = trip.fecha;
-    document.getElementById('V_ID_Unidad').value = trip.id_unidad;
-    document.getElementById('V_ID_Chofer').value = trip.id_chofer;
-    document.getElementById('V_Cliente').value = trip.cliente;
-    document.getElementById('V_Origen').value = trip.origen;
-    document.getElementById('V_Destino').value = trip.destino;
-    document.getElementById('V_Monto_Flete').value = trip.monto_flete;
-    document.getElementById('V_Estatus_Viaje').value = trip.estatus_viaje;
-    document.getElementById('V_Comision_Chofer').value = trip.comision_chofer;
-    document.getElementById('V_Estatus_Pago').value = trip.estatus_pago;
-
-    // Change Button Text
-    document.querySelector('#viaje-form button[type="submit"]').innerText = 'Actualizar Viaje';
-}
-
-function editExpense(id) {
-    const expense = currentExpensesRaw.find(g => g.id_gasto === id);
-    if (!expense) return;
-
-    isEditingExpense = true;
-    editingExpenseId = id;
-
-    toggleSectionView('gastos', 'form');
-
-    document.getElementById('ID_Gasto').value = expense.id_gasto;
-    document.getElementById('Fecha').value = expense.fecha;
-    document.getElementById('ID_Viaje').value = expense.id_viaje;
-    document.getElementById('ID_Unidad').value = expense.id_unidad;
-    document.getElementById('ID_Chofer').value = expense.id_chofer || '';
-    document.getElementById('Concepto').value = expense.concepto;
-    document.getElementById('Monto').value = expense.monto;
-    document.getElementById('Litros_Rellenados').value = expense.litros_rellenados;
-    document.getElementById('Kmts_Anteriores').value = expense.kmts_anteriores;
-    document.getElementById('Kmts_Actuales').value = expense.kmts_actuales;
-    document.getElementById('Kmts_Recorridos').value = expense.kmts_recorridos;
-
-    // Handle Forma Pago and Acreedor
-    document.getElementById('Exp_Forma_Pago').value = expense.forma_pago;
-    toggleAcreedorField(); // Trigger visibility logic
-    if (expense.acreedor_nombre) {
-        document.getElementById('Exp_Acreedor').value = expense.acreedor_nombre;
-    }
-
-    document.querySelector('#gasto-form button[type="submit"]').innerText = 'Actualizar Gasto';
-}
-
-function prepareAdvance(tripId, driverId) {
-    showSection('tesoreria');
-    showAccountForm();
-
-    setTimeout(() => {
-        const selectTipo = document.getElementById('acc-tipo');
-        if (selectTipo) selectTipo.value = 'A Favor';
-        const inputActor = document.getElementById('acc-actor');
-        if (inputActor) inputActor.value = driverId;
-        const inputConcepto = document.getElementById('acc-concepto');
-        if (inputConcepto) inputConcepto.value = 'Anticipo para viaje ' + tripId;
-        const inputViaje = document.getElementById('acc-id-viaje-cta');
-        if (inputViaje) inputViaje.value = tripId;
-    }, 100);
-}
+// --- FUNCIONES EXTRA (Inline Edit Helpers) ---
 
 // --- UNIVERSAL INLINE EDITING ---
 
@@ -2719,27 +2624,27 @@ async function editCatalogInline(type, id) {
     let editHtml = '';
     if (type === 'choferes') {
         editHtml = `
-    < td class= "px-6 py-4" ><input type="text" id="edit-id-${id}" value="${item.id_chofer}" class="w-20 p-1 border rounded" readonly></td>
+            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_chofer}" class="w-20 p-1 border rounded" readonly></td>
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-licencia-${id}" value="${item.licencia || ''}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-unidad-${id}" value="${item.id_unidad || ''}" class="w-full p-1 border rounded"></td>
         `;
     } else if (type === 'unidades') {
         editHtml = `
-        < td class= "px-6 py-4" ><input type="text" id="edit-id-${id}" value="${item.id_unidad}" class="w-20 p-1 border rounded" readonly></td>
+            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_unidad}" class="w-20 p-1 border rounded" readonly></td>
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_unidad}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-placas-${id}" value="${item.placas || ''}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-chofer-${id}" value="${item.id_chofer || ''}" class="w-full p-1 border rounded"></td>
         `;
     } else if (type === 'clientes') {
         editHtml = `
-        < td class= "px-6 py-4" ><input type="text" id="edit-nombre-${id}" value="${item.nombre_cliente}" class="w-full p-1 border rounded" readonly></td>
+            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_cliente}" class="w-full p-1 border rounded" readonly></td>
             <td class="px-6 py-4"><input type="text" id="edit-rfc-${id}" value="${item.rfc || ''}" class="w-24 p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-contacto-${id}" value="${item.contacto_nombre || ''}" class="w-full p-1 border rounded"></td>
         `;
     } else if (type === 'proveedores') {
         editHtml = `
-        < td class= "px-6 py-4" ><input type="text" id="edit-id-${id}" value="${item.id_proveedor}" class="w-20 p-1 border rounded" readonly></td>
+            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_proveedor}" class="w-20 p-1 border rounded" readonly></td>
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_proveedor}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-tipo-${id}" value="${item.tipo_proveedor || ''}" class="w-full p-1 border rounded"></td>
             <td class="px-6 py-4"><input type="text" id="edit-tel-${id}" value="${item.telefono || ''}" class="w-full p-1 border rounded"></td>
@@ -2747,22 +2652,19 @@ async function editCatalogInline(type, id) {
     }
 
     const estatusHtml = `
-        < td class= "px-6 py-4" >
+        <td class="px-6 py-4">
         <select id="edit-estatus-${id}" class="p-1 border rounded text-xs">
             <option value="Activo" ${item.estatus === 'Activo' ? 'selected' : ''}>Activo</option>
             <option value="Inactivo" ${item.estatus === 'Inactivo' ? 'selected' : ''}>Inactivo</option>
         </select>
-        </td >
-        `;
-
-    const actionsHtml = `
-        < td class= "px-6 py-4 text-right space-x-2" >
+        </td>
+        <td class="px-6 py-4 text-right space-x-2">
             <button onclick="saveCatalogInline('${type}', '${id}')" class="text-green-500 hover:text-green-700 p-1"><i class="fas fa-save"></i></button>
             <button onclick="location.reload()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-times"></i></button>
-        </td >
+        </td>
         `;
 
-    row.innerHTML = editHtml + estatusHtml + actionsHtml;
+    row.innerHTML = editHtml + estatusHtml;
 }
 
 async function saveCatalogInline(type, id) {
@@ -2808,7 +2710,7 @@ function editTripInline(id) {
     if (!v) return;
 
     row.innerHTML = `
-    < td class= "px-6 py-4 font-bold text-slate-800 text-sm" > ${v.id_viaje}</td >
+    <td class="px-6 py-4 font-bold text-slate-800 text-sm">${v.id_viaje}</td>
     <td class="px-6 py-4">
         <input type="text" id="edit-cliente-${id}" value="${v.cliente}" class="w-full p-1 text-xs border rounded mb-1">
             <input type="text" id="edit-ruta-${id}" value="${v.origen} - ${v.destino}" class="w-full p-1 text-[10px] border rounded" placeholder="Origen - Destino">
