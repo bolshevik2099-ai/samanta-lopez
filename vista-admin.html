@@ -20,7 +20,13 @@
     </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen flex flex-col md:flex-row">
+<body class="bg-slate-950 min-h-screen flex flex-col md:flex-row text-slate-300">
+    <!-- Global Ambient Background (Optional, if we want consistency with landing page) -->
+    <div class="fixed inset-0 z-0 pointer-events-none">
+        <div
+            class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/10 via-slate-950 to-slate-950">
+        </div>
+    </div>
     <!-- Sidebar -->
     <!-- Mobile Toggle Button -->
     <button onclick="toggleSidebar()"
@@ -84,27 +90,27 @@
         class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass-card"></div>
 
     <!-- Main Content -->
-    <main class="flex-grow p-6 md:p-10">
+    <main class="flex-grow p-6 md:p-10 relative z-10">
         <!-- Dashboard Section -->
         <section id="section-dashboard" class="content-section">
             <header class="mb-10 flex justify-between items-center">
                 <div>
-                    <h2 class="text-xl md:text-3xl font-bold text-slate-800 flex flex-wrap items-center gap-2 md:gap-3">
+                    <h2 class="text-xl md:text-3xl font-bold text-white flex flex-wrap items-center gap-2 md:gap-3">
                         Panel Administrativo
                         <span
-                            class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-mono uppercase tracking-widest">v5.1
+                            class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-mono uppercase tracking-widest">v5.7
                             SQL</span>
                         <span class="text-[9px] text-slate-400 ml-2 font-mono" id="static-build-time">Build:
                             SQL-Native</span>
                         <span class="text-[9px] text-slate-300 ml-2" id="build-time"></span>
                         <span id="conn-status"
-                            class="text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Conectado</span>
+                            class="text-[10px] bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest border border-green-500/20">Conectado</span>
                     </h2>
-                    <p class="text-slate-500">Bienvenido de nuevo, <span id="admin-name"
-                            class="font-semibold text-slate-800">Cargando...</span></p>
+                    <p class="text-slate-400">Bienvenido de nuevo, <span id="admin-name"
+                            class="font-semibold text-white">Cargando...</span></p>
                 </div>
                 <div
-                    class="hidden md:flex items-center gap-2 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100">
+                    class="hidden md:flex items-center gap-2 bg-slate-900/50 backdrop-blur-md px-4 py-2 rounded-xl shadow-sm border border-white/5">
                     <span class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
                     <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Sistema Online</span>
                 </div>
@@ -112,55 +118,58 @@
 
             <!-- Filtros de Período -->
             <div
-                class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 items-end">
+                class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 items-end">
                 <div>
                     <label
-                        class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Desde</label>
+                        class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Desde</label>
                     <input type="date" id="filter-start"
-                        class="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 text-sm">
+                        class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
                 </div>
                 <div>
                     <label
-                        class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Hasta</label>
+                        class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Hasta</label>
                     <input type="date" id="filter-end"
-                        class="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 text-sm">
+                        class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
                 </div>
                 <div>
                     <button onclick="updateDashboardByPeriod()"
-                        class="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl hover:bg-black transition-all text-sm flex items-center justify-center gap-2">
+                        class="w-full bg-blue-600 text-white font-bold py-2.5 rounded-xl hover:bg-blue-500 transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
                         <i class="fas fa-sync-alt"></i> Actualizar
                     </button>
                 </div>
-                <div class="text-right pb-2 text-xs text-slate-400 italic">
+                <div class="text-right pb-2 text-xs text-slate-500 italic">
                     <span id="period-label">Mostrando: Hoy</span>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Venta Card -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                        <i class="fas fa-truck-moving text-6xl text-blue-600"></i>
+                <div
+                    class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-truck-moving text-6xl text-blue-400"></i>
                     </div>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Venta Total</p>
-                    <h4 id="period-venta" class="text-3xl font-bold text-slate-800">$0.00</h4>
-                    <p class="text-[10px] text-blue-500 font-bold mt-2"><i class="fas fa-info-circle mr-1"></i> Ingreso
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Venta Total</p>
+                    <h4 id="period-venta" class="text-3xl font-bold text-white">$0.00</h4>
+                    <p class="text-[10px] text-blue-400 font-bold mt-2"><i class="fas fa-info-circle mr-1"></i> Ingreso
                         bruto acumulado</p>
                 </div>
                 <!-- Gasto Card -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">
-                        <i class="fas fa-receipt text-6xl text-red-600"></i>
+                <div
+                    class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-receipt text-6xl text-red-400"></i>
                     </div>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Gasto Total</p>
-                    <h4 id="period-gasto" class="text-3xl font-bold text-red-500">$0.00</h4>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Gasto Total</p>
+                    <h4 id="period-gasto" class="text-3xl font-bold text-red-400">$0.00</h4>
                     <p class="text-[10px] text-red-400 font-bold mt-2"><i class="fas fa-arrow-down mr-1"></i> Egresos
                         operativos</p>
                 </div>
                 <!-- Ganancia Card -->
-                <div class="bg-blue-600 p-6 rounded-2xl shadow-lg relative overflow-hidden group">
+                <div
+                    class="bg-blue-600/90 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/10 relative overflow-hidden group cursor-default">
                     <div
-                        class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform text-white">
+                        class="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform text-white">
                         <i class="fas fa-wallet text-6xl"></i>
                     </div>
                     <p class="text-[10px] font-bold text-blue-100 uppercase tracking-widest mb-1">Ganancia Neta</p>
@@ -172,11 +181,12 @@
             <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Chart Section -->
                 <!-- Main Chart & Composition -->
-                <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <div
+                    class="lg:col-span-2 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
                     <div class="flex justify-between items-center mb-6">
-                        <h3 class="font-bold text-slate-800"><i class="fas fa-chart-area mr-2 text-blue-500"></i>Flujo
+                        <h3 class="font-bold text-white"><i class="fas fa-chart-area mr-2 text-blue-400"></i>Flujo
                             de Caja</h3>
-                        <div id="chart-loader" class="hidden"><i class="fas fa-spinner fa-spin text-blue-500"></i></div>
+                        <div id="chart-loader" class="hidden"><i class="fas fa-spinner fa-spin text-blue-400"></i></div>
                     </div>
                     <div class="h-[300px]">
                         <canvas id="mainChart"></canvas>
@@ -184,8 +194,8 @@
                 </div>
 
                 <!-- Expense Breakdown -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 class="font-bold text-slate-800 mb-6"><i class="fas fa-chart-pie mr-2 text-red-500"></i>Desglose
+                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                    <h3 class="font-bold text-white mb-6"><i class="fas fa-chart-pie mr-2 text-red-400"></i>Desglose
                         Gastos</h3>
                     <div class="h-[250px] flex items-center justify-center">
                         <canvas id="expensesChart"></canvas>
@@ -196,8 +206,8 @@
             <!-- Secondary Charts -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 mt-6">
                 <!-- Top Clients -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 class="font-bold text-slate-800 mb-6"><i class="fas fa-briefcase mr-2 text-yellow-500"></i>Top 5
+                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                    <h3 class="font-bold text-white mb-6"><i class="fas fa-briefcase mr-2 text-yellow-400"></i>Top 5
                         Clientes</h3>
                     <div class="h-[250px]">
                         <canvas id="clientsChart"></canvas>
@@ -205,9 +215,10 @@
                 </div>
 
                 <!-- Fuel Yield Chart (New) -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 lg:col-span-2">
-                    <h3 class="font-bold text-slate-800 mb-6"><i
-                            class="fas fa-gas-pump mr-2 text-purple-500"></i>Rendimiento Combustible por Unidad (Km/L)
+                <div
+                    class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 lg:col-span-2">
+                    <h3 class="font-bold text-white mb-6"><i
+                            class="fas fa-gas-pump mr-2 text-purple-400"></i>Rendimiento Combustible por Unidad (Km/L)
                     </h3>
                     <div class="h-[300px]">
                         <canvas id="yieldChart"></canvas>
@@ -215,8 +226,8 @@
                 </div>
 
                 <!-- Trip Status -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 class="font-bold text-slate-800 mb-6"><i class="fas fa-tasks mr-2 text-green-500"></i>Estatus
+                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                    <h3 class="font-bold text-white mb-6"><i class="fas fa-tasks mr-2 text-green-400"></i>Estatus
                         Operativo</h3>
                     <div class="h-[250px] flex items-center justify-center">
                         <canvas id="statusChart"></canvas>
@@ -227,8 +238,9 @@
             <!-- Driver Efficiency Section (New) -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 <!-- Best Drivers -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-green-500">
-                    <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <div
+                    class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 border-l-4 border-l-green-500">
+                    <h3 class="font-bold text-white mb-6 flex items-center gap-2">
                         <i class="fas fa-trophy text-yellow-400"></i> Top 3 Mejores Choferes (Km/L)
                     </h3>
                     <div class="h-[250px]">
@@ -237,8 +249,9 @@
                 </div>
 
                 <!-- Worst Drivers -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 border-l-4 border-l-red-500">
-                    <h3 class="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <div
+                    class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 border-l-4 border-l-red-500">
+                    <h3 class="font-bold text-white mb-6 flex items-center gap-2">
                         <i class="fas fa-exclamation-triangle text-red-500"></i> Top 3 Menor Rendimiento (Km/L)
                     </h3>
                     <div class="h-[250px]">
@@ -249,17 +262,18 @@
 
             <div class="grid grid-cols-1 gap-8">
                 <!-- Recent Mini Table -->
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                    <div class="p-6 border-b border-slate-100">
-                        <h3 class="font-bold text-slate-800">Últimos Movimientos</h3>
+                <div
+                    class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
+                    <div class="p-6 border-b border-white/5">
+                        <h3 class="font-bold text-white">Últimos Movimientos</h3>
                     </div>
                     <div class="max-h-[400px] overflow-y-auto">
                         <table class="w-full text-left">
-                            <tbody id="period-table-body" class="divide-y divide-slate-50">
+                            <tbody id="period-table-body" class="divide-y divide-white/5">
                                 <!-- Filas dinámicas -->
                             </tbody>
                         </table>
-                        <div id="trips-loader" class="p-10 text-center text-slate-400">
+                        <div id="trips-loader" class="p-10 text-center text-slate-500">
                             <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
                             <p>Cargando viajes...</p>
                         </div>
