@@ -885,18 +885,22 @@ function renderChart(viajes, gastos) {
                 {
                     label: 'Ventas',
                     data: vData,
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderColor: '#60a5fa',
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
                     fill: true,
-                    tension: 0.4
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#60a5fa'
                 },
                 {
                     label: 'Gastos',
                     data: gData,
-                    borderColor: '#ef4444',
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    borderColor: '#f87171',
+                    backgroundColor: 'rgba(239, 68, 68, 0.2)',
                     fill: true,
-                    tension: 0.4
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#f87171'
                 }
             ]
         },
@@ -904,11 +908,17 @@ function renderChart(viajes, gastos) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 6 } }
+                legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 6, color: '#94a3b8' } }
             },
             scales: {
-                y: { grid: { display: false }, ticks: { callback: v => '$' + v.toLocaleString() } },
-                x: { grid: { display: false } }
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#94a3b8', callback: v => '$' + v.toLocaleString() }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#94a3b8' }
+                }
             }
         }
     });
@@ -951,8 +961,18 @@ function renderChartInstance(canvasId, type, data) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'bottom', labels: { color: '#94a3b8' } }
-            }
+                legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } }
+            },
+            scales: type === 'bar' ? {
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#94a3b8', font: { size: 10 } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#94a3b8', font: { size: 10 } }
+                }
+            } : {}
         }
     });
 }
