@@ -2606,7 +2606,8 @@ async function loadDriverSettlementDetail(id_chofer) {
     // Totales finales
     const approvedExpenses = currentExpenses.filter(g =>
         (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
-        g.forma_pago === 'Contado'
+        ['Contado', 'Efectivo'].includes(g.forma_pago) &&
+        String(g.es_deducible || 'Sí').trim() === 'Sí'
     );
     const sumApprovedExp = approvedExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
     const neto = sumComisionesBrutas + sumApprovedExp - sumDebtNeto;
@@ -2765,7 +2766,8 @@ async function finalizeSettlement() {
         // La lógica visual solo muestra Contado/Efectivo, así que solo debemos liquidar esos.
         const approvedExpenses = currentExpenses.filter(g =>
             (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
-            ['Contado', 'Efectivo'].includes(g.forma_pago)
+            ['Contado', 'Efectivo'].includes(g.forma_pago) &&
+            String(g.es_deducible || 'Sí').trim() === 'Sí'
         );
 
         if (approvedExpenses.length > 0) {
