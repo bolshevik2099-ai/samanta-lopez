@@ -1,9 +1,9 @@
 /**
  * Procesa-T - Asistente Virtual (IA)
- * Conexión con Make.com Webhook
+ * Conexión con Supabase Edge Function (Gemini)
  */
 
-const MAKE_WEBHOOK_URL = 'https://hook.us2.make.com/pg1ul97reeytpz6m7gf336drlm8a5ryi';
+const GEMINI_CHAT_URL = `${SUPABASE_CONFIG.url}/functions/v1/gemini-chat`;
 
 function initChat() {
     const chatBtn = document.getElementById('chat-toggle');
@@ -31,6 +31,10 @@ function initChat() {
 
         if (!message) return;
 
+        // Obtener sesión para el ID de usuario
+        const session = typeof checkAuth === 'function' ? checkAuth() : null;
+        const userId = session ? session.userID : null;
+
         // Añadir mensaje del usuario
         appendMessage('user', message);
         input.value = '';
@@ -39,41 +43,37 @@ function initChat() {
         const typingId = appendMessage('bot', '<i class="fas fa-circle-notch fa-spin text-slate-400"></i>', true);
 
         try {
-            console.log('Enviando mensaje a:', MAKE_WEBHOOK_URL);
-            const response = await fetch(MAKE_WEBHOOK_URL, {
+            console.log('Enviando mensaje a Gemini via Supabase:', GEMINI_CHAT_URL);
+            const response = await fetch(GEMINI_CHAT_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': SUPABASE_CONFIG.anonKey
+                },
                 body: JSON.stringify({
                     message: message,
-                    sender: 'Webchat',
+                    userId: userId,
                     timestamp: new Date().toISOString()
                 })
             });
 
-            const rawText = await response.text();
-            console.log('Respuesta cruda de Make:', rawText);
+            const data = await response.json();
+            console.log('Respuesta de Gemini:', data);
+
+            removeMessage(typingId);
 
             if (response.ok) {
-                let data;
-                try {
-                    data = JSON.parse(rawText);
-                } catch (e) {
-                    console.warn('La respuesta no es JSON válido:', rawText);
-                    data = { respuesta: rawText }; // Fallback a texto plano
-                }
-
-                removeMessage(typingId);
-                const aiMessage = data.respuesta || data.reply || data.message || (typeof data === 'string' ? data : 'Lo siento, no pude procesar tu solicitud.');
+                const aiMessage = data.reply || 'Lo siento, no pude procesar tu solicitud.';
                 appendMessage('bot', aiMessage);
             } else {
-                console.error('Webhook Error:', response.status, response.statusText, rawText);
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
+                console.error('Edge Function Error:', response.status, data);
+                appendMessage('bot', `Error ${response.status}: ${data.error || 'Problema en el servidor'}`);
             }
         } catch (error) {
             removeMessage(typingId);
             let userMsg = 'Hubo un problema al conectar con el asistente.';
             if (error.message.includes('Failed to fetch')) {
-                userMsg = 'Error de Red: No se pudo contactar con Make.com. ¿El Webhook es correcto?';
+                userMsg = 'Error de Red: No se pudo contactar con el servidor. ¿La función está desplegada?';
             }
             appendMessage('bot', userMsg + ' (Ver consola para detalles)');
             console.error('Chat Error Detail:', error);
