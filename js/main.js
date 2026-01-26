@@ -984,6 +984,41 @@ async function fetchSupabaseData(tableName) {
     }
 }
 
+// --- GRÁFICOS AVANZADOS ---
+
+const chartInstances = {};
+
+function renderChartInstance(canvasId, type, data) {
+    const ctx = document.getElementById(canvasId)?.getContext('2d');
+    if (!ctx) return;
+
+    if (chartInstances[canvasId]) {
+        chartInstances[canvasId].destroy();
+    }
+
+    chartInstances[canvasId] = new Chart(ctx, {
+        type: type,
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } }
+            },
+            scales: type === 'bar' ? {
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#94a3b8', font: { size: 10 } }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#94a3b8', font: { size: 10 } }
+                }
+            } : {}
+        }
+    });
+}
+
 const DIVERSE_COLORS = [
     { bg: 'rgba(59, 130, 246, 0.7)', border: 'rgba(59, 130, 246, 1)' },   // Blue
     { bg: 'rgba(34, 197, 94, 0.7)', border: 'rgba(34, 197, 94, 1)' },   // Green
