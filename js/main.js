@@ -776,9 +776,10 @@ async function updateDashboardByPeriod() {
         console.log('Cargando datos para el periodo:', start, 'al', end);
 
         // Fetch de datos maestros
-        const [viajesRaw, gastosRaw] = await Promise.all([
+        const [viajesRaw, gastosRaw, unidadesRaw] = await Promise.all([
             fetchSupabaseData(DB_CONFIG.tableViajes),
-            fetchSupabaseData(DB_CONFIG.tableGastos)
+            fetchSupabaseData(DB_CONFIG.tableGastos),
+            fetchSupabaseData(DB_CONFIG.tableUnidades)
         ]);
 
         if (viajesRaw.length === 0 && gastosRaw.length === 0) {
@@ -844,7 +845,7 @@ async function updateDashboardByPeriod() {
 
         // Renderizar Gráficos Avanzados (si existen los containers)
         if (typeof renderAdvancedCharts === 'function') {
-            renderAdvancedCharts(viajes, gastos);
+            renderAdvancedCharts(viajes, gastos, unidadesRaw);
         }
 
     } catch (error) {
@@ -983,46 +984,18 @@ async function fetchSupabaseData(tableName) {
     }
 }
 
-// --- GRÁFICOS AVANZADOS ---
+const DIVERSE_COLORS = [
+    { bg: 'rgba(59, 130, 246, 0.7)', border: 'rgba(59, 130, 246, 1)' },   // Blue
+    { bg: 'rgba(34, 197, 94, 0.7)', border: 'rgba(34, 197, 94, 1)' },   // Green
+    { bg: 'rgba(249, 115, 22, 0.7)', border: 'rgba(249, 115, 22, 1)' },  // Orange
+    { bg: 'rgba(168, 85, 247, 0.7)', border: 'rgba(168, 85, 247, 1)' },  // Purple
+    { bg: 'rgba(236, 72, 153, 0.7)', border: 'rgba(236, 72, 153, 1)' },  // Pink
+    { bg: 'rgba(234, 179, 8, 0.7)', border: 'rgba(234, 179, 8, 1)' },    // Yellow
+    { bg: 'rgba(20, 184, 166, 0.7)', border: 'rgba(20, 184, 166, 1)' },  // Teal
+    { bg: 'rgba(239, 68, 68, 0.7)', border: 'rgba(239, 68, 68, 1)' },    // Red
+];
 
-let clientsChartInstance = null;
-let expensesChartInstance = null;
-let statusChartInstance = null;
-
-const chartInstances = {};
-
-function renderChartInstance(canvasId, type, data) {
-    const ctx = document.getElementById(canvasId)?.getContext('2d');
-    if (!ctx) return;
-
-    if (chartInstances[canvasId]) {
-        chartInstances[canvasId].destroy();
-    }
-
-    chartInstances[canvasId] = new Chart(ctx, {
-        type: type,
-        data: data,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 10 } } }
-            },
-            scales: type === 'bar' ? {
-                y: {
-                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                    ticks: { color: '#94a3b8', font: { size: 10 } }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: { color: '#94a3b8', font: { size: 10 } }
-                }
-            } : {}
-        }
-    });
-}
-
-function renderAdvancedCharts(viajesData, gastosData) {
+function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
     // 1. Top 5 Clientes (Bar Chart)
     const clientRevenue = {};
     viajesData.forEach(v => {
@@ -1040,8 +1013,8 @@ function renderAdvancedCharts(viajesData, gastosData) {
         datasets: [{
             label: 'Ingresos',
             data: topClients.map(c => c[1]),
-            backgroundColor: 'rgba(234, 179, 8, 0.7)',
-            borderColor: 'rgba(234, 179, 8, 1)',
+            backgroundColor: topClients.map((_, i) => DIVERSE_COLORS[i % DIVERSE_COLORS.length].bg),
+            borderColor: topClients.map((_, i) => DIVERSE_COLORS[i % DIVERSE_COLORS.length].border),
             borderWidth: 1
         }]
     });
@@ -1096,40 +1069,41 @@ function renderAdvancedCharts(viajesData, gastosData) {
     });
 
     // 4. Eficiencia de Combustible (Yield)
-    // Filter expenses containing fuel charges (litros_rellenados > 0)
     const fuelExpenses = gastosData.filter(g => parseFloat(g.litros_rellenados) > 0 && g.id_unidad);
-    const { unitYields, fleetAvg } = calculateFleetEfficiency(fuelExpenses);
+    const { unitYields } = calculateFleetEfficiency(fuelExpenses);
 
     const sortedYields = Object.entries(unitYields)
-        .sort((a, b) => b[1] - a[1]) // Sort high to low
-        .slice(0, 8); // Top 8 units
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8);
+
+    // Map unit ID to name if available
+    const unitMap = {};
+    unidadesData.forEach(u => {
+        unitMap[u.id_unidad] = u.nombre_unidad || u.id_unidad;
+    });
 
     renderChartInstance('yieldChart', 'bar', {
-        indexAxis: 'y', // Horizontal bars
-        labels: sortedYields.map(u => u[0]),
+        indexAxis: 'y',
+        labels: sortedYields.map(u => unitMap[u[0]] || u[0]),
         datasets: [{
             label: 'Km/L',
             data: sortedYields.map(u => u[1]),
-            backgroundColor: 'rgba(147, 51, 234, 0.7)', // Purple
-            borderColor: 'rgba(147, 51, 234, 1)',
+            backgroundColor: sortedYields.map((_, i) => DIVERSE_COLORS[i % DIVERSE_COLORS.length].bg),
+            borderColor: sortedYields.map((_, i) => DIVERSE_COLORS[i % DIVERSE_COLORS.length].border),
             borderWidth: 1
         }]
     });
 
     // 5. Best & Worst Drivers (Yield)
-    // Filter expenses for drivers (id_chofer exists and litros > 0)
     const driverFuelExpenses = gastosData.filter(g => parseFloat(g.litros_rellenados) > 0 && g.id_chofer);
     const { driverYields } = calculateDriverEfficiency(driverFuelExpenses);
 
-    // Sort logic
     const allDrivers = Object.entries(driverYields);
 
-    // Best 3 (Descending)
     const bestDrivers = [...allDrivers]
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3);
 
-    // Worst 3 (Ascending) - Filter out reasonable minimums or errors (e.g. < 0.5) to avoid bad data showing up
     const worstDrivers = [...allDrivers]
         .sort((a, b) => a[1] - b[1])
         .slice(0, 3);
@@ -1140,8 +1114,8 @@ function renderAdvancedCharts(viajesData, gastosData) {
         datasets: [{
             label: 'Km/L (Mejor)',
             data: bestDrivers.map(d => d[1]),
-            backgroundColor: 'rgba(34, 197, 94, 0.7)', // Green
-            borderColor: 'rgba(34, 197, 94, 1)',
+            backgroundColor: bestDrivers.map((_, i) => DIVERSE_COLORS[i % DIVERSE_COLORS.length].bg),
+            borderColor: bestDrivers.map((_, i) => DIVERSE_COLORS[i % DIVERSE_COLORS.length].border),
             borderWidth: 1
         }]
     });
@@ -1152,8 +1126,8 @@ function renderAdvancedCharts(viajesData, gastosData) {
         datasets: [{
             label: 'Km/L (Menor)',
             data: worstDrivers.map(d => d[1]),
-            backgroundColor: 'rgba(239, 68, 68, 0.7)', // Red
-            borderColor: 'rgba(239, 68, 68, 1)',
+            backgroundColor: worstDrivers.map((_, i) => DIVERSE_COLORS[i % DIVERSE_COLORS.length].bg),
+            borderColor: worstDrivers.map((_, i) => DIVERSE_COLORS[i % DIVERSE_COLORS.length].border),
             borderWidth: 1
         }]
     });
