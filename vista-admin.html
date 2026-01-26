@@ -17,6 +17,46 @@
             color: #60a5fa;
             border-left: 4px solid #3b82f6;
         }
+
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 2rem;
+        }
+
+        .input-dark {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #f1f5f9;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .input-dark:focus {
+            background: rgba(15, 23, 42, 0.6);
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .btn-premium-blue {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            box-shadow: 0 4px 15px -1px rgba(59, 130, 246, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .btn-premium-green {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            box-shadow: 0 4px 15px -1px rgba(34, 197, 94, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        /* Chart Tooltip Customization */
+        .chartjs-tooltip {
+            background: rgba(15, 23, 42, 0.9) !important;
+            backdrop-filter: blur(8px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 12px !important;
+        }
     </style>
 </head>
 
@@ -98,7 +138,7 @@
                     <h2 class="text-xl md:text-3xl font-bold text-white flex flex-wrap items-center gap-2 md:gap-3">
                         Panel Administrativo
                         <span
-                            class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-mono uppercase tracking-widest">v5.7
+                            class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded-full font-mono uppercase tracking-widest">v5.8
                             SQL</span>
                         <span class="text-[9px] text-slate-400 ml-2 font-mono" id="static-build-time">Build:
                             SQL-Native</span>
@@ -283,137 +323,151 @@
         </section>
 
         <!-- Viajes Section -->
-        <section id="section-viajes" class="content-section hidden max-w-4xl">
-            <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                <h2 class="text-2xl font-bold text-slate-800 mb-8 flex items-center gap-3">
-                    <i class="fas fa-route text-blue-600"></i> Gestión de Viajes
+        <section id="section-viajes" class="content-section hidden max-w-6xl">
+            <div class="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
+                <h2 class="text-2xl font-black text-white mb-8 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                        <i class="fas fa-route text-blue-500"></i>
+                    </div>
+                    Gestión de Viajes
                 </h2>
 
                 <!-- Viajes: List View -->
-                <div id="viajes-list-view" class="space-y-6">
-                    <div class="flex flex-col md:flex-row gap-4 justify-between items-center">
+                <div id="viajes-list-view" class="space-y-8">
+                    <div class="flex flex-col md:flex-row gap-6 justify-between items-center">
                         <div class="relative w-full md:w-96">
-                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input type="text" id="search-viajes"
-                                placeholder="Buscar por ID, Cliente, Chofer o Unidad..."
-                                class="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all">
+                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                            <input type="text" id="search-viajes" placeholder="Buscar id, cliente, chofer..."
+                                class="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-950/50 border border-white/10 text-white outline-none focus:border-blue-500/50 transition-all font-medium">
                         </div>
                         <button onclick="toggleSectionView('viajes', 'form')"
-                            class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                            class="w-full md:w-auto bg-blue-600 hover:bg-blue-500 text-white font-black py-4 px-8 rounded-2xl shadow-xl shadow-blue-600/20 transition-all active:scale-95 flex items-center justify-center gap-3">
                             <i class="fas fa-plus"></i> Nuevo Viaje
                         </button>
                     </div>
 
-                    <div class="overflow-x-auto rounded-xl border border-slate-100">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                    <div class="overflow-x-auto rounded-[2rem] border border-white/5 bg-white/[0.01]">
+                        <table class="w-full text-left">
+                            <thead
+                                class="bg-white/[0.03] text-slate-500 text-[10px] uppercase font-black tracking-[0.2em]">
                                 <tr>
-                                    <th class="px-6 py-4 font-semibold">ID / Fecha</th>
-                                    <th class="px-6 py-4 font-semibold">Cliente / Ruta</th>
-                                    <th class="px-6 py-4 font-semibold">Unidad / Chofer</th>
-                                    <th
-                                        class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                        Monto</th>
-                                    <th
-                                        class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                        Estatus Pago</th>
-                                    <th
-                                        class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                        Acciones</th>
+                                    <th class="px-8 py-5">ID / Fecha</th>
+                                    <th class="px-8 py-5">Cliente / Ruta</th>
+                                    <th class="px-8 py-5">Unidad / Chofer</th>
+                                    <th class="px-8 py-5">Monto</th>
+                                    <th class="px-8 py-5 text-center">Status</th>
+                                    <th class="px-8 py-5 text-right">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="trips-table-body" class="divide-y divide-slate-100 bg-white">
-                                <!-- Filas dinámicas -->
+                            <tbody id="trips-table-body" class="divide-y divide-white/5 text-slate-300">
+                                <!-- Dynamic rows -->
                             </tbody>
                         </table>
-                        <div id="trips-loader" class="p-10 text-center text-slate-400">
-                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-                            <p>Cargando viajes...</p>
+                        <div id="trips-loader"
+                            class="p-16 text-center text-slate-600 font-bold uppercase tracking-widest text-xs">
+                            <i class="fas fa-spinner fa-spin text-2xl text-blue-500 mb-3 block mx-auto"></i>
+                            Sincronizando viajes...
                         </div>
                     </div>
                 </div>
 
                 <!-- Viajes: Form View -->
                 <div id="viajes-form-view" class="hidden">
-                    <div class="mb-6 flex items-center gap-4">
+                    <div class="mb-8 flex items-center gap-4">
                         <button onclick="toggleSectionView('viajes', 'list')"
-                            class="text-slate-500 hover:text-blue-600 transition-colors">
-                            <i class="fas fa-arrow-left text-xl"></i>
+                            class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+                            <i class="fas fa-arrow-left"></i>
                         </button>
-                        <h3 class="text-xl font-bold text-slate-800">Registrar Nuevo Viaje</h3>
+                        <h3 class="text-xl font-black text-white">Registrar Nuevo Viaje</h3>
                     </div>
                     <form id="viaje-form" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">ID Viaje</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">ID
+                                Viaje</label>
                             <input type="text" id="V_ID_Viaje" readonly placeholder="Auto-generado"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-100 bg-slate-50 text-slate-500 font-mono outline-none">
+                                class="w-full px-5 py-3.5 rounded-2xl bg-slate-950/30 border border-white/5 text-slate-500 font-mono outline-none">
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Fecha</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Fecha</label>
                             <input type="date" id="V_Fecha" required
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none">
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none">
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">ID Unidad</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Unidad</label>
                             <select id="V_ID_Unidad" required
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none">
-                                <option value="">Cargando unidades...</option>
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer">
+                                <option value="" class="bg-slate-900">Cargando unidades...</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">ID Chofer</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Chofer</label>
                             <select id="V_ID_Chofer" required
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none">
-                                <option value="">Cargando choferes...</option>
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer">
+                                <option value="" class="bg-slate-900">Cargando choferes...</option>
                             </select>
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Cliente</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Cliente</label>
                             <select id="V_Cliente" required
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none">
-                                <option value="">Cargando clientes...</option>
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer">
+                                <option value="" class="bg-slate-900">Cargando clientes...</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Origen</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Origen</label>
                             <input type="text" id="V_Origen" required placeholder="Ciudad de Origen"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none">
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none">
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Destino</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Destino</label>
                             <input type="text" id="V_Destino" required placeholder="Ciudad de Destino"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none">
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none">
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Monto Flete ($)</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Monto
+                                Flete ($)</label>
                             <input type="number" id="V_Monto_Flete" required placeholder="0.00"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none">
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none font-bold text-blue-400">
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Estatus Viaje</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Status
+                                Viaje</label>
                             <select id="V_Estatus_Viaje"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none">
-                                <option value="En Proceso" selected>En Proceso</option>
-                                <option value="Terminado">Terminado</option>
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer">
+                                <option value="En Proceso" class="bg-slate-900">En Proceso</option>
+                                <option value="Terminado" class="bg-slate-900">Terminado</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Comisión Chofer ($)</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Comisión
+                                ($)</label>
                             <input type="number" id="V_Comision_Chofer" required placeholder="0.00"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none">
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none">
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Estatus Pago</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Status
+                                Pago</label>
                             <select id="V_Estatus_Pago"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none">
-                                <option value="Pendiente" selected>Pendiente</option>
-                                <option value="Pagado">Pagado</option>
-                                <option value="Cancelado">Cancelado</option>
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer">
+                                <option value="Pendiente" class="bg-slate-900">Pendiente</option>
+                                <option value="Pagado" class="bg-slate-900">Pagado</option>
+                                <option value="Cancelado" class="bg-slate-900">Cancelado</option>
                             </select>
                         </div>
-                        <div class="md:col-span-2 pt-4">
+                        <div class="md:col-span-2 pt-6">
                             <button type="submit"
-                                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all">
+                                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-blue-600/20 transition-all active:scale-95">
                                 Guardar Viaje
                             </button>
                         </div>
@@ -423,232 +477,258 @@
         </section>
 
         <!-- Gastos Section (Admin) -->
-        <section id="section-gastos" class="content-section hidden max-w-5xl">
-            <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                <h2 class="text-2xl font-bold text-slate-800 mb-8 flex items-center gap-3">
-                    <i class="fas fa-file-invoice-dollar text-green-600"></i> Gestión de Gastos
+        <section id="section-gastos" class="content-section hidden max-w-6xl">
+            <div
+                class="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/5 shadow-2xl font-sans">
+                <h2 class="text-2xl font-black text-white mb-8 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
+                        <i class="fas fa-file-invoice-dollar text-green-500"></i>
+                    </div>
+                    Gestión de Gastos
                 </h2>
 
                 <!-- Gastos: List View -->
-                <div id="gastos-list-view" class="space-y-6">
-                    <div class="flex flex-col md:flex-row gap-4 justify-between items-center">
+                <div id="gastos-list-view" class="space-y-8">
+                    <div class="flex flex-col md:flex-row gap-6 justify-between items-center">
                         <div class="relative w-full md:w-96">
-                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                            <input type="text" id="search-gastos"
-                                placeholder="Buscar por Concepto, ID Viaje o Chofer..."
-                                class="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-green-500/10 outline-none transition-all">
+                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                            <input type="text" id="search-gastos" placeholder="Buscar concepto o chofer..."
+                                class="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-950/50 border border-white/10 text-white outline-none focus:border-green-500/50 transition-all font-medium">
                         </div>
                         <button onclick="toggleSectionView('gastos', 'form')"
-                            class="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                            class="w-full md:w-auto bg-green-600 hover:bg-green-500 text-white font-black py-4 px-8 rounded-2xl shadow-xl shadow-green-600/20 transition-all active:scale-95 flex items-center justify-center gap-3">
                             <i class="fas fa-plus"></i> Nuevo Gasto
                         </button>
                     </div>
 
                     <!-- Gastos Tabs -->
-                    <div class="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+                    <div class="flex gap-1 bg-slate-950/50 p-1.5 rounded-2xl w-fit border border-white/5 shadow-inner">
                         <button onclick="switchExpenseTab('todos')" id="exp-tab-todos"
-                            class="expense-tab px-6 py-2 rounded-lg text-sm font-bold transition-all bg-green-600 text-white shadow-sm">
-                            Todos los Gastos
+                            class="expense-tab px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all bg-green-600 text-white shadow-lg shadow-green-600/20">
+                            Todos
                         </button>
                         <button onclick="switchExpenseTab('pendientes')" id="exp-tab-pendientes"
-                            class="expense-tab px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:bg-white hover:text-slate-800 flex items-center gap-2">
+                            class="expense-tab px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-slate-500 hover:text-white flex items-center gap-2">
                             Por Aprobar
                             <span id="pending-expenses-count"
-                                class="hidden bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">0</span>
+                                class="hidden bg-red-600 text-white text-[9px] px-1.5 py-0.5 rounded-full shadow-lg shadow-red-600/20">0</span>
                         </button>
                     </div>
 
-                    <div class="overflow-x-auto rounded-xl border border-slate-100">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                    <div class="overflow-x-auto rounded-[2rem] border border-white/5 bg-white/[0.01]">
+                        <table class="w-full text-left">
+                            <thead
+                                class="bg-white/[0.03] text-slate-500 text-[10px] uppercase font-black tracking-[0.2em]">
                                 <tr>
-                                    <th class="px-6 py-4 font-semibold">ID / Fecha</th>
-                                    <th class="px-6 py-4 font-semibold">Viaje / Unidad</th>
-                                    <th class="px-6 py-4 font-semibold">Concepto / Chofer</th>
-                                    <th
-                                        class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider text-[10px]">
-                                        Monto</th>
-                                    <th
-                                        class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider text-[10px]">
-                                        Pago</th>
-                                    <th
-                                        class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider text-[10px]">
-                                        Acciones</th>
+                                    <th class="px-8 py-5">ID / Fecha</th>
+                                    <th class="px-8 py-5">Viaje / Unidad</th>
+                                    <th class="px-8 py-5">Concepto / Chofer</th>
+                                    <th class="px-8 py-5">Monto</th>
+                                    <th class="px-8 py-5 text-center">Pago</th>
+                                    <th class="px-8 py-5 text-right">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody id="expenses-table-body" class="divide-y divide-slate-100 bg-white">
-                                <!-- Filas dinámicas -->
+                            <tbody id="expenses-table-body" class="divide-y divide-white/5 text-slate-300">
+                                <!-- Dynamic rows -->
                             </tbody>
                         </table>
-                        <div id="expenses-loader" class="p-10 text-center text-slate-400">
-                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-                            <p>Cargando gastos...</p>
+                        <div id="expenses-loader"
+                            class="p-16 text-center text-slate-600 font-bold uppercase tracking-widest text-xs">
+                            <i class="fas fa-spinner fa-spin text-2xl text-green-500 mb-3 block mx-auto"></i>
+                            Sincronizando gastos...
                         </div>
                     </div>
                 </div>
 
                 <!-- Gastos: Form View -->
                 <div id="gastos-form-view" class="hidden">
-                    <div class="mb-6 flex items-center gap-4">
+                    <div class="mb-8 flex items-center gap-4">
                         <button onclick="toggleSectionView('gastos', 'list')"
-                            class="text-slate-500 hover:text-green-600 transition-colors">
-                            <i class="fas fa-arrow-left text-xl"></i>
+                            class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+                            <i class="fas fa-arrow-left"></i>
                         </button>
-                        <h3 class="text-xl font-bold text-slate-800">Registrar Gasto Operativo</h3>
+                        <h3 class="text-xl font-black text-white">Registrar Gasto Operativo</h3>
                     </div>
-                    <form id="gasto-form" class="space-y-6">
+                    <form id="gasto-form" class="space-y-8">
                         <!-- General Info Block -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">ID Gasto</label>
+                                <label
+                                    class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">ID
+                                    Gasto</label>
                                 <input type="text" id="ID_Gasto" required placeholder="GAS-100"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all">
+                                    class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Fecha</label>
+                                <label
+                                    class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Fecha</label>
                                 <input type="date" id="Fecha" required
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all">
+                                    class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none">
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">ID Viaje</label>
-                                <input type="text" id="ID_Viaje" required placeholder="V-260124-ABC"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all">
+                                <label
+                                    class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">ID
+                                    Viaje</label>
+                                <input type="text" id="ID_Viaje" required placeholder="ID del Viaje"
+                                    class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">ID Unidad</label>
+                                <label
+                                    class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Unidad</label>
                                 <select id="ID_Unidad" required
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all">
-                                    <option value="">Cargando unidades...</option>
+                                    class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer">
+                                    <option value="" class="bg-slate-900">Cargando unidades...</option>
                                 </select>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">ID Chofer
+                                <label
+                                    class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Chofer
                                     (Opcional)</label>
                                 <select id="ID_Chofer"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all">
-                                    <option value="">-- Sin Chofer (Solo Unidad) --</option>
-                                    <option value="">Cargando choferes...</option>
+                                    class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer">
+                                    <option value="" class="bg-slate-900">-- Sin Chofer --</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Concepto</label>
+                                <label
+                                    class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Concepto</label>
                                 <select id="Concepto" required
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all">
-                                    <option value="">Selecciona Concepto</option>
-                                    <option value="Diesel">Diesel</option>
-                                    <option value="Caseta">Caseta</option>
-                                    <option value="Reparación">Reparación</option>
-                                    <option value="Viáticos">Viáticos</option>
-                                    <option value="Otro">Otro</option>
+                                    class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer">
+                                    <option value="" class="bg-slate-900">Selecciona Concepto</option>
+                                    <option value="Diesel" class="bg-slate-900">Diesel</option>
+                                    <option value="Caseta" class="bg-slate-900">Caseta</option>
+                                    <option value="Reparación" class="bg-slate-900">Reparación</option>
+                                    <option value="Viáticos" class="bg-slate-900">Viáticos</option>
+                                    <option value="Otro" class="bg-slate-900">Otro</option>
                                 </select>
                             </div>
                         </div>
 
                         <!-- Financial Block -->
                         <div
-                            class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            class="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-white/[0.02] rounded-3xl border border-white/5">
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Monto ($)</label>
+                                <label
+                                    class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Monto
+                                    ($)</label>
                                 <input type="number" id="Monto" step="0.01" required placeholder="0.00"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-green-500/20 transition-all font-bold text-slate-700">
+                                    class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none font-bold text-green-400">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Tipo de Pago</label>
-                                <div class="flex gap-4 h-[50px] items-center">
-                                    <label class="flex items-center gap-2 cursor-pointer">
+                                <label
+                                    class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Tipo
+                                    de Pago</label>
+                                <div class="flex gap-6 h-[50px] items-center px-2">
+                                    <label class="flex items-center gap-3 cursor-pointer group">
                                         <input type="radio" name="Tipo_Pago" value="Efectivo" checked
-                                            class="w-4 h-4 text-green-600 focus:ring-green-500"> Efectivo
+                                            class="w-4 h-4 text-green-600 bg-slate-800 border-white/10 focus:ring-green-500/20">
+                                        <span
+                                            class="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Efectivo</span>
                                     </label>
-                                    <label class="flex items-center gap-2 cursor-pointer">
+                                    <label class="flex items-center gap-3 cursor-pointer group">
                                         <input type="radio" name="Tipo_Pago" value="Tarjeta"
-                                            class="w-4 h-4 text-green-600 focus:ring-green-500"> Tarjeta/Tag
+                                            class="w-4 h-4 text-green-600 bg-slate-800 border-white/10 focus:ring-green-500/20">
+                                        <span
+                                            class="text-sm font-bold text-slate-300 group-hover:text-white transition-colors">Tarjeta/Tag</span>
                                     </label>
                                 </div>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Forma de Pago</label>
+                                <label
+                                    class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Forma
+                                    de Pago</label>
                                 <select id="Exp_Forma_Pago" onchange="toggleAcreedorField()"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-bold">
-                                    <option value="Contado">Contado</option>
-                                    <option value="Crédito">A Crédito</option>
+                                    class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer font-bold">
+                                    <option value="Contado" class="bg-slate-900">Contado</option>
+                                    <option value="Crédito" class="bg-slate-900">A Crédito</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">¿Es Deducible?</label>
+                                <label
+                                    class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">¿Es
+                                    Deducible?</label>
                                 <select id="Exp_Deducible"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-bold text-slate-700">
-                                    <option value="Sí" selected>Sí (Bonificar)</option>
-                                    <option value="No">No</option>
+                                    class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer">
+                                    <option value="Sí" class="bg-slate-900">Sí (Bonificar)</option>
+                                    <option value="No" class="bg-slate-900">No</option>
                                 </select>
                             </div>
-                            <div id="acreedor-container" class="hidden col-span-2 md:col-span-1">
-                                <label class="block text-sm font-semibold text-slate-700 mb-2">Acreedor
-                                    (Opcional)</label>
+                            <div id="acreedor-container" class="hidden col-span-2">
+                                <label
+                                    class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Acreedor</label>
                                 <select id="Exp_Acreedor"
-                                    class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-bold">
-                                    <option value="">-- Selecciona --</option>
+                                    class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer">
+                                    <option value="" class="bg-slate-900">-- Selecciona --</option>
                                 </select>
                             </div>
                         </div>
 
                         <!-- Diesel Specific Block (Hidden by default) -->
                         <div id="diesel-fields"
-                            class="hidden space-y-4 p-4 bg-amber-50 rounded-xl border border-amber-100 animate-in fade-in slide-in-from-top-4 duration-300">
-                            <h4 class="font-bold text-amber-800 text-sm flex items-center gap-2">
-                                <i class="fas fa-gas-pump"></i> Detalles de Carga de Diesel
+                            class="hidden space-y-6 p-6 bg-amber-500/5 rounded-3xl border border-amber-500/10 animate-in fade-in slide-in-from-top-4">
+                            <h4
+                                class="font-black text-amber-500 text-xs uppercase tracking-widest flex items-center gap-2 mb-4">
+                                <i class="fas fa-gas-pump"></i> Detalles Diesel
                             </h4>
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Litros
-                                        Rellenados</label>
+                                    <label
+                                        class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Litros</label>
                                     <input type="number" id="Litros_Rellenados" step="0.1" placeholder="0.0"
-                                        class="w-full px-4 py-3 rounded-xl border border-amber-200 outline-none focus:ring-2 focus:ring-amber-500/20 transition-all bg-white">
+                                        class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Foto
+                                    <label
+                                        class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Foto
                                         Tacómetro</label>
                                     <input type="file" id="Foto_tacometro" accept="image/*"
-                                        class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 transition-colors">
+                                        class="w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-slate-800 file:text-slate-300 hover:file:bg-slate-700 transition-colors">
                                 </div>
                             </div>
 
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Km.
+                                    <label
+                                        class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Km.
                                         Anteriores</label>
                                     <input type="number" id="Kmts_Anteriores" placeholder="0"
-                                        class="w-full px-4 py-3 rounded-xl border border-amber-200 outline-none focus:ring-2 focus:ring-amber-500/20 bg-white">
+                                        class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-2">Km. Actuales</label>
+                                    <label
+                                        class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Km.
+                                        Actuales</label>
                                     <input type="number" id="Kmts_Actuales" placeholder="0"
-                                        class="w-full px-4 py-3 rounded-xl border border-amber-200 outline-none focus:ring-2 focus:ring-amber-500/20 bg-white">
+                                        class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-slate-500 mb-2 italic">Km.
+                                    <label
+                                        class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1 italic">Km.
                                         Recorridos</label>
                                     <input type="number" id="Kmts_Recorridos" readonly
-                                        class="w-full px-4 py-3 rounded-xl border border-amber-100 bg-amber-100/50 text-slate-600 font-bold outline-none cursor-not-allowed">
+                                        class="w-full px-5 py-3.5 rounded-2xl bg-slate-950/50 border border-white/5 text-amber-500 font-black outline-none cursor-not-allowed">
                                 </div>
                             </div>
                         </div>
 
                         <!-- General Evidence -->
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Foto Ticket</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Foto
+                                Ticket</label>
                             <input type="file" id="Ticket_Foto" accept="image/*"
-                                class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-colors">
+                                class="w-full text-[10px] text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-slate-800 file:text-slate-300 hover:file:bg-slate-700 transition-colors">
                         </div>
 
                         <button type="submit"
-                            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                            class="w-full bg-green-600 hover:bg-green-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-green-600/20 transition-all active:scale-95 flex items-center justify-center gap-3">
                             <i class="fas fa-check-circle"></i> Registrar Gasto
                         </button>
                     </form>
@@ -657,72 +737,75 @@
         </section>
 
         <!-- Catalogos Section -->
-        <section id="section-catalogos" class="content-section hidden">
-            <header class="mb-8">
-                <h2 class="text-2xl font-bold text-slate-800">Gestión de Catálogos</h2>
-                <p class="text-slate-500 text-sm">Administra la información maestra de la plataforma</p>
+        <section id="section-catalogos" class="content-section hidden max-w-6xl">
+            <header class="mb-10">
+                <h2 class="text-2xl font-black text-white tracking-tight">Gestión de Catálogos</h2>
+                <p class="text-slate-500 text-sm font-medium mt-1">Administración de datos maestros del sistema</p>
             </header>
 
             <!-- Catalog Sub-nav -->
-            <div class="flex flex-wrap gap-2 mb-8 bg-white p-2 rounded-2xl shadow-sm border border-slate-100">
+            <div
+                class="flex flex-wrap gap-2 mb-8 bg-slate-950/50 p-2 rounded-[2rem] border border-white/5 shadow-inner w-fit">
                 <button onclick="switchCatalogTab('choferes')" id="tab-choferes"
-                    class="catalog-tab flex-grow md:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all bg-blue-600 text-white">
+                    class="catalog-tab px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all bg-blue-600 text-white shadow-lg shadow-blue-600/20">
                     Choferes
                 </button>
                 <button onclick="switchCatalogTab('unidades')" id="tab-unidades"
-                    class="catalog-tab flex-grow md:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all text-slate-500 hover:bg-slate-50">
+                    class="catalog-tab px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:text-white">
                     Unidades
                 </button>
                 <button onclick="switchCatalogTab('clientes')" id="tab-clientes"
-                    class="catalog-tab flex-grow md:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all text-slate-500 hover:bg-slate-50">
+                    class="catalog-tab px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:text-white">
                     Clientes
                 </button>
                 <button onclick="switchCatalogTab('proveedores')" id="tab-proveedores"
-                    class="catalog-tab flex-grow md:flex-none px-6 py-2.5 rounded-xl text-sm font-bold transition-all text-slate-500 hover:bg-slate-50">
+                    class="catalog-tab px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:text-white">
                     Proveedores
                 </button>
             </div>
 
             <!-- List View and Form Container -->
             <div
-                class="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden min-h-[500px]">
-                <div class="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-                    <h3 id="catalog-title" class="font-bold text-slate-800">Listado de Choferes</h3>
+                class="bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-white/5 shadow-2xl overflow-hidden min-h-[600px]">
+                <div class="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                    <h3 id="catalog-title" class="font-black text-white text-lg tracking-tight">Listado</h3>
                     <button onclick="showCatalogForm()"
-                        class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all flex items-center gap-2">
+                        class="bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-xl transition-all shadow-lg active:scale-95 flex items-center gap-2">
                         <i class="fas fa-plus"></i> Agregar Nuevo
                     </button>
                 </div>
 
                 <!-- Catalog Table -->
                 <div id="catalog-list-view" class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
+                    <table class="w-full text-left">
                         <thead id="catalog-table-head"
-                            class="bg-slate-50/50 text-[10px] uppercase tracking-widest text-slate-400 font-bold">
-                            <!-- Headers dynamically inserted -->
+                            class="bg-white/[0.03] text-slate-500 text-[10px] uppercase font-black tracking-widest">
+                            <!-- Dynamic headers -->
                         </thead>
-                        <tbody id="catalog-table-body" class="text-sm">
-                            <!-- Rows dynamically inserted -->
+                        <tbody id="catalog-table-body" class="text-sm divide-y divide-white/5 text-slate-300">
+                            <!-- Dynamic rows -->
                         </tbody>
                     </table>
-                    <div id="catalog-loader" class="hidden p-20 text-center text-blue-500">
-                        <i class="fas fa-spinner fa-spin text-3xl"></i>
+                    <div id="catalog-loader"
+                        class="hidden p-20 text-center text-slate-600 font-bold uppercase tracking-widest text-xs">
+                        <i class="fas fa-spinner fa-spin text-2xl text-blue-500 mb-3 block mx-auto"></i>
+                        Sincronizando registros...
                     </div>
                 </div>
 
-                <!-- Catalog Form (Generic Modal-like overlay) -->
+                <!-- Catalog Form -->
                 <div id="catalog-form-view" class="hidden p-8 animate-in fade-in zoom-in duration-200">
-                    <form id="catalog-form" class="max-w-xl mx-auto space-y-4">
-                        <div id="catalog-form-fields" class="grid grid-cols-1 gap-4">
-                            <!-- Fields dynamically inserted -->
+                    <form id="catalog-form" class="max-w-2xl mx-auto space-y-6">
+                        <div id="catalog-form-fields" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Dynamic fields -->
                         </div>
-                        <div class="flex gap-3 pt-6">
+                        <div class="flex gap-4 pt-8">
                             <button type="button" onclick="hideCatalogForm()"
-                                class="flex-grow py-3 px-4 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-all">
+                                class="flex-grow py-4 px-6 bg-white/5 text-slate-400 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-white/10 hover:text-white transition-all">
                                 Cancelar
                             </button>
                             <button type="submit"
-                                class="flex-grow-[2] py-3 px-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all">
+                                class="flex-grow-[2] py-4 px-6 bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-blue-500 shadow-xl shadow-blue-600/20 transition-all active:scale-95">
                                 Guardar Registro
                             </button>
                         </div>
@@ -732,101 +815,132 @@
         </section>
 
         <!-- Tesorería Section -->
-        <section id="section-tesoreria" class="content-section hidden">
-            <header class="mb-8">
-                <h2 class="text-2xl font-bold text-slate-800">Tesorería (Cuentas por Cobrar/Pagar)</h2>
-                <p class="text-slate-500 text-sm">Registro de deudas, préstamos y pagos pendientes</p>
+        <section id="section-tesoreria" class="content-section hidden max-w-6xl">
+            <header class="mb-10">
+                <h2 class="text-2xl font-black text-white tracking-tight">Tesorería</h2>
+                <p class="text-slate-500 text-sm font-medium mt-1">Gestión de cuentas por cobrar, pagar y deudas</p>
             </header>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div
-                    class="bg-blue-50 p-4 rounded-xl border border-blue-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
-                    <p class="text-[10px] font-bold text-blue-400 uppercase tracking-widest">Total A Favor (Cuentas)</p>
-                    <p id="summary-total-favor" class="text-2xl font-bold text-blue-600">$0.00</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <div class="bg-blue-600/10 backdrop-blur-xl p-6 rounded-3xl border border-blue-500/10 shadow-xl group">
+                    <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1 px-1">Total a Favor
+                    </p>
+                    <p id="summary-total-favor" class="text-3xl font-black text-white tracking-tight">$0.00</p>
+                    <div class="mt-4 flex items-center gap-2 text-[10px] font-bold text-blue-400/60 uppercase">
+                        <i class="fas fa-arrow-up"></i> Cuentas Activas
+                    </div>
                 </div>
                 <div
-                    class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
-                    <p class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Viajes por Cobrar</p>
-                    <p id="summary-viajes-cobrar" class="text-2xl font-bold text-emerald-600">$0.00</p>
+                    class="bg-emerald-600/10 backdrop-blur-xl p-6 rounded-3xl border border-emerald-500/10 shadow-xl group">
+                    <p class="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 px-1">Viajes por
+                        Cobrar</p>
+                    <p id="summary-viajes-cobrar" class="text-3xl font-black text-white tracking-tight">$0.00</p>
+                    <div class="mt-4 flex items-center gap-2 text-[10px] font-bold text-emerald-400/60 uppercase">
+                        <i class="fas fa-truck-loading"></i> Pendientes de Pago
+                    </div>
                 </div>
-                <div
-                    class="bg-red-50 p-4 rounded-xl border border-red-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
-                    <p class="text-[10px] font-bold text-red-400 uppercase tracking-widest">Total En Contra (Deudas)</p>
-                    <p id="summary-total-contra" class="text-2xl font-bold text-red-600">$0.00</p>
+                <div class="bg-red-600/10 backdrop-blur-xl p-6 rounded-3xl border border-red-500/10 shadow-xl group">
+                    <p class="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1 px-1">Total Deudas</p>
+                    <p id="summary-total-contra" class="text-3xl font-black text-white tracking-tight">$0.00</p>
+                    <div class="mt-4 flex items-center gap-2 text-[10px] font-bold text-red-400/60 uppercase">
+                        <i class="fas fa-arrow-down"></i> Cuentas por Pagar
+                    </div>
                 </div>
-                <div class="md:col-span-3 flex items-end justify-end mt-2">
-                    <button onclick="showAccountForm()"
-                        class="bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-blue-500/30 transition-all flex items-center gap-2">
-                        <i class="fas fa-plus"></i> Nueva Deuda/Cta
-                    </button>
-                </div>
+            </div>
+
+            <div class="flex justify-end mb-8">
+                <button onclick="showAccountForm()"
+                    class="bg-blue-600 hover:bg-blue-500 text-white font-black py-4 px-8 rounded-2xl shadow-xl shadow-blue-600/20 transition-all active:scale-95 flex items-center gap-3">
+                    <i class="fas fa-plus"></i> Nueva Deuda/Cta
+                </button>
             </div>
 
             <!-- Treasury Tabs -->
-            <div class="flex gap-1 bg-slate-100 p-1 rounded-xl mb-8 w-fit">
+            <div class="flex gap-1 bg-slate-950/50 p-1.5 rounded-2xl mb-8 w-fit border border-white/5 shadow-inner">
                 <button onclick="switchTreasuryTab('favor')" id="t-tab-favor"
-                    class="treasury-tab px-6 py-2 rounded-lg text-sm font-bold transition-all bg-blue-600 text-white shadow-sm">A
-                    Favor</button>
+                    class="treasury-tab px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+                    A Favor
+                </button>
                 <button onclick="switchTreasuryTab('contra')" id="t-tab-contra"
-                    class="treasury-tab px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:bg-white hover:text-slate-800">En
-                    Contra</button>
+                    class="treasury-tab px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:text-white">
+                    En Contra
+                </button>
                 <button onclick="switchTreasuryTab('viajes')" id="t-tab-viajes"
-                    class="treasury-tab px-6 py-2 rounded-lg text-sm font-bold transition-all text-slate-500 hover:bg-white hover:text-slate-800">Viajes
-                    por Cobrar</button>
+                    class="treasury-tab px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all text-slate-500 hover:text-white">
+                    Viajes
+                </button>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div
+                class="bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-white/5 shadow-2xl overflow-hidden">
                 <div id="treasury-list-view">
-                    <!-- Dynamic Headers and Body based on Tab -->
-                    <table class="w-full text-left">
-                        <thead id="treasury-thead"
-                            class="bg-slate-50 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                            <!-- Headers fixed by switchTreasuryTab() -->
-                        </thead>
-                        <tbody id="treasury-table-body" class="text-sm divide-y divide-slate-50">
-                            <!-- Filas dinámicas -->
-                        </tbody>
-                    </table>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead id="treasury-thead"
+                                class="bg-white/[0.03] text-slate-500 text-[10px] uppercase font-black tracking-widest">
+                                <!-- Dynamic headers -->
+                            </thead>
+                            <tbody id="treasury-table-body" class="text-sm divide-y divide-white/5 text-slate-300">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <!-- Formulario de Cuenta/Deuda (Oculto por defecto) -->
-                <div id="treasury-form-view" class="hidden p-8 border-t border-slate-100 bg-slate-50/30">
-                    <h3 class="font-bold text-slate-800 mb-6">Registrar Nueva Cuenta</h3>
-                    <form id="account-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Formulario de Cuenta/Deuda -->
+                <div id="treasury-form-view" class="hidden p-10 bg-white/[0.01]">
+                    <h3 class="text-xl font-black text-white mb-8 tracking-tight">Registrar Nueva Cuenta</h3>
+                    <form id="account-form" class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">Tipo de Cuenta</label>
-                            <select id="acc-tipo" class="w-full p-3 rounded-lg border border-slate-200" required>
-                                <option value="A Favor">A Favor (Nos deben)</option>
-                                <option value="En Contra">En Contra (Debemos)</option>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Tipo
+                                de Cuenta</label>
+                            <select id="acc-tipo"
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer" required>
+                                <option value="A Favor" class="bg-slate-900">A Favor (Nos deben)</option>
+                                <option value="En Contra" class="bg-slate-900">En Contra (Debemos)</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">Actor (Chofer/Proveedor)</label>
-                            <input type="text" id="acc-actor" class="w-full p-3 rounded-lg border border-slate-200"
-                                placeholder="Ej: Juan Perez" required>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Actor
+                                (Chofer/Proveedor)</label>
+                            <input type="text" id="acc-actor"
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none"
+                                placeholder="Nombre completo" required>
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-xs font-bold text-slate-500 mb-1">Concepto</label>
-                            <input type="text" id="acc-concepto" class="w-full p-3 rounded-lg border border-slate-200"
-                                placeholder="Ej: Prestamo personal / Pago factura" required>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Concepto</label>
+                            <input type="text" id="acc-concepto"
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none"
+                                placeholder="Descripción del movimiento" required>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">Monto ($)</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Monto
+                                ($)</label>
                             <input type="number" id="acc-monto" step="0.01"
-                                class="w-full p-3 rounded-lg border border-slate-200" required>
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none font-black text-blue-400"
+                                placeholder="0.00" required>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">Vincular a Viaje
-                                (Opcional)</label>
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Vincular
+                                a Viaje (Op)</label>
                             <input type="text" id="acc-id-viaje-cta"
-                                class="w-full p-3 rounded-lg border border-slate-200" placeholder="V-XXXX">
+                                class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none font-mono"
+                                placeholder="V-XXXX">
                         </div>
-                        <div class="md:col-span-2 flex gap-3 pt-4">
+                        <div class="md:col-span-2 flex gap-4 pt-4">
                             <button type="button" onclick="hideAccountForm()"
-                                class="flex-grow p-3 bg-slate-200 text-slate-600 font-bold rounded-lg">Cancelar</button>
+                                class="flex-grow py-4 px-6 bg-white/5 text-slate-400 font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-white/10 hover:text-white transition-all">
+                                Cancelar
+                            </button>
                             <button type="submit"
-                                class="flex-grow-[2] p-3 bg-blue-600 text-white font-bold rounded-lg shadow-lg">Guardar
-                                Cuenta</button>
+                                class="flex-grow-[2] py-4 px-6 bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-blue-500 shadow-xl shadow-blue-600/20 transition-all active:scale-95">
+                                Guardar Cuenta
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -834,103 +948,125 @@
         </section>
 
         <!-- Liquidaciones Section -->
-        <section id="section-liquidaciones" class="content-section hidden">
-            <header class="mb-8">
-                <h2 class="text-2xl font-bold text-slate-800">Liquidación de Viajes</h2>
-                <p class="text-slate-500 text-sm">Cierre de cuentas por viaje realizado</p>
+        <section id="section-liquidaciones" class="content-section hidden max-w-7xl">
+            <header class="mb-10">
+                <h2 class="text-2xl font-black text-white tracking-tight">Liquidación de Viajes</h2>
+                <p class="text-slate-500 text-sm font-medium mt-1">Cierre auditado de cuentas por viaje realizado</p>
             </header>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <!-- Columna Izquierda: Selección de Chofer -->
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 md:col-span-1">
-                    <h3 class="font-bold text-slate-700 mb-4 border-b pb-2">1. Seleccionar Chofer</h3>
-                    <div id="liquidation-driver-list" class="space-y-2 max-h-[600px] overflow-y-auto pr-2">
-                        <!-- Choferes con viajes pendientes -->
-                        <p class="text-xs text-slate-400 italic">Cargando operadores...</p>
+                <div
+                    class="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/5 shadow-2xl md:col-span-1 border-l-4 border-l-blue-500">
+                    <h3 class="font-black text-white text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
+                        <i class="fas fa-users text-blue-500"></i> Operadores
+                    </h3>
+                    <div id="liquidation-driver-list"
+                        class="space-y-3 max-h-[650px] overflow-y-auto pr-2 custom-scrollbar">
+                        <!-- Drivers dynamic list -->
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center py-10">
+                            Cargando...</p>
                     </div>
                 </div>
 
                 <!-- Columna Derecha: Corte de Caja -->
-                <div class="md:col-span-3 space-y-6">
+                <div class="md:col-span-3 space-y-8">
                     <div id="settlement-detail"
-                        class="hidden bg-white p-8 rounded-2xl shadow-xl border-t-4 border-blue-600">
-                        <div class="flex justify-between items-start mb-6">
-                            <div>
-                                <h3 id="set-trip-id" class="text-2xl font-black text-slate-800">SELECCIONE VIAJE</h3>
-                                <p id="set-trip-info" class="text-sm text-slate-500 italic">Cargando detalles...</p>
+                        class="hidden bg-slate-900/40 backdrop-blur-xl p-10 rounded-[2.5rem] border border-white/5 shadow-2xl relative overflow-hidden group">
+                        <div
+                            class="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 blur-[100px] rounded-full pointer-events-none">
+                        </div>
+
+                        <div class="flex flex-col md:flex-row justify-between items-start mb-10 gap-6 relative z-10">
+                            <div class="space-y-2">
+                                <h3 id="set-trip-id" class="text-3xl font-black text-white tracking-tight">DETALLE</h3>
+                                <p id="set-trip-info" class="text-slate-500 font-medium tracking-wide"></p>
                             </div>
-                            <div class="text-right">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase">Flete Total</span>
-                                <p id="set-flete" class="text-xl font-bold text-slate-800">$0.00</p>
+                            <div
+                                class="bg-white/5 px-6 py-4 rounded-2xl border border-white/5 text-right min-w-[200px]">
+                                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Flete
+                                    Total</span>
+                                <p id="set-flete" class="text-2xl font-black text-white tracking-tight">$0.00</p>
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
                             <!-- Desglose de Operación -->
-                            <div class="space-y-4">
-                                <h4 class="font-bold text-slate-400 text-[10px] uppercase tracking-widest">Gastos
-                                    Operativos (Chofer)</h4>
+                            <div class="space-y-6">
+                                <h4 class="font-black text-slate-500 text-[10px] uppercase tracking-[0.2em] px-1">Gastos
+                                    Operativos</h4>
                                 <div id="set-expenses-list"
-                                    class="space-y-2 text-sm bg-slate-50 p-4 rounded-xl min-h-[100px]">
-                                    <!-- Gastos registrados -->
+                                    class="space-y-3 bg-slate-950/40 p-6 rounded-[2rem] border border-white/5 min-h-[150px]">
+                                    <!-- Dynamic rows -->
                                 </div>
-                                <div class="flex justify-between font-bold text-slate-700 px-2">
-                                    <span>Suma Gastos:</span>
-                                    <span id="set-sum-expenses">$0.00</span>
+                                <div class="flex justify-between items-center font-black text-white px-4">
+                                    <span class="text-xs uppercase tracking-widest text-slate-500">Subtotal
+                                        Gastos:</span>
+                                    <span id="set-sum-expenses" class="text-lg">$0.00</span>
                                 </div>
                             </div>
 
                             <!-- Desglose de Deudas/Cuentas -->
-                            <div class="space-y-4">
-                                <h4 class="font-bold text-slate-400 text-[10px] uppercase tracking-widest">
-                                    Deudas/Anticipos Pendientes</h4>
+                            <div class="space-y-6">
+                                <h4 class="font-black text-amber-500/50 text-[10px] uppercase tracking-[0.2em] px-1">
+                                    Anticipos & Deudas</h4>
                                 <div id="set-debts-list"
-                                    class="space-y-2 text-sm bg-amber-50 p-4 rounded-xl min-h-[100px] border border-amber-100">
-                                    <!-- Deudas a favor de la empresa -->
+                                    class="space-y-3 bg-amber-500/[0.03] p-6 rounded-[2rem] border border-amber-500/10 min-h-[150px]">
+                                    <!-- Dynamic rows -->
                                 </div>
-                                <div class="flex justify-between font-bold text-amber-700 px-2">
-                                    <span>Suma Anticipos:</span>
-                                    <span id="set-sum-debts">$0.00</span>
+                                <div class="flex justify-between items-center font-black text-amber-500 px-4">
+                                    <span class="text-xs uppercase tracking-widest opacity-60">Total Retención:</span>
+                                    <span id="set-sum-debts" class="text-lg">$0.00</span>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Panel de Resultado Final -->
-                        <div class="mt-10 pt-8 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div class="bg-slate-50 p-4 rounded-xl">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase">Comisión Bruta</span>
-                                <p id="set-comm-bruta" class="text-xl font-bold text-slate-700">$0.00</p>
+                        <div
+                            class="mt-12 pt-10 border-t border-white/5 grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                            <div class="bg-white/5 p-6 rounded-[2rem] border border-white/5">
+                                <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Comisión
+                                    Bruta</span>
+                                <p id="set-comm-bruta" class="text-2xl font-black text-white tracking-tight mt-1">$0.00
+                                </p>
                             </div>
-                            <div class="bg-red-50 p-4 rounded-xl">
-                                <span class="text-[10px] font-bold text-red-400 uppercase">Retenciones (Deuda)</span>
-                                <p id="set-retencion" class="text-xl font-bold text-red-600">-$0.00</p>
+                            <div class="bg-red-500/10 p-6 rounded-[2rem] border border-red-500/10">
+                                <span
+                                    class="text-[9px] font-black text-red-400 uppercase tracking-widest">Retenciones</span>
+                                <p id="set-retencion" class="text-2xl font-black text-red-500 tracking-tight mt-1">
+                                    -$0.00</p>
                             </div>
-                            <div class="bg-green-600 p-4 rounded-xl text-white shadow-lg shadow-green-200">
-                                <span class="text-[10px] font-bold text-green-100 uppercase">PAGO NETO CHOFER</span>
-                                <p id="set-pago-neto" class="text-2xl font-black">$0.00</p>
+                            <div class="bg-green-600 p-6 rounded-[2rem] text-white shadow-2xl shadow-green-600/30">
+                                <span class="text-[9px] font-black text-green-100 uppercase tracking-widest">Neto a
+                                    Pagar</span>
+                                <p id="set-pago-neto" class="text-3xl font-black tracking-tighter mt-1">$0.00</p>
                             </div>
                         </div>
 
-                        <div class="mt-8 space-y-3">
+                        <div class="mt-10 flex flex-col sm:flex-row gap-4 relative z-10">
                             <button onclick="showSettlementFullDetail()"
-                                class="w-full py-3 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:border-slate-400 hover:text-slate-800 transition-all flex items-center justify-center gap-2">
-                                <i class="fas fa-list-alt"></i> Ver Detalle Completo (Viajes, Gastos, Adelantos)
+                                class="flex-grow py-4 bg-white/5 text-slate-300 font-black uppercase tracking-widest text-[10px] rounded-2xl border border-white/10 hover:bg-white/10 transition-all flex items-center justify-center gap-2">
+                                <i class="fas fa-list-alt text-blue-500"></i> Detalle Maestro
                             </button>
                             <button onclick="finalizeSettlement()"
-                                class="w-full py-4 bg-slate-800 hover:bg-black text-white font-bold rounded-xl transition-all shadow-xl flex items-center justify-center gap-3">
-                                <i class="fas fa-check-circle text-green-400"></i> FINALIZAR LIQUIDACIÓN Y CERRAR
-                                CUENTAS
+                                class="flex-grow-[2] py-5 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-2xl shadow-blue-600/20 transition-all active:scale-95 flex items-center justify-center gap-3">
+                                <i class="fas fa-check-circle"></i> Finalizar & Cerrar
                             </button>
-                            <p class="text-center text-[10px] text-slate-400 mt-2 italic">* Esto marcará las deudas
-                                seleccionadas como LIQUIDADAS.</p>
                         </div>
+                        <p
+                            class="text-center text-[9px] text-slate-500 mt-6 font-bold uppercase tracking-widest italic opacity-50">
+                            * Al confirmar, las deudas seleccionadas se marcarán como liquidadas.
+                        </p>
                     </div>
 
-                    <!-- Placeholder si no hay seleccionado -->
+                    <!-- Placeholder -->
                     <div id="settlement-empty"
-                        class="bg-white p-20 rounded-2xl border-2 border-dashed border-slate-200 text-center text-slate-300">
-                        <i class="fas fa-file-invoice-dollar text-6xl mb-4"></i>
-                        <p class="font-bold">Seleccione un viaje de la lista para calcular el corte.</p>
+                        class="bg-slate-900/40 backdrop-blur-xl p-24 rounded-[3rem] border-2 border-dashed border-white/10 text-center text-slate-700">
+                        <div class="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-file-invoice-dollar text-4xl opacity-20"></i>
+                        </div>
+                        <p class="font-black uppercase tracking-widest text-sm">Seleccione un viaje</p>
+                        <p class="text-xs font-medium mt-2">Para calcular la liquidación del operador</p>
                     </div>
                 </div>
             </div>
@@ -939,32 +1075,35 @@
 
     <!-- Universal Detail Modal -->
     <div id="detail-modal"
-        class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
         <div
-            class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 id="modal-title" class="text-xl font-black text-slate-800 flex items-center gap-2">
-                    <i class="fas fa-info-circle text-blue-500"></i> Detalle de Registro
+            class="bg-slate-900 w-full max-w-2xl rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/5 overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div class="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                <h3 id="modal-title" class="text-xl font-black text-white flex items-center gap-3 tracking-tight">
+                    <i class="fas fa-info-circle text-blue-500"></i> Detalle
                 </h3>
-                <button onclick="closeDetailModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
-                    <i class="fas fa-times text-xl"></i>
+                <button onclick="closeDetailModal()"
+                    class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div id="modal-content" class="p-8 max-h-[70vh] overflow-y-auto">
-                <!-- Content will be injected here -->
+            <div id="modal-content" class="p-10 max-h-[75vh] overflow-y-auto custom-scrollbar text-slate-300">
+                <!-- Dynamic Content -->
             </div>
-            <div class="p-6 border-t border-slate-100 bg-slate-50 text-right">
+            <div class="p-8 border-t border-white/5 bg-white/[0.02] flex justify-end">
                 <button onclick="closeDetailModal()"
-                    class="px-6 py-2 bg-slate-800 text-white font-bold rounded-lg hover:bg-black transition-all">Cerrar</button>
+                    class="px-8 py-3 bg-white/5 text-slate-300 font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-white/10 transition-all">
+                    Entendido
+                </button>
             </div>
         </div>
     </div>
 
     <script src="./js/auth.js"></script>
-    <script src="./js/config.js?v=5.2"></script>
+    <script src="./js/config.js?v=5.8"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=5.2"></script>
-    <script src="./js/main.js?v=5.2"></script>
+    <script src="./js/supabase-client.js?v=5.8"></script>
+    <script src="./js/main.js?v=5.8"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>

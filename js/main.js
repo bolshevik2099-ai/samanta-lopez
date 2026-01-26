@@ -283,61 +283,74 @@ async function renderDriverDetail(id) {
         const avgYield = metrics.avg;
 
         content.innerHTML = `
-            <div class="space-y-6">
-                <!-- Header Card -->
-                <div class="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-6 text-white shadow-lg">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h2 class="text-2xl font-bold">${driver.nombre}</h2>
-                            <p class="text-blue-200 text-sm"><i class="fas fa-id-card mr-2"></i>Licencia: ${driver.num_licencia || 'N/A'}</p>
-                            <p class="text-blue-200 text-sm"><i class="fas fa-phone mr-2"></i>${driver.telefono || 'Sin teléfono'}</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-4 bg-white/[0.03] p-6 rounded-3xl border border-white/5">
+                            <div class="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-400 text-2xl">
+                                <i class="fas fa-id-card"></i>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-black text-white px-1 tracking-tight">${driver.nombre}</h3>
+                                <p class="text-[10px] text-slate-500 font-black uppercase tracking-widest px-1">ID: ${driver.id_chofer}</p>
+                            </div>
                         </div>
-                        <div class="text-right">
-                            <span class="bg-blue-500/30 px-3 py-1 rounded-full text-xs font-bold border border-blue-400/30">${driver.estatus || 'Activo'}</span>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white/[0.02] p-5 rounded-3xl border border-white/5">
+                                <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Licencia</p>
+                                <p class="text-sm font-bold text-white">${driver.licencia || 'N/A'}</p>
+                            </div>
+                            <div class="bg-white/[0.02] p-5 rounded-3xl border border-white/5">
+                                <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Unidad</p>
+                                <p class="text-sm font-bold text-blue-400">${driver.id_unidad || 'N/A'}</p>
+                            </div>
                         </div>
                     </div>
-                    <div class="mt-6 grid grid-cols-4 gap-4 border-t border-blue-500/30 pt-4">
-                        <div>
-                            <p class="text-[10px] text-blue-300 uppercase font-bold">Viajes</p>
-                            <p class="text-xl font-bold">${totalTrips}</p>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-blue-600/10 p-6 rounded-3xl border border-blue-500/10 flex flex-col justify-center">
+                            <p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Viajes</p>
+                            <p class="text-3xl font-black text-white tracking-tighter">${totalTrips}</p>
                         </div>
-                        <div>
-                            <p class="text-[10px] text-blue-300 uppercase font-bold">Comisiones</p>
-                            <p class="text-xl font-bold">$${totalEarned.toLocaleString()}</p>
+                        <div class="bg-emerald-600/10 p-6 rounded-3xl border border-emerald-500/10 flex flex-col justify-center">
+                            <p class="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Comisiones</p>
+                            <p class="text-3xl font-black text-white tracking-tighter">$${totalEarned.toLocaleString()}</p>
                         </div>
-                        <div>
-                            <p class="text-[10px] text-amber-300 uppercase font-bold">Rend. Último</p>
-                            <p class="text-xl font-bold text-amber-300">${lastYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
+                        <div class="bg-amber-600/10 p-6 rounded-3xl border border-amber-500/10 flex flex-col justify-center">
+                            <p class="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1">Rend. Último</p>
+                            <p class="text-2xl font-black text-amber-400 tracking-tighter">${lastYield.toFixed(2)} <span class="text-xs">km/l</span></p>
                         </div>
-                         <div>
-                            <p class="text-[10px] text-blue-300 uppercase font-bold">Rend. Promedio</p>
-                            <p class="text-xl font-bold">${avgYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
+                         <div class="bg-blue-600/10 p-6 rounded-3xl border border-blue-500/10 flex flex-col justify-center">
+                            <p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Rend. Promedio</p>
+                            <p class="text-2xl font-black text-blue-400 tracking-tighter">${avgYield.toFixed(2)} <span class="text-xs">km/l</span></p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Trips History -->
-                <div class="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
-                    <div class="p-4 border-b border-slate-200 bg-slate-100 flex justify-between items-center">
-                        <h3 class="font-bold text-slate-700 text-sm">Historial de Viajes</h3>
+                <div class="mt-8 bg-white/[0.02] rounded-[2rem] border border-white/5 overflow-hidden">
+                    <div class="p-6 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
+                        <h3 class="font-black text-white text-xs uppercase tracking-widest">Historial Reciente</h3>
                     </div>
-                    <div class="max-h-[300px] overflow-y-auto">
-                        <table class="w-full text-left text-sm">
-                            <thead class="bg-slate-50 text-xs text-slate-400 uppercase font-bold sticky top-0">
+                    <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-left">
+                            <thead class="bg-white/[0.03] text-[9px] uppercase font-black text-slate-500 tracking-widest">
                                 <tr>
-                                    <th class="px-4 py-2">Fecha</th>
-                                    <th class="px-4 py-2">Ruta</th>
-                                    <th class="px-4 py-2 text-right">Comisión</th>
+                                    <th class="px-6 py-4">Fecha</th>
+                                    <th class="px-6 py-4">Ruta</th>
+                                    <th class="px-6 py-4 text-right">Comisión</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-200">
+                            <tbody class="divide-y divide-white/5">
                                 ${trips.map(t => `
-                                    <tr class="hover:bg-white transition-colors">
-                                        <td class="px-4 py-2 text-slate-600">${t.fecha}</td>
-                                        <td class="px-4 py-2 font-medium text-slate-800">${t.origen} -> ${t.destino}</td>
-                                        <td class="px-4 py-2 text-right text-green-600 font-bold">$${(parseFloat(t.comision_chofer) || 0).toLocaleString()}</td>
+                                    <tr class="hover:bg-white/[0.02] transition-colors">
+                                        <td class="px-6 py-4 text-[11px] font-medium text-slate-400">${t.fecha}</td>
+                                        <td class="px-6 py-4">
+                                            <div class="text-[11px] font-bold text-slate-200">${t.origen} → ${t.destino}</div>
+                                        </td>
+                                        <td class="px-6 py-4 text-right text-xs font-black text-emerald-400">$${(parseFloat(t.comision_chofer) || 0).toLocaleString()}</td>
                                     </tr>
                                 `).join('')}
+                                ${trips.length === 0 ? '<tr><td colspan="3" class="px-6 py-10 text-center text-[10px] uppercase font-bold text-slate-600">No hay viajes recientes</td></tr>' : ''}
                             </tbody>
                         </table>
                     </div>
@@ -385,48 +398,58 @@ async function renderClientDetail(id) {
         content.innerHTML = `
              <div class="space-y-6">
                 <!-- Header -->
-                <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                    <div class="flex items-center gap-4">
-                        <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600 text-2xl">
-                            <i class="fas fa-building"></i>
+                <div class="bg-slate-900/40 backdrop-blur-xl border border-white/5 rounded-[2rem] p-8 shadow-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-building text-7xl text-blue-400"></i>
+                    </div>
+                    <div class="flex items-center gap-6 relative z-10">
+                        <div class="w-20 h-20 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-400 text-3xl">
+                            <i class="fas fa-city"></i>
                         </div>
                         <div>
-                            <h2 class="text-xl font-bold text-slate-800">${client.nombre_cliente}</h2>
-                            <p class="text-slate-500 text-sm"><i class="fas fa-map-marker-alt mr-1"></i> ${client.direccion || 'Sin dirección'}</p>
-                            <p class="text-slate-500 text-sm"><i class="fas fa-envelope mr-1"></i> ${client.email || 'Sin email'}</p>
+                            <h2 class="text-2xl font-black text-white tracking-tight">${client.nombre_cliente}</h2>
+                            <div class="flex flex-col mt-2 gap-1">
+                                <p class="text-slate-500 text-xs font-medium"><i class="fas fa-map-marker-alt mr-2 text-blue-500/50"></i> ${client.direccion || 'Sin dirección'}</p>
+                                <p class="text-slate-500 text-xs font-medium"><i class="fas fa-envelope mr-2 text-blue-500/50"></i> ${client.email || 'Sin email'}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-green-50 p-4 rounded-xl border border-green-100 text-center">
-                        <p class="text-xs text-green-600 uppercase font-bold">Fletes (Recientes)</p>
-                        <p class="text-2xl font-black text-green-700">$${totalRevenue.toLocaleString()}</p>
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="bg-emerald-600/10 p-6 rounded-[2rem] border border-emerald-500/10 text-center">
+                        <p class="text-[10px] text-emerald-400 uppercase font-black tracking-widest mb-1">Venta Acumulada</p>
+                        <p class="text-3xl font-black text-white tracking-tighter">$${totalRevenue.toLocaleString()}</p>
                     </div>
-                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
-                        <p class="text-xs text-blue-600 uppercase font-bold">Viajes Registrados</p>
-                        <p class="text-2xl font-black text-blue-700">${trips.length}</p>
+                    <div class="bg-blue-600/10 p-6 rounded-[2rem] border border-blue-500/10 text-center">
+                        <p class="text-[10px] text-blue-400 uppercase font-black tracking-widest mb-1">Viajes Totales</p>
+                        <p class="text-3xl font-black text-white tracking-tighter">${trips.length}</p>
                     </div>
                 </div>
 
                 <!-- Recent Activity -->
-                <div class="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
-                    <div class="p-3 bg-slate-100 border-b border-slate-200 font-bold text-slate-600 text-xs uppercase">
-                        Últimos Envios
+                <div class="bg-white/[0.02] rounded-[2rem] border border-white/5 overflow-hidden">
+                    <div class="p-6 bg-white/[0.02] border-b border-white/5">
+                         <h3 class="font-black text-white text-[10px] uppercase tracking-widest">Últimos Envios</h3>
                     </div>
-                    <div class="max-h-[250px] overflow-y-auto">
-                        <table class="w-full text-sm">
-                            <thead class="text-xs text-slate-400 uppercase bg-slate-50 sticky top-0">
-                                <tr><th class="px-4 py-2 text-left">Fecha</th><th class="px-4 py-2 text-left">Origen/Destino</th><th class="px-4 py-2 text-right">Monto</th></tr>
+                    <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-left">
+                            <thead class="bg-white/[0.03] text-[9px] uppercase font-black text-slate-500 tracking-widest">
+                                <tr>
+                                    <th class="px-6 py-4">Fecha</th>
+                                    <th class="px-6 py-4">Origen/Destino</th>
+                                    <th class="px-6 py-4 text-right">Monto</th>
+                                </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody class="divide-y divide-white/5">
                                 ${trips.map(t => `
-                                    <tr>
-                                        <td class="px-4 py-2 text-slate-500">${t.fecha}</td>
-                                        <td class="px-4 py-2 text-slate-700 font-medium">${t.origen} <i class="fas fa-arrow-right text-[10px] mx-1"></i> ${t.destino}</td>
-                                        <td class="px-4 py-2 text-right font-bold text-slate-800">$${parseFloat(t.monto_flete).toLocaleString()}</td>
+                                    <tr class="hover:bg-white/[0.02] transition-colors">
+                                        <td class="px-6 py-4 text-[11px] text-slate-400 font-medium">${t.fecha}</td>
+                                        <td class="px-6 py-4 text-[11px] font-bold text-slate-200">${t.origen} <i class="fas fa-arrow-right text-[10px] mx-2 text-blue-500/30"></i> ${t.destino}</td>
+                                        <td class="px-6 py-4 text-right font-black text-white text-xs">$${parseFloat(t.monto_flete).toLocaleString()}</td>
                                     </tr>
                                 `).join('')}
+                                ${trips.length === 0 ? '<tr><td colspan="3" class="px-6 py-10 text-center text-[10px] uppercase font-bold text-slate-600">Sin historial registrado</td></tr>' : ''}
                             </tbody>
                         </table>
                     </div>
@@ -461,74 +484,80 @@ async function renderUnitDetail(id) {
         content.innerHTML = `
             <div class="space-y-6">
                 <!-- Card -->
-                <div class="bg-slate-800 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
-                    <div class="relative z-10 flex justify-between items-start">
+                <div class="bg-slate-900/60 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/5 relative overflow-hidden group">
+                    <div class="absolute -top-10 -right-10 w-64 h-64 bg-blue-500/5 blur-[100px] rounded-full pointer-events-none"></div>
+                    
+                    <div class="relative z-10 flex flex-col md:flex-row justify-between items-start gap-8">
                         <div>
-                            <h2 class="text-3xl font-black text-white">${unit.id_unidad}</h2>
-                            <p class="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">
-                                ${unit.marca || 'Marca N/A'} ${unit.modelo || ''}
+                            <span class="text-[9px] font-black text-blue-400 uppercase tracking-[0.3em] mb-2 block">Unidad ECO</span>
+                            <h2 class="text-4xl font-black text-white tracking-tighter">${unit.id_unidad}</h2>
+                            <p class="text-slate-400 font-bold uppercase tracking-widest text-[10px] mt-2 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-green-500"></span> ${unit.marca || 'N/A'} ${unit.modelo || ''}
                             </p>
-                            <div class="mt-4 flex gap-4 text-sm text-slate-300">
-                                <span><i class="fas fa-barcode mr-2"></i>${unit.placas || 'Sin Placas'}</span>
-                                <span><i class="fas fa-gas-pump mr-2"></i>${unit.tipo_combustible || 'Diesel'}</span>
+                            <div class="mt-6 flex flex-wrap gap-4 text-[10px] font-black uppercase tracking-widest">
+                                <span class="bg-white/5 px-4 py-2 rounded-full border border-white/5 text-slate-300"><i class="fas fa-barcode mr-2 text-blue-400"></i>${unit.placas || 'Sin Placas'}</span>
+                                <span class="bg-white/5 px-4 py-2 rounded-full border border-white/5 text-slate-300"><i class="fas fa-gas-pump mr-2 text-amber-400"></i>${unit.tipo_combustible || 'Diesel'}</span>
                             </div>
                         </div>
-                        <div class="text-right space-y-2">
-                             <div>
-                                <p class="text-[10px] text-slate-400 uppercase font-bold">Gastos (Recientes)</p>
-                                <p class="text-xl font-bold text-red-400">$${totalExpenses.toLocaleString()}</p>
+                        <div class="grid grid-cols-2 lg:grid-cols-1 gap-4 w-full md:w-auto">
+                             <div class="bg-white/5 p-5 rounded-3xl border border-white/5">
+                                <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Inversión Reciente</p>
+                                <p class="text-2xl font-black text-red-500 tracking-tighter">$${totalExpenses.toLocaleString()}</p>
                              </div>
-                             <div class="flex gap-4 justify-end">
+                             <div class="bg-white/5 p-5 rounded-3xl border border-white/5 grid grid-cols-2 gap-4">
                                 <div>
-                                    <p class="text-[10px] text-amber-500 uppercase font-bold">Último Rend.</p>
-                                    <p class="text-lg font-bold text-amber-400">${lastYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
+                                    <p class="text-[8px] font-black text-amber-500/70 uppercase tracking-widest mb-1">Último Rend.</p>
+                                    <p class="text-lg font-black text-amber-500 tracking-tighter">${lastYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
                                 </div>
-                                <div>
-                                    <p class="text-[10px] text-blue-500 uppercase font-bold">Promedio</p>
-                                    <p class="text-lg font-bold text-blue-400">${avgYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
+                                <div class="border-l border-white/5 pl-4">
+                                    <p class="text-[8px] font-black text-blue-500/70 uppercase tracking-widest mb-1">Promedio</p>
+                                    <p class="text-lg font-black text-blue-500 tracking-tighter">${avgYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
                                 </div>
                              </div>
                         </div>
                     </div>
-                    <!-- Decoratve Icon -->
-                    <i class="fas fa-truck absolute -bottom-4 -right-4 text-9xl text-slate-700 opacity-50 transform -rotate-12"></i>
                 </div>
 
                 <!-- Expenses Log -->
-                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                    <div class="p-4 border-b border-slate-100 font-bold text-slate-800 flex justify-between items-center">
-                        <span><i class="fas fa-wrench text-slate-400 mr-2"></i>Historial de Mantenimiento y Combustible</span>
+                <div class="bg-white/[0.02] rounded-[2.5rem] border border-white/5 overflow-hidden">
+                    <div class="p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
+                        <h3 class="font-black text-xs text-white uppercase tracking-widest flex items-center gap-3">
+                            <i class="fas fa-wrench text-blue-500"></i> Mantenimiento y Combustible
+                        </h3>
                     </div>
-                    <div class="max-h-[300px] overflow-y-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-50 text-xs text-slate-500 uppercase">
+                    <div class="max-h-[350px] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-left">
+                            <thead class="bg-white/[0.03] text-[9px] uppercase font-black text-slate-500 tracking-widest">
                                 <tr>
-                                    <th class="px-4 py-2">Fecha</th>
-                                    <th class="px-4 py-2">Concepto</th>
-                                    <th class="px-4 py-2 text-center">Datos</th>
-                                    <th class="px-4 py-2 text-right">Rend. Calc</th>
-                                    <th class="px-4 py-2 text-right">Monto</th>
+                                    <th class="px-6 py-4">Fecha</th>
+                                    <th class="px-6 py-4">Concepto</th>
+                                    <th class="px-6 py-4 text-center">Métricas</th>
+                                    <th class="px-6 py-4 text-right">Rendimiento</th>
+                                    <th class="px-6 py-4 text-right">Monto</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody class="divide-y divide-white/5">
                                 ${expenses.map(e => `
-                                    <tr class="hover:bg-slate-50">
-                                        <td class="px-4 py-2 text-slate-500">${e.fecha}</td>
-                                        <td class="px-4 py-2 font-medium text-slate-700">
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${e.concepto === 'Diesel' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}">
+                                    <tr class="hover:bg-white/[0.02] transition-colors">
+                                        <td class="px-6 py-4 text-[11px] text-slate-400 font-medium">${e.fecha}</td>
+                                        <td class="px-6 py-4">
+                                            <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${e.concepto === 'Diesel' ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-500/10 text-slate-400'}">
                                                 ${e.concepto}
                                             </span>
                                         </td>
-                                        <td class="px-4 py-2 text-center text-xs text-slate-500">
-                                            ${e.kmts_actuales ? `<div>Km: ${e.kmts_actuales}</div>` : ''}
-                                            ${e.litros ? `<div>Lt: ${e.litros}</div>` : ''}
+                                        <td class="px-6 py-4 text-center">
+                                            <div class="text-[10px] text-slate-500 font-medium">
+                                                ${e.kmts_actuales ? `<span>${e.kmts_actuales} KM</span>` : ''}
+                                                ${e.litros ? `<span class="mx-2 text-slate-700">|</span> <span>${e.litros} LT</span>` : ''}
+                                            </div>
                                         </td>
-                                        <td class="px-4 py-2 text-center font-mono text-xs font-bold text-amber-600">
-                                            ${e._calculatedYield ? e._calculatedYield.toFixed(2) + ' km/l' : '-'}
+                                        <td class="px-6 py-4 text-right font-black text-amber-500 text-xs">
+                                            ${e._calculatedYield ? e._calculatedYield.toFixed(2) + ' <span class="text-[9px] opacity-70">km/l</span>' : '-'}
                                         </td>
-                                        <td class="px-4 py-2 text-right font-bold text-red-500">-$${parseFloat(e.monto).toLocaleString()}</td>
+                                        <td class="px-6 py-4 text-right font-black text-red-500 text-sm">-$${parseFloat(e.monto).toLocaleString()}</td>
                                     </tr>
                                 `).join('')}
+                                ${expenses.length === 0 ? '<tr><td colspan="5" class="px-6 py-10 text-center text-[10px] uppercase font-bold text-slate-600">Sin historial de gastos</td></tr>' : ''}
                             </tbody>
                         </table>
                     </div>
@@ -568,37 +597,48 @@ async function renderProviderDetail(id) {
 
         content.innerHTML = `
             <div class="space-y-6">
-                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-6">
-                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
-                        <i class="fas fa-hands-helping text-2xl"></i>
+                <div class="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2rem] border border-white/5 shadow-2xl flex flex-col md:flex-row items-center gap-8 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform">
+                        <i class="fas fa-truck text-8xl text-purple-400"></i>
+                    </div>
+                    <div class="w-20 h-20 bg-purple-500/10 rounded-full flex items-center justify-center text-purple-400 text-3xl">
+                        <i class="fas fa-handshake"></i>
                     </div>
                     <div>
-                        <h2 class="text-xl font-bold text-slate-800">${provider.nombre_proveedor}</h2>
-                        <p class="text-slate-500 font-mono text-xs mt-1">ID: ${provider.id_proveedor}</p>
-                        <p class="text-slate-500 text-sm mt-1">${provider.contacto || 'Sin contacto'}</p>
+                        <h2 class="text-2xl font-black text-white tracking-tight">${provider.nombre_proveedor}</h2>
+                        <div class="flex flex-col mt-2 gap-1">
+                            <p class="text-slate-500 text-xs font-mono font-bold uppercase tracking-widest">ID: ${provider.id_proveedor}</p>
+                            <p class="text-slate-500 text-xs font-medium"><i class="fas fa-user mr-2 text-purple-500/50"></i> ${provider.contacto || 'Sin contacto'}</p>
+                        </div>
                     </div>
-                    <div class="ml-auto text-right">
-                         <p class="text-[10px] uppercase font-bold text-slate-400">Total Compras</p>
-                         <p class="text-2xl font-bold text-purple-600">$${total.toLocaleString()}</p>
+                    <div class="md:ml-auto text-right bg-white/5 p-6 rounded-3xl border border-white/5 min-w-[200px]">
+                         <p class="text-[10px] uppercase font-black tracking-widest text-slate-500 mb-1">Total Movimientos</p>
+                         <p class="text-3xl font-black text-purple-400 tracking-tighter">$${total.toLocaleString()}</p>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                    <div class="p-4 bg-slate-50 font-bold text-slate-600 border-b border-slate-200">Historial de Compras/Pagos</div>
-                    <div class="max-h-[300px] overflow-y-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="text-xs text-slate-400 uppercase font-bold bg-slate-50">
-                                <tr><th class="px-4 py-3">Fecha</th><th class="px-4 py-3">Concepto</th><th class="px-4 py-3 text-right">Total</th></tr>
+                <div class="bg-white/[0.02] rounded-[2rem] border border-white/5 overflow-hidden">
+                    <div class="p-6 bg-white/[0.02] border-b border-white/5">
+                        <h3 class="font-black text-white text-[10px] uppercase tracking-widest">Historial de Operaciones</h3>
+                    </div>
+                    <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-left">
+                            <thead class="bg-white/[0.03] text-[9px] uppercase font-black text-slate-500 tracking-widest">
+                                <tr>
+                                    <th class="px-6 py-4">Fecha</th>
+                                    <th class="px-6 py-4">Concepto</th>
+                                    <th class="px-6 py-4 text-right">Monto</th>
+                                </tr>
                             </thead>
-                             <tbody class="divide-y divide-slate-100">
+                             <tbody class="divide-y divide-white/5">
                                 ${expenseList.map(e => `
-                                    <tr>
-                                        <td class="px-4 py-2 text-slate-500">${e.fecha}</td>
-                                        <td class="px-4 py-2 font-medium text-slate-700">${e.concepto}</td>
-                                        <td class="px-4 py-2 text-right font-bold text-slate-800">$${parseFloat(e.monto).toLocaleString()}</td>
+                                    <tr class="hover:bg-white/[0.02] transition-colors">
+                                        <td class="px-6 py-4 text-[11px] text-slate-400 font-medium">${e.fecha}</td>
+                                        <td class="px-6 py-4 text-[11px] font-bold text-slate-200">${e.concepto}</td>
+                                        <td class="px-6 py-4 text-right font-black text-white text-sm">$${parseFloat(e.monto).toLocaleString()}</td>
                                     </tr>
                                 `).join('')}
-                                ${expenseList.length === 0 ? '<tr><td colspan="3" class="p-8 text-center text-slate-400 italic">No se encontraron pagos asociados a este nombre de proveedor.</td></tr>' : ''}
+                                ${expenseList.length === 0 ? '<tr><td colspan="3" class="px-6 py-10 text-center text-[10px] uppercase font-black text-slate-600 italic">No se encontraron pagos asociados</td></tr>' : ''}
                             </tbody>
                         </table>
                     </div>
@@ -639,55 +679,60 @@ async function showEnhancedSettlement(idLiquidacion) {
 
         // 3. Render Enhanced View
         content.innerHTML = `
-            <div class="space-y-6 text-slate-800">
-                <div class="flex justify-between items-start bg-blue-50 p-6 rounded-xl border border-blue-100">
-                    <div>
-                        <div class="text-[10px] font-black uppercase text-blue-400">Chofer</div>
-                        <div class="text-2xl font-black text-blue-900">${settle.id_chofer}</div>
-                        <div class="text-xs text-blue-600 font-bold mt-1">Periodo: ${settle.fecha_inicio || 'N/A'} - ${settle.fecha_fin || 'N/A'}</div>
+            <div class="space-y-8">
+                <div class="flex flex-col md:flex-row justify-between items-start bg-blue-600/10 p-8 rounded-[2rem] border border-blue-500/10 relative overflow-hidden group">
+                    <div class="absolute -top-10 -right-10 w-64 h-64 bg-blue-500/5 blur-[100px] rounded-full pointer-events-none"></div>
+                    <div class="relative z-10">
+                        <p class="text-[9px] font-black uppercase text-blue-400 tracking-[0.3em] mb-2">Operador Responsable</p>
+                        <h3 class="text-3xl font-black text-white tracking-tighter">${settle.id_chofer}</h3>
+                        <div class="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-2 bg-white/5 px-4 py-1 rounded-full border border-white/5 w-fit">
+                            Periodo: ${settle.fecha_inicio || 'N/A'} — ${settle.fecha_fin || 'N/A'}
+                        </div>
                     </div>
-                    <div class="text-right">
-                        <div class="text-[10px] font-black uppercase text-blue-400">Neto a Pagar</div>
-                        <div class="text-3xl font-black text-blue-600">$${(parseFloat(settle.monto_neto) || 0).toLocaleString()}</div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-3 gap-4">
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                        <div class="text-[10px] font-black uppercase text-slate-400">Total Fletes</div>
-                        <div class="text-lg font-bold text-slate-800">$${(parseFloat(settle.total_fletes) || 0).toLocaleString()}</div>
-                    </div>
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                        <div class="text-[10px] font-black uppercase text-slate-400">Total Gastos</div>
-                        <div class="text-lg font-bold text-red-500">$${(parseFloat(settle.total_gastos) || 0).toLocaleString()}</div>
-                    </div>
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-                        <div class="text-[10px] font-black uppercase text-slate-400">Comisión (15%)</div>
-                        <div class="text-lg font-bold text-green-600">$${(parseFloat(settle.monto_comision) || 0).toLocaleString()}</div>
+                    <div class="text-right relative z-10 mt-6 md:mt-0">
+                        <p class="text-[10px] font-black uppercase text-blue-400 tracking-widest mb-1">Monto Neto Liquidado</p>
+                        <p class="text-4xl font-black text-blue-500 tracking-tighter">$${(parseFloat(settle.monto_neto) || 0).toLocaleString()}</p>
                     </div>
                 </div>
 
-                <div>
-                    <h4 class="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
-                        <i class="fas fa-truck-loading text-blue-500"></i> Viajes Incluidos
-                    </h4>
-                    <div class="overflow-hidden rounded-xl border border-slate-100">
-                        <table class="w-full text-left text-sm">
-                            <thead class="bg-slate-50 text-[10px] uppercase font-black text-slate-400">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white/5 p-6 rounded-[2rem] border border-white/5 flex flex-col justify-center">
+                        <p class="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Total Fletes</p>
+                        <p class="text-2xl font-black text-white">$${(parseFloat(settle.total_fletes) || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="bg-red-500/5 p-6 rounded-[2rem] border border-red-500/10 flex flex-col justify-center">
+                        <p class="text-[9px] font-black uppercase text-red-400/70 tracking-widest mb-1">Retenciones / Gastos</p>
+                        <p class="text-2xl font-black text-red-500">$${(parseFloat(settle.total_gastos) || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="bg-emerald-500/5 p-6 rounded-[2rem] border border-emerald-500/10 flex flex-col justify-center">
+                        <p class="text-[9px] font-black uppercase text-emerald-400/70 tracking-widest mb-1">Comisión Generada</p>
+                        <p class="text-2xl font-black text-emerald-500">$${(parseFloat(settle.monto_comision) || 0).toLocaleString()}</p>
+                    </div>
+                </div>
+
+                <div class="bg-white/[0.02] rounded-[2rem] border border-white/5 overflow-hidden">
+                    <div class="p-8 border-b border-white/5 bg-white/[0.02]">
+                         <h4 class="text-xs font-black text-white uppercase tracking-widest flex items-center gap-3">
+                            <i class="fas fa-truck-loading text-blue-500"></i> Viajes Auditados
+                        </h4>
+                    </div>
+                    <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
+                        <table class="w-full text-left">
+                            <thead class="bg-white/[0.03] text-[9px] uppercase font-black text-slate-500 tracking-widest">
                                 <tr>
-                                    <th class="px-4 py-3">ID Viaje</th>
-                                    <th class="px-4 py-3">Ruta</th>
-                                    <th class="px-4 py-3 text-right">Flete</th>
+                                    <th class="px-6 py-4">ID Viaje</th>
+                                    <th class="px-6 py-4">Ruta Operada</th>
+                                    <th class="px-6 py-4 text-right">Monto Flete</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody class="divide-y divide-white/5">
                                 ${trips && trips.length > 0 ? trips.map(t => `
-                                    <tr>
-                                        <td class="px-4 py-3 font-bold text-slate-600">${t.id_viaje}</td>
-                                        <td class="px-4 py-3 text-slate-500">${t.origen} - ${t.destino}</td>
-                                        <td class="px-4 py-3 text-right font-bold text-slate-800">$${parseFloat(t.monto_flete).toLocaleString()}</td>
+                                    <tr class="hover:bg-white/[0.02] transition-colors">
+                                        <td class="px-6 py-4 text-[11px] font-black text-slate-300">${t.id_viaje}</td>
+                                        <td class="px-6 py-4 text-[11px] font-bold text-slate-500 italic">${t.origen} — ${t.destino}</td>
+                                        <td class="px-6 py-4 text-right font-black text-white text-xs">$${parseFloat(t.monto_flete).toLocaleString()}</td>
                                     </tr>
-                                `).join('') : '<tr><td colspan="3" class="px-4 py-3 text-center text-slate-400">No hay viajes registrados</td></tr>'}
+                                `).join('') : '<tr><td colspan="3" class="px-6 py-10 text-center text-[10px] font-black uppercase text-slate-600">No hay viajes vinculados</td></tr>'}
                             </tbody>
                         </table>
                     </div>
@@ -1621,40 +1666,46 @@ function renderTripsTable(data) {
     const tbody = document.getElementById('trips-table-body');
     if (!tbody) return;
     tbody.innerHTML = data.map(v => `
-        <tr class="hover:bg-slate-50 transition-colors">
+        <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0 hover:border-white/10">
             <td class="px-6 py-4">
-                <div class="font-bold text-slate-800 text-sm">${v.id_viaje}</div>
-                <div class="text-[10px] text-slate-400 font-mono">${v.fecha}</div>
+                <div class="font-black text-white text-xs tracking-tight">${v.id_viaje}</div>
+                <div class="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">${v.fecha}</div>
             </td>
             <td class="px-6 py-4">
-                <div class="text-sm font-semibold text-slate-700">${v.cliente}</div>
-                <div class="text-[10px] text-slate-400 uppercase tracking-tight">${v.origen} ➔ ${v.destino}</div>
+                <div class="text-xs font-black text-slate-200 tracking-tight">${v.cliente}</div>
+                <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 flex items-center gap-1">
+                    ${v.origen} <i class="fas fa-arrow-right text-[7px] text-blue-500/30"></i> ${v.destino}
+                </div>
             </td>
-            <td class="px-6 py-4 text-xs text-slate-600">
-                <div><i class="fas fa-truck text-xs mr-1 text-slate-300"></i> ${v.id_unidad}</div>
-                <div><i class="fas fa-user-tie text-xs mr-1 text-slate-300"></i> ${v.id_chofer}</div>
+            <td class="px-6 py-4 text-[10px] font-bold text-slate-400 space-y-1">
+                <div class="flex items-center gap-2"><i class="fas fa-truck text-blue-500/50 w-3"></i> ${v.id_unidad}</div>
+                <div class="flex items-center gap-2"><i class="fas fa-user-tie text-blue-500/50 w-3"></i> ${v.id_chofer}</div>
             </td>
-            <td class="px-6 py-4 font-bold text-slate-800 text-sm">$${(parseFloat(v.monto_flete) || 0).toLocaleString()}</td>
+            <td class="px-6 py-4 font-black text-white text-xs">$${(parseFloat(v.monto_flete) || 0).toLocaleString()}</td>
             <td class="px-6 py-4">
-                <span class="text-[10px] font-bold ${v.estatus_pago === 'Pagado' ? 'text-green-500' : 'text-amber-500'}">
-                    ● ${v.estatus_pago || 'Pendiente'}
+                <span class="text-[9px] font-black px-2.5 py-1 rounded-full border ${v.estatus_pago === 'Pagado' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'} uppercase tracking-widest">
+                    ${v.estatus_pago || 'Pendiente'}
                 </span>
             </td>
-            <td class="px-6 py-4 text-right space-x-2">
+            <td class="px-6 py-4 text-right space-x-1">
                 <button onclick="showDetailModal('viajes', '${v.id_viaje}')" title="Ver Detalle"
-                    class="text-slate-400 hover:text-slate-600 transition-colors p-1">
-                    <i class="fas fa-eye"></i>
+                    class="w-8 h-8 rounded-lg bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+                    <i class="fas fa-eye text-xs"></i>
                 </button>
                 <button onclick="registerExpenseFromTrip('${v.id_viaje}', '${v.id_unidad}', '${v.id_chofer}')" title="Registrar Gasto del Viaje"
-                    class="text-green-600 hover:text-green-800 transition-colors p-1">
-                    <i class="fas fa-receipt"></i>
+                    class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all">
+                    <i class="fas fa-receipt text-xs"></i>
                 </button>
                 <button onclick="prepareAdvance('${v.id_viaje}', '${v.id_chofer}')" title="Registrar Anticipo"
-                    class="text-blue-500 hover:text-blue-700 transition-colors p-1">
-                    <i class="fas fa-hand-holding-usd"></i>
+                    class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all">
+                    <i class="fas fa-hand-holding-usd text-xs"></i>
                 </button>
-                <button onclick="editTrip('${v.id_viaje}')" class="text-blue-500 hover:text-blue-700 p-1" title="Editar"><i class="fas fa-edit"></i></button>
-                <button onclick="deleteItem('${DB_CONFIG.tableViajes}', '${v.id_viaje}', 'id_viaje')" class="text-red-500 hover:text-red-700 p-1" title="Eliminar"><i class="fas fa-trash"></i></button>
+                <button onclick="editTrip('${v.id_viaje}')" class="w-8 h-8 rounded-lg bg-white/5 text-blue-400 hover:text-blue-200 hover:bg-blue-500/20 transition-all" title="Editar">
+                    <i class="fas fa-edit text-xs"></i>
+                </button>
+                <button onclick="deleteItem('${DB_CONFIG.tableViajes}', '${v.id_viaje}', 'id_viaje')" class="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all" title="Eliminar">
+                    <i class="fas fa-trash text-xs"></i>
+                </button>
             </td>
         </tr>
     `).join('');
@@ -1678,11 +1729,11 @@ let catalogData = [];
 function switchCatalogTab(type) {
     currentCatalog = type;
     document.querySelectorAll('.catalog-tab').forEach(btn => {
-        btn.classList.remove('bg-blue-600', 'text-white');
-        btn.classList.add('text-slate-500', 'hover:bg-slate-50');
+        btn.classList.remove('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-600/20');
+        btn.classList.add('text-slate-500', 'hover:text-white', 'hover:bg-white/5');
     });
-    document.getElementById(`tab-${type}`).classList.add('bg-blue-600', 'text-white');
-    document.getElementById(`tab-${type}`).classList.remove('text-slate-500', 'hover:bg-slate-50');
+    document.getElementById(`tab-${type}`).classList.add('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-600/20');
+    document.getElementById(`tab-${type}`).classList.remove('text-slate-500', 'hover:bg-white', 'hover:bg-slate-50');
 
     const titles = {
         'choferes': 'Listado de Choferes',
@@ -1743,13 +1794,13 @@ function renderCatalogTable(type, data, expenses = []) {
             headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada', 'Rendimiento (Último / Promedio)'],
             row: d => {
                 const metrics = calculateFuelMetrics(d.id_chofer, 'choferes', expenses);
-                return `<td class="px-6 py-4 font-bold text-slate-800">${d.id_chofer}</td>
-                       <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre}</td>
-                       <td class="px-6 py-4 text-slate-500">${d.licencia || '-'}</td>
-                       <td class="px-6 py-4 text-blue-600 font-bold">${d.id_unidad || '<span class="text-slate-300 font-normal">Sin asignar</span>'}</td>
+                return `<td class="px-6 py-4 font-black text-white text-xs tracking-tight">${d.id_chofer}</td>
+                       <td class="px-6 py-4 font-bold text-slate-200 text-xs">${d.nombre}</td>
+                       <td class="px-6 py-4 text-slate-400 text-[11px] font-medium">${d.licencia || '-'}</td>
+                       <td class="px-6 py-4 text-blue-400 font-black text-xs">${d.id_unidad || '<span class="text-slate-600 font-normal">Sin asignar</span>'}</td>
                        <td class="px-6 py-4">
-                           <div class="text-xs font-bold text-slate-700">Últ: ${metrics.last}</div>
-                           <div class="text-[10px] text-slate-500">Prom: ${metrics.avg}</div>
+                           <div class="text-[10px] font-black text-amber-500">Últ: ${metrics.last}</div>
+                           <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Prom: ${metrics.avg}</div>
                        </td>`;
             }
         },
@@ -1758,13 +1809,13 @@ function renderCatalogTable(type, data, expenses = []) {
             row: d => {
                 const id = d.id_unidad; // Use ECO ID usually
                 const metrics = calculateFuelMetrics(id, 'unidades', expenses);
-                return `<td class="px-6 py-4 font-bold text-slate-800">${d.id_unidad}</td>
-                       <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre_unidad}</td>
-                       <td class="px-6 py-4 text-slate-500">${d.placas || '-'}</td>
-                       <td class="px-6 py-4 text-green-600 font-bold">${d.id_chofer || '<span class="text-slate-300 font-normal">Sin asignar</span>'}</td>
+                return `<td class="px-6 py-4 font-black text-white text-xs tracking-tight">${d.id_unidad}</td>
+                       <td class="px-6 py-4 font-bold text-slate-200 text-xs">${d.nombre_unidad}</td>
+                       <td class="px-6 py-4 text-slate-400 text-[11px] font-medium">${d.placas || '-'}</td>
+                       <td class="px-6 py-4 text-emerald-400 font-black text-xs">${d.id_chofer || '<span class="text-slate-600 font-normal">Sin asignar</span>'}</td>
                        <td class="px-6 py-4">
-                           <div class="text-xs font-bold text-slate-700">Últ: ${metrics.last}</div>
-                           <div class="text-[10px] text-slate-500">Prom: ${metrics.avg}</div>
+                           <div class="text-[10px] font-black text-amber-500">Últ: ${metrics.last}</div>
+                           <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Prom: ${metrics.avg}</div>
                        </td>`;
             }
         },
@@ -1995,14 +2046,14 @@ function renderExpensesTable(data) {
 
     tbody.innerHTML = filtered.map(g => {
         const estAprob = g.estatus_aprobacion || 'Pendiente';
-        const aprobClass = estAprob === 'Aprobado' ? 'bg-green-100 text-green-700' :
-            (estAprob === 'Rechazado' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700');
+        const aprobClass = estAprob === 'Aprobado' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+            (estAprob === 'Rechazado' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20');
 
         return `
-            <tr class="hover:bg-slate-50 transition-colors">
+            <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0 hover:border-white/10">
                 <td class="px-6 py-4">
-                    <div class="font-bold text-slate-800 text-sm">${g.id_gasto || 'N/A'}</div>
-                    <div class="text-[10px] text-slate-400 font-mono">${g.fecha}</div>
+                    <div class="font-black text-white text-sm tracking-tight">${g.id_gasto || 'N/A'}</div>
+                    <div class="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">${g.fecha}</div>
                 </td>
                 <td class="px-6 py-4">
                     <div class="text-sm font-semibold text-slate-700">Viaje: ${g.id_viaje}</div>
@@ -2144,14 +2195,14 @@ async function loadTreasuryList() {
             const isPaid = item.estatus_pago === 'Pagado';
             if (!isPaid) total += parseFloat(item.monto_flete) || 0;
             return `
-                <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
+                <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0 hover:border-white/10">
                     <td class="px-6 py-4">
-                        <div class="font-bold text-slate-800 text-xs">${item.no_interno || 'S/N'}</div>
-                        <div class="text-[10px] text-slate-400 font-mono">${item.fecha}</div>
+                        <div class="font-black text-white text-xs tracking-tight">${item.no_interno || 'S/N'}</div>
+                        <div class="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">${item.fecha}</div>
                     </td>
                     <td class="px-6 py-4">
-                        <div class="text-sm font-semibold text-slate-800">${item.cliente}</div>
-                        <div class="text-[10px] text-slate-400 italic">${item.id_viaje}</div>
+                        <div class="text-xs font-black text-slate-200 tracking-tight">${item.cliente}</div>
+                        <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 italic">${item.id_viaje}</div>
                     </td>
                     <td class="px-6 py-4 font-bold text-slate-800">$${(parseFloat(item.monto_flete) || 0).toLocaleString()}</td>
                     <td class="px-6 py-4">

@@ -31,9 +31,9 @@
         }
 
         .glass-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(0, 0, 0, 0.05);
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .chat-window {
@@ -79,7 +79,7 @@
     <!-- VERSION DEBUG LABEL -->
     <div
         class="fixed top-0 left-0 bg-pink-600/80 backdrop-blur text-white font-bold px-3 py-1 z-[9999] rounded-br-lg shadow-lg border-r border-b border-pink-400/30">
-        v5.6
+        v5.8
     </div>
 
     <!-- Navigation -->
@@ -551,23 +551,23 @@
         </div>
 
         <!-- Messages -->
-        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-white/50">
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-white/5 custom-scrollbar">
             <div class="flex justify-start">
                 <div
-                    class="max-w-[80%] bg-slate-100 text-slate-800 rounded-2xl px-4 py-2 text-sm shadow-sm ring-1 ring-slate-900/5">
+                    class="max-w-[80%] bg-blue-500/10 text-slate-200 border border-blue-500/20 rounded-2xl px-4 py-2 text-sm shadow-sm">
                     ¡Hola! Soy el asistente virtual de Samanta López. ¿En qué puedo ayudarte hoy?
                 </div>
             </div>
         </div>
 
         <!-- Input -->
-        <form id="chat-form" class="p-4 bg-white border-t border-slate-100">
+        <form id="chat-form" class="p-4 bg-slate-900/50 border-t border-white/5">
             <div class="relative">
                 <input type="text" id="chat-input"
-                    class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-4 pr-12 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    class="w-full bg-white/5 border border-white/10 rounded-2xl pl-4 pr-12 py-3 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder-slate-500"
                     placeholder="Escribe tu mensaje...">
                 <button type="submit"
-                    class="absolute right-2 top-1/2 -translate-y-1/2 text-blue-600 hover:bg-blue-50 w-8 h-8 rounded-xl flex items-center justify-center transition-all">
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-blue-400 hover:bg-white/5 w-8 h-8 rounded-xl flex items-center justify-center transition-all">
                     <i class="fas fa-paper-plane text-sm"></i>
                 </button>
             </div>
@@ -575,11 +575,11 @@
     </div>
 
 
-    <script src="./js/config.js?v=5.2"></script>
+    <script src="./js/config.js?v=5.8"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=5.2"></script>
+    <script src="./js/supabase-client.js?v=5.8"></script>
     <script src="./js/auth.js"></script>
-    <script src="./js/chat.js?v=5.2"></script>
+    <script src="./js/chat.js?v=5.8"></script>
 </body>
 
 </html>
