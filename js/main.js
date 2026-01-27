@@ -1,13 +1,13 @@
+﻿
+let mainChart = null; // Instancia global para el grÃ¡fico
 
-let mainChart = null; // Instancia global para el gráfico
-
-// Variables Globales de Datos (para búsqueda)
+// Variables Globales de Datos (para bÃºsqueda)
 let allTripsData = [];
 let allExpensesData = [];
 let currentExpenseTab = 'todos';
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Verificar sesión al cargar
+    // Verificar sesiÃ³n al cargar
     const session = checkAuth();
     if (session) {
         const ids = ['user-name-display', 'display-chofer', 'admin-name', 'user-display'];
@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Lógica de Campos Condicionales de Diesel ---
+    // --- LÃ³gica de Campos Condicionales de Diesel ---
     const conceptoSelect = document.getElementById('Concepto');
     const dieselBlock = document.getElementById('diesel-fields');
     // Inputs que se deben resetear/requerir
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleDieselInfo();
     }
 
-    // --- Cálculo Automático de Kilómetros ---
+    // --- CÃ¡lculo AutomÃ¡tico de KilÃ³metros ---
     const kmAntInput = document.getElementById('Kmts_Anteriores');
     const kmActInput = document.getElementById('Kmts_Actuales');
     const kmRecInput = document.getElementById('Kmts_Recorridos');
@@ -104,10 +104,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Inicializar Catálogos en Selects
+    // Inicializar CatÃ¡logos en Selects
     initFormCatalogs();
 
-    // Eventos de Búsqueda
+    // Eventos de BÃºsqueda
     document.getElementById('search-viajes')?.addEventListener('input', (e) => {
         filterTrips(e.target.value);
     });
@@ -119,7 +119,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closeDetailModal();
     });
+
+    // Populate Driver Form Options
+    populateDriverFormOptions();
 });
+
 
 // --- UNIVERSAL DETAIL MODAL ---
 function showDetailModal(type, id) {
@@ -316,7 +320,7 @@ async function renderDriverDetail(id) {
                             <p class="text-3xl font-black text-white tracking-tighter">$${totalEarned.toLocaleString()}</p>
                         </div>
                         <div class="bg-amber-600/10 p-6 rounded-3xl border border-amber-500/10 flex flex-col justify-center">
-                            <p class="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1">Rend. Último</p>
+                            <p class="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1">Rend. Ãšltimo</p>
                             <p class="text-2xl font-black text-amber-400 tracking-tighter">${lastYield.toFixed(2)} <span class="text-xs">km/l</span></p>
                         </div>
                          <div class="bg-blue-600/10 p-6 rounded-3xl border border-blue-500/10 flex flex-col justify-center">
@@ -337,7 +341,7 @@ async function renderDriverDetail(id) {
                                 <tr>
                                     <th class="px-6 py-4">Fecha</th>
                                     <th class="px-6 py-4">Ruta</th>
-                                    <th class="px-6 py-4 text-right">Comisión</th>
+                                    <th class="px-6 py-4 text-right">ComisiÃ³n</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-white/5">
@@ -345,7 +349,7 @@ async function renderDriverDetail(id) {
                                     <tr class="hover:bg-white/[0.02] transition-colors">
                                         <td class="px-6 py-4 text-[11px] font-medium text-slate-400">${t.fecha}</td>
                                         <td class="px-6 py-4">
-                                            <div class="text-[11px] font-bold text-slate-200">${t.origen} → ${t.destino}</div>
+                                            <div class="text-[11px] font-bold text-slate-200">${t.origen} â†’ ${t.destino}</div>
                                         </td>
                                         <td class="px-6 py-4 text-right text-xs font-black text-emerald-400">$${(parseFloat(t.comision_chofer) || 0).toLocaleString()}</td>
                                     </tr>
@@ -409,7 +413,7 @@ async function renderClientDetail(id) {
                         <div>
                             <h2 class="text-2xl font-black text-white tracking-tight">${client.nombre_cliente}</h2>
                             <div class="flex flex-col mt-2 gap-1">
-                                <p class="text-slate-500 text-xs font-medium"><i class="fas fa-map-marker-alt mr-2 text-blue-500/50"></i> ${client.direccion || 'Sin dirección'}</p>
+                                <p class="text-slate-500 text-xs font-medium"><i class="fas fa-map-marker-alt mr-2 text-blue-500/50"></i> ${client.direccion || 'Sin direcciÃ³n'}</p>
                                 <p class="text-slate-500 text-xs font-medium"><i class="fas fa-envelope mr-2 text-blue-500/50"></i> ${client.email || 'Sin email'}</p>
                             </div>
                         </div>
@@ -430,7 +434,7 @@ async function renderClientDetail(id) {
                 <!-- Recent Activity -->
                 <div class="bg-white/[0.02] rounded-[2rem] border border-white/5 overflow-hidden">
                     <div class="p-6 bg-white/[0.02] border-b border-white/5">
-                         <h3 class="font-black text-white text-[10px] uppercase tracking-widest">Últimos Envios</h3>
+                         <h3 class="font-black text-white text-[10px] uppercase tracking-widest">Ãšltimos Envios</h3>
                     </div>
                     <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
                         <table class="w-full text-left">
@@ -501,12 +505,12 @@ async function renderUnitDetail(id) {
                         </div>
                         <div class="grid grid-cols-2 lg:grid-cols-1 gap-4 w-full md:w-auto">
                              <div class="bg-white/5 p-5 rounded-3xl border border-white/5">
-                                <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Inversión Reciente</p>
+                                <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">InversiÃ³n Reciente</p>
                                 <p class="text-2xl font-black text-red-500 tracking-tighter">$${totalExpenses.toLocaleString()}</p>
                              </div>
                              <div class="bg-white/5 p-5 rounded-3xl border border-white/5 grid grid-cols-2 gap-4">
                                 <div>
-                                    <p class="text-[8px] font-black text-amber-500/70 uppercase tracking-widest mb-1">Último Rend.</p>
+                                    <p class="text-[8px] font-black text-amber-500/70 uppercase tracking-widest mb-1">Ãšltimo Rend.</p>
                                     <p class="text-lg font-black text-amber-500 tracking-tighter">${lastYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
                                 </div>
                                 <div class="border-l border-white/5 pl-4">
@@ -531,7 +535,7 @@ async function renderUnitDetail(id) {
                                 <tr>
                                     <th class="px-6 py-4">Fecha</th>
                                     <th class="px-6 py-4">Concepto</th>
-                                    <th class="px-6 py-4 text-center">Métricas</th>
+                                    <th class="px-6 py-4 text-center">MÃ©tricas</th>
                                     <th class="px-6 py-4 text-right">Rendimiento</th>
                                     <th class="px-6 py-4 text-right">Monto</th>
                                 </tr>
@@ -658,7 +662,7 @@ function closeDetailModal() {
 async function showEnhancedSettlement(idLiquidacion) {
     const content = document.getElementById('modal-content');
     const title = document.getElementById('modal-title');
-    title.innerText = 'Liquidación Detallada: ' + idLiquidacion;
+    title.innerText = 'LiquidaciÃ³n Detallada: ' + idLiquidacion;
 
     try {
         // 1. Get Settlement Master
@@ -686,7 +690,7 @@ async function showEnhancedSettlement(idLiquidacion) {
                         <p class="text-[9px] font-black uppercase text-blue-400 tracking-[0.3em] mb-2">Operador Responsable</p>
                         <h3 class="text-3xl font-black text-white tracking-tighter">${settle.id_chofer}</h3>
                         <div class="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-2 bg-white/5 px-4 py-1 rounded-full border border-white/5 w-fit">
-                            Periodo: ${settle.fecha_inicio || 'N/A'} — ${settle.fecha_fin || 'N/A'}
+                            Periodo: ${settle.fecha_inicio || 'N/A'} â€” ${settle.fecha_fin || 'N/A'}
                         </div>
                     </div>
                     <div class="text-right relative z-10 mt-6 md:mt-0">
@@ -705,7 +709,7 @@ async function showEnhancedSettlement(idLiquidacion) {
                         <p class="text-2xl font-black text-red-500">$${(parseFloat(settle.total_gastos) || 0).toLocaleString()}</p>
                     </div>
                     <div class="bg-emerald-500/5 p-6 rounded-[2rem] border border-emerald-500/10 flex flex-col justify-center">
-                        <p class="text-[9px] font-black uppercase text-emerald-400/70 tracking-widest mb-1">Comisión Generada</p>
+                        <p class="text-[9px] font-black uppercase text-emerald-400/70 tracking-widest mb-1">ComisiÃ³n Generada</p>
                         <p class="text-2xl font-black text-emerald-500">$${(parseFloat(settle.monto_comision) || 0).toLocaleString()}</p>
                     </div>
                 </div>
@@ -729,7 +733,7 @@ async function showEnhancedSettlement(idLiquidacion) {
                                 ${trips && trips.length > 0 ? trips.map(t => `
                                     <tr class="hover:bg-white/[0.02] transition-colors">
                                         <td class="px-6 py-4 text-[11px] font-black text-slate-300">${t.id_viaje}</td>
-                                        <td class="px-6 py-4 text-[11px] font-bold text-slate-500 italic">${t.origen} — ${t.destino}</td>
+                                        <td class="px-6 py-4 text-[11px] font-bold text-slate-500 italic">${t.origen} â€” ${t.destino}</td>
                                         <td class="px-6 py-4 text-right font-black text-white text-xs">$${parseFloat(t.monto_flete).toLocaleString()}</td>
                                     </tr>
                                 `).join('') : '<tr><td colspan="3" class="px-6 py-10 text-center text-[10px] font-black uppercase text-slate-600">No hay viajes vinculados</td></tr>'}
@@ -751,7 +755,7 @@ function setupDateFilters() {
     if (!startInput || !endInput) return;
 
     const today = new Date();
-    // Default: Últimos 30 días
+    // Default: Ãšltimos 30 dÃ­as
     const lastMonth = new Date();
     lastMonth.setDate(today.getDate() - 30);
 
@@ -802,7 +806,7 @@ async function updateDashboardByPeriod() {
             if (!d) return null;
             if (d.includes('/')) {
                 const parts = d.split('/'); // DD/MM/YYYY o MM/DD/YYYY
-                // Detectar si es DD/MM o MM/DD (AppSheet suele usar MM/DD/YYYY o DD/MM/YYYY según el locale)
+                // Detectar si es DD/MM o MM/DD (AppSheet suele usar MM/DD/YYYY o DD/MM/YYYY segÃºn el locale)
                 if (parseInt(parts[0]) > 12) {
                     // DD/MM/YYYY -> YYYY-MM-DD
                     return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
@@ -839,11 +843,11 @@ async function updateDashboardByPeriod() {
         safeSetText('period-viajes-count', viajes.length);
         safeSetText('period-label', `Periodo: ${start} al ${end}`);
 
-        // Renderizar Tabla y Gráfico Principal
+        // Renderizar Tabla y GrÃ¡fico Principal
         renderPeriodTable(viajes, gastos);
         renderChart(viajes, gastos);
 
-        // Renderizar Gráficos Avanzados (si existen los containers)
+        // Renderizar GrÃ¡ficos Avanzados (si existen los containers)
         if (typeof renderAdvancedCharts === 'function') {
             renderAdvancedCharts(viajes, gastos, unidadesRaw);
         }
@@ -900,7 +904,7 @@ function renderChart(viajes, gastos) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    // Agrupar por fecha para la gráfica
+    // Agrupar por fecha para la grÃ¡fica
     const timeline = {};
     viajes.forEach(v => {
         timeline[v.fecha] = timeline[v.fecha] || { v: 0, g: 0 };
@@ -916,7 +920,7 @@ function renderChart(viajes, gastos) {
     const gData = labels.map(l => timeline[l].g);
 
     if (labels.length === 0) {
-        console.warn('Sin datos para la gráfica');
+        console.warn('Sin datos para la grÃ¡fica');
         if (mainChart) mainChart.destroy();
         return;
     }
@@ -984,7 +988,7 @@ async function fetchSupabaseData(tableName) {
     }
 }
 
-// --- GRÁFICOS AVANZADOS ---
+// --- GRÃFICOS AVANZADOS ---
 
 const chartInstances = {};
 
@@ -1307,7 +1311,7 @@ async function handleTripSubmit(e) {
         }
     } catch (err) {
         console.error('Error enviando viaje:', err);
-        alert('❌ ERROR AL GUARDAR VIAJE:\n' + err.message);
+        alert('âŒ ERROR AL GUARDAR VIAJE:\n' + err.message);
         btn.innerText = originalText;
     } finally {
         btn.disabled = false;
@@ -1326,9 +1330,9 @@ async function handleExpenseSubmit(e) {
     try {
         const tripID = getVal('ID_Viaje');
 
-        // REGLA DE NEGOCIO: Validación Diferenciada (Chofer vs Admin)
+        // REGLA DE NEGOCIO: ValidaciÃ³n Diferenciada (Chofer vs Admin)
         if (String(session.rol).toLowerCase() !== 'admin' && String(session.rol).toLowerCase() !== 'superadmin') {
-            // Lógica para CHOFERES
+            // LÃ³gica para CHOFERES
             if (!tripID) throw new Error('Es obligatorio indicar el ID de Viaje para registrar un gasto.');
 
             // Validar existencia y estatus En Proceso
@@ -1342,10 +1346,10 @@ async function handleExpenseSubmit(e) {
 
             // REGLA: Solo viajes en proceso
             if (tripCheck.estatus_viaje !== 'En Proceso') {
-                throw new Error(`El viaje ${tripID} no está en curso (Estatus: ${tripCheck.estatus_viaje}). No se pueden registrar gastos.`);
+                throw new Error(`El viaje ${tripID} no estÃ¡ en curso (Estatus: ${tripCheck.estatus_viaje}). No se pueden registrar gastos.`);
             }
         }
-        // Nota: Los admins pueden dejar tripID vacío para gastos generales.
+        // Nota: Los admins pueden dejar tripID vacÃ­o para gastos generales.
 
         const formaPago = document.getElementById('Exp_Forma_Pago')?.value || 'Contado';
 
@@ -1361,8 +1365,8 @@ async function handleExpenseSubmit(e) {
             kmts_actuales: parseFloat(getVal('Kmts_Actuales')) || 0,
             kmts_recorridos: parseFloat(getVal('Kmts_Recorridos')) || 0,
             forma_pago: formaPago,
-            es_deducible: getVal('Exp_Deducible') || 'Sí',
-            estatus_pago: 'Pendiente' // Regla de negocio: Todo nace/renace pendiente de revisión
+            es_deducible: getVal('Exp_Deducible') || 'SÃ­',
+            estatus_pago: 'Pendiente' // Regla de negocio: Todo nace/renace pendiente de revisiÃ³n
         };
 
         const acreedorVal = document.getElementById('Exp_Acreedor')?.value;
@@ -1436,7 +1440,7 @@ async function handleExpenseSubmit(e) {
     }
 }
 
-// --- FUNCIONES DE EDICIÓN Y ACCIONES RÁPIDAS ---
+// --- FUNCIONES DE EDICIÃ“N Y ACCIONES RÃPIDAS ---
 
 function registerExpenseFromTrip(tripId, unitId, driverId) {
     showSection('gastos');
@@ -1491,7 +1495,7 @@ function editTrip(id) {
 
 function editExpense(id) {
     // Buscar en la lista de gastos actual (dependiendo de la tab, puede ser allExpensesData o filtered)
-    // Usaremos allExpensesData si existe, o currentExpensesRaw si está definido globalmente
+    // Usaremos allExpensesData si existe, o currentExpensesRaw si estÃ¡ definido globalmente
     let expense = null;
     if (typeof allExpensesData !== 'undefined') expense = allExpensesData.find(g => g.id_gasto === id);
     // Fallback variable
@@ -1524,7 +1528,7 @@ function editExpense(id) {
     }
 
     if (document.getElementById('Exp_Deducible')) {
-        document.getElementById('Exp_Deducible').value = expense.es_deducible || 'Sí';
+        document.getElementById('Exp_Deducible').value = expense.es_deducible || 'SÃ­';
     }
 
     if (expense.acreedor_nombre && document.getElementById('Exp_Acreedor')) {
@@ -1536,7 +1540,7 @@ function editExpense(id) {
 }
 
 
-// --- INICIALIZACIÓN DE FORMULARIOS ---
+// --- INICIALIZACIÃ“N DE FORMULARIOS ---
 
 async function initFormCatalogs() {
     const selects = {
@@ -1556,8 +1560,8 @@ async function initFormCatalogs() {
             const data = await fetchSupabaseData(table);
             const activeData = data.filter(item => (item.estatus || 'Activo') === 'Activo');
 
-            // Texto por defecto vacío o "Selecciona"
-            el.innerHTML = `<option value="">-- Selecciona una opción --</option>`;
+            // Texto por defecto vacÃ­o o "Selecciona"
+            el.innerHTML = `<option value="">-- Selecciona una opciÃ³n --</option>`;
 
             activeData.forEach(item => {
                 let text = '';
@@ -1580,7 +1584,7 @@ async function initFormCatalogs() {
                 if (val) el.innerHTML += `<option value="${val}">${text}</option>`;
             });
         } catch (err) {
-            console.error(`Error cargando catálogo para ${id}:`, err);
+            console.error(`Error cargando catÃ¡logo para ${id}:`, err);
             el.innerHTML = `<option value="">Error al cargar datos</option>`;
         }
     }
@@ -1606,7 +1610,7 @@ async function initFormCatalogs() {
                 acreedorSelect.innerHTML += `<option value="${x.nombre_proveedor}">${x.nombre_proveedor} (Proveedor)</option>`;
             });
         } catch (err) {
-            console.error('Error cargando catálogo de acreedores:', err);
+            console.error('Error cargando catÃ¡logo de acreedores:', err);
         }
     }
 
@@ -1618,7 +1622,7 @@ function toggleAcreedorField() {
     const formaPago = document.getElementById('Exp_Forma_Pago')?.value;
     const container = document.getElementById('acreedor-container');
     if (container) {
-        if (formaPago === 'Crédito') {
+        if (formaPago === 'CrÃ©dito') {
             container.classList.remove('hidden');
         } else {
             container.classList.add('hidden');
@@ -1651,12 +1655,12 @@ function showSection(sectionId) {
     if (section) section.classList.remove('hidden');
     if (nav) nav.classList.add('active');
 
-    // Refrescar catálogos al entrar a secciones relevantes
+    // Refrescar catÃ¡logos al entrar a secciones relevantes
     if (['viajes', 'gastos', 'tesoreria', 'liquidaciones'].includes(sectionId)) {
         initFormCatalogs();
     }
 }
-// --- LÓGICA DE LISTADOS Y BÚSQUEDA ---
+// --- LÃ“GICA DE LISTADOS Y BÃšSQUEDA ---
 
 function toggleSectionView(section, view) {
     const listView = document.getElementById(`${section}-list-view`);
@@ -1818,7 +1822,7 @@ function renderCatalogTable(type, data, expenses = []) {
 
     const config = {
         'choferes': {
-            headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada', 'Rendimiento (Último / Promedio)'],
+            headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada', 'Rendimiento (Ãšltimo / Promedio)'],
             row: d => {
                 const metrics = calculateFuelMetrics(d.id_chofer, 'choferes', expenses);
                 return `<td class="px-6 py-4 font-black text-white text-xs tracking-tight">${d.id_chofer}</td>
@@ -1826,13 +1830,13 @@ function renderCatalogTable(type, data, expenses = []) {
                        <td class="px-6 py-4 text-slate-400 text-[11px] font-medium">${d.licencia || '-'}</td>
                        <td class="px-6 py-4 text-blue-400 font-black text-xs">${d.id_unidad || '<span class="text-slate-600 font-normal">Sin asignar</span>'}</td>
                        <td class="px-6 py-4">
-                           <div class="text-[10px] font-black text-amber-500">Últ: ${metrics.last}</div>
+                           <div class="text-[10px] font-black text-amber-500">Ãšlt: ${metrics.last}</div>
                            <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Prom: ${metrics.avg}</div>
                        </td>`;
             }
         },
         'unidades': {
-            headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado', 'Rendimiento (Último / Promedio)'],
+            headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado', 'Rendimiento (Ãšltimo / Promedio)'],
             row: d => {
                 const id = d.id_unidad; // Use ECO ID usually
                 const metrics = calculateFuelMetrics(id, 'unidades', expenses);
@@ -1841,19 +1845,19 @@ function renderCatalogTable(type, data, expenses = []) {
                        <td class="px-6 py-4 text-slate-400 text-[11px] font-medium">${d.placas || '-'}</td>
                        <td class="px-6 py-4 text-emerald-400 font-black text-xs">${d.id_chofer || '<span class="text-slate-600 font-normal">Sin asignar</span>'}</td>
                        <td class="px-6 py-4">
-                           <div class="text-[10px] font-black text-amber-500">Últ: ${metrics.last}</div>
+                           <div class="text-[10px] font-black text-amber-500">Ãšlt: ${metrics.last}</div>
                            <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Prom: ${metrics.avg}</div>
                        </td>`;
             }
         },
         'clientes': {
-            headers: ['Nombre', 'RFC/Razón Social', 'Contacto'],
+            headers: ['Nombre', 'RFC/RazÃ³n Social', 'Contacto'],
             row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.nombre_cliente}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700 text-xs">${d.rfc} / ${d.razon_social}</td>
                        <td class="px-6 py-4 text-slate-500 text-xs">${d.contacto_nombre} <br/> ${d.email}</td>`
         },
         'proveedores': {
-            headers: ['ID', 'Proveedor', 'Tipo', 'Teléfono'],
+            headers: ['ID', 'Proveedor', 'Tipo', 'TelÃ©fono'],
             row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_proveedor}</td>
                        <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre_proveedor}</td>
                        <td class="px-6 py-4 text-slate-500">${d.tipo_proveedor}</td>
@@ -1865,7 +1869,7 @@ function renderCatalogTable(type, data, expenses = []) {
     thead.innerHTML = `<tr>${c.headers.map(h => `<th class="px-6 py-4">${h}</th>`).join('')}<th class="px-6 py-4">Estatus</th><th class="px-6 py-4 text-right">Acciones</th></tr>`;
 
     if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${c.headers.length + 2}" class="px-6 py-12 text-center text-slate-400 italic">No hay registros aún</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${c.headers.length + 2}" class="px-6 py-12 text-center text-slate-400 italic">No hay registros aÃºn</td></tr>`;
         return;
     }
 
@@ -1878,7 +1882,7 @@ function renderCatalogTable(type, data, expenses = []) {
                 ${c.row(d)}
                 <td class="px-6 py-4">
                     <span class="text-[10px] font-bold ${(d.estatus || 'Activo') === 'Activo' ? 'text-green-500' : 'text-slate-400'} uppercase">
-                        ● ${d.estatus || 'Activo'}
+                        â— ${d.estatus || 'Activo'}
                     </span>
                 </td>
                 <td class="px-6 py-4 text-right space-x-2">
@@ -1892,7 +1896,7 @@ function renderCatalogTable(type, data, expenses = []) {
 }
 
 async function deleteItem(table, id, idCol) {
-    if (!confirm('¿Desea eliminar definitivamente este registro?')) return;
+    if (!confirm('Â¿Desea eliminar definitivamente este registro?')) return;
     try {
         const { error } = await window.supabaseClient.from(table).delete().eq(idCol, id);
         if (error) throw error;
@@ -1913,7 +1917,7 @@ function showCatalogForm() {
             { id: 'C_ID', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01' },
             { id: 'C_Nombre', label: 'Nombre Completo', type: 'text', placeholder: 'Nombre Apellido' },
             { id: 'C_Licencia', label: 'Num. Licencia', type: 'text', placeholder: 'LIC-000' },
-            { id: 'C_Telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
+            { id: 'C_Telefono', label: 'TelÃ©fono', type: 'tel', placeholder: '55 0000 0000' },
             { id: 'C_Unidad', label: 'Unidad Asignada (ID ECO)', type: 'text', placeholder: 'ECO-01' }
         ],
         'unidades': [
@@ -1927,17 +1931,17 @@ function showCatalogForm() {
         'clientes': [
             { id: 'CL_ID', label: 'ID Cliente (Opcional)', type: 'text', placeholder: 'CLI-01' },
             { id: 'CL_Nombre', label: 'Nombre Comercial', type: 'text', placeholder: 'Empresa S.A.' },
-            { id: 'CL_Razon', label: 'Razón Social', type: 'text', placeholder: 'Logística Total S.A. de C.V.' },
+            { id: 'CL_Razon', label: 'RazÃ³n Social', type: 'text', placeholder: 'LogÃ­stica Total S.A. de C.V.' },
             { id: 'CL_RFC', label: 'RFC', type: 'text', placeholder: 'RFC000000AAA' },
-            { id: 'CL_Contacto', label: 'Nombre de Contacto', type: 'text', placeholder: 'Juan Pérez' },
+            { id: 'CL_Contacto', label: 'Nombre de Contacto', type: 'text', placeholder: 'Juan PÃ©rez' },
             { id: 'CL_Email', label: 'Email', type: 'email', placeholder: 'contacto@empresa.com' },
-            { id: 'CL_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+            { id: 'CL_Tel', label: 'TelÃ©fono', type: 'tel', placeholder: '55 0000 0000' }
         ],
         'proveedores': [
             { id: 'P_ID', label: 'ID Proveedor', type: 'text', placeholder: 'PROV-01' },
-            { id: 'P_Nombre', label: 'Nombre/Razón Social', type: 'text', placeholder: 'Gasolinera Plus' },
+            { id: 'P_Nombre', label: 'Nombre/RazÃ³n Social', type: 'text', placeholder: 'Gasolinera Plus' },
             { id: 'P_Tipo', label: 'Tipo Proveedor', type: 'text', placeholder: 'Diesel / Refacciones' },
-            { id: 'P_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+            { id: 'P_Tel', label: 'TelÃ©fono', type: 'tel', placeholder: '55 0000 0000' }
         ]
     };
 
@@ -1955,7 +1959,7 @@ function hideCatalogForm() {
     document.getElementById('catalog-form-view').classList.add('hidden');
 }
 
-// Inicializar envío del formulario de catálogo
+// Inicializar envÃ­o del formulario de catÃ¡logo
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('catalog-form');
     if (form) form.addEventListener('submit', async (e) => {
@@ -2001,12 +2005,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const { error } = await window.supabaseClient.from(table).insert([data]);
             if (error) throw error;
 
-            alert('✅ Registro guardado correctamente');
+            alert('âœ… Registro guardado correctamente');
             hideCatalogForm();
             loadCatalog(currentCatalog);
         } catch (err) {
-            console.error('Error al guardar catálogo:', err);
-            alert('❌ Error al guardar: ' + err.message);
+            console.error('Error al guardar catÃ¡logo:', err);
+            alert('âŒ Error al guardar: ' + err.message);
         } finally {
             btn.disabled = false;
             btn.innerText = originalText;
@@ -2096,7 +2100,7 @@ function renderExpensesTable(data) {
                 <td class="px-6 py-4">
                     <div class="flex flex-col gap-1">
                         <span class="text-[10px] font-bold ${g.estatus_pago === 'Pagado' ? 'text-green-500' : 'text-amber-500'} uppercase">
-                            ● Pago: ${g.estatus_pago || 'Pendiente'}
+                            â— Pago: ${g.estatus_pago || 'Pendiente'}
                         </span>
                         ${g.acreedor_nombre ? `<span class="text-[8px] font-bold text-slate-500 uppercase">Acreedor: ${g.acreedor_nombre}</span>` : ''}
                         <span class="text-[8px] font-black px-1.5 py-0.5 rounded ${aprobClass} w-fit uppercase">
@@ -2123,7 +2127,7 @@ function renderExpensesTable(data) {
 }
 
 async function approveExpense(id) {
-    if (!confirm('¿Aprobar este gasto?')) return;
+    if (!confirm('Â¿Aprobar este gasto?')) return;
     try {
         const { error } = await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_aprobacion: 'Aprobado' }).eq('id_gasto', id);
         if (error) throw error;
@@ -2153,9 +2157,9 @@ function filterExpenses(query) {
     renderExpensesTable(filtered);
 }
 
-// --- TESORERÍA LOGIC ---
+// --- TESORERÃA LOGIC ---
 
-// --- TESORERÍA LOGIC (3-TAB REFACTOR) ---
+// --- TESORERÃA LOGIC (3-TAB REFACTOR) ---
 
 let currentTreasuryTab = 'favor';
 
@@ -2184,7 +2188,7 @@ function renderTreasuryHeader(tab) {
             <th class="px-6 py-4">Cliente / Viaje</th>
             <th class="px-6 py-4">Monto Flete</th>
             <th class="px-6 py-4">Estatus Pago</th>
-            <th class="px-6 py-4">Acción</th>
+            <th class="px-6 py-4">AcciÃ³n</th>
         </tr>`;
     } else {
         html = `<tr>
@@ -2192,7 +2196,7 @@ function renderTreasuryHeader(tab) {
             <th class="px-6 py-4">Actor / Concepto</th>
             <th class="px-6 py-4">Monto</th>
             <th class="px-6 py-4">Estatus</th>
-            <th class="px-6 py-4">Acción</th>
+            <th class="px-6 py-4">AcciÃ³n</th>
         </tr>`;
     }
     thead.innerHTML = html;
@@ -2206,8 +2210,8 @@ async function loadTreasuryList() {
     let data = [];
     if (currentTreasuryTab === 'viajes') {
         data = await fetchSupabaseData(DB_CONFIG.tableViajes);
-        // Filtrar solo los que NO están pagados si queremos ver pendientes, 
-        // pero el usuario pidió "viajes por cobrar", usualmente incluye pagados recientes o todos.
+        // Filtrar solo los que NO estÃ¡n pagados si queremos ver pendientes, 
+        // pero el usuario pidiÃ³ "viajes por cobrar", usualmente incluye pagados recientes o todos.
         // Mostraremos todos los que no tengan estatus_pago = 'Pagado' por defecto.
     } else {
         const type = currentTreasuryTab === 'favor' ? 'A Favor' : 'En Contra';
@@ -2234,7 +2238,7 @@ async function loadTreasuryList() {
                     <td class="px-6 py-4 font-bold text-slate-800">$${(parseFloat(item.monto_flete) || 0).toLocaleString()}</td>
                     <td class="px-6 py-4">
                         <span class="text-[10px] font-bold ${isPaid ? 'text-green-500' : 'text-amber-500'}">
-                            ● ${item.estatus_pago || 'Pendiente'}
+                            â— ${item.estatus_pago || 'Pendiente'}
                         </span>
                     </td>
                     <td class="px-6 py-4">
@@ -2263,14 +2267,14 @@ async function loadTreasuryList() {
                     <td class="px-6 py-4 font-bold text-slate-800">$${monto.toLocaleString()}</td>
                     <td class="px-6 py-4">
                         <span class="text-[10px] font-bold ${item.estatus === 'Liquidado' ? 'text-green-500' : 'text-amber-500'}">
-                            ● ${item.estatus}
+                            â— ${item.estatus}
                         </span>
                     </td>
                     <td class="px-6 py-4">
                         ${item.estatus !== 'Liquidado' ? `<button onclick="markAccountLiquidated('${item.id_cuenta}')" class="text-xs text-green-500 hover:underline">Liquidar</button>` : '<span class="text-slate-300">-</span>'}
                     </td>
                     <td class="px-6 py-4 text-right space-x-2">
-                         ${item.id_cuenta.startsWith('ACC-') ? `<button onclick="editAccount('${item.id_cuenta}')" title="Editar Cuenta" class="text-blue-400 hover:text-blue-600 p-1"><i class="fas fa-edit"></i></button>` : '<span title="Generado Automáticamente" class="text-slate-200 cursor-not-allowed mx-1"><i class="fas fa-edit"></i></span>'}
+                         ${item.id_cuenta.startsWith('ACC-') ? `<button onclick="editAccount('${item.id_cuenta}')" title="Editar Cuenta" class="text-blue-400 hover:text-blue-600 p-1"><i class="fas fa-edit"></i></button>` : '<span title="Generado AutomÃ¡ticamente" class="text-slate-200 cursor-not-allowed mx-1"><i class="fas fa-edit"></i></span>'}
                         <button onclick="deleteItem('${DB_CONFIG.tableCuentas}', '${item.id_cuenta}', 'id_cuenta')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
                     </td>
                 </tr>
@@ -2282,7 +2286,7 @@ async function loadTreasuryList() {
     updateTreasurySummary();
 }
 
-// Variables globales para edición de cuenta
+// Variables globales para ediciÃ³n de cuenta
 let isEditingAccount = false;
 let editingAccountId = null;
 
@@ -2306,7 +2310,7 @@ async function editAccount(id) {
     // Llenar formulario
     document.getElementById('acc-tipo').value = account.tipo;
     // Manejo de actor manual vs select
-    // Simplificación: Asumimos 'otro' para editar nombres libres, o intentamos match
+    // SimplificaciÃ³n: Asumimos 'otro' para editar nombres libres, o intentamos match
     document.getElementById('acc-actor-type').value = 'otro';
     await loadActorOptions();
     document.getElementById('acc-actor-manual').value = account.actor_nombre;
@@ -2318,13 +2322,13 @@ async function editAccount(id) {
     document.getElementById('acc-id-viaje-cta').value = account.id_viaje || '';
     document.getElementById('acc-no-interno-cta').value = account.no_interno || '';
 
-    // Cambiar texto botón
+    // Cambiar texto botÃ³n
     const btn = document.querySelector('#account-form button[type="submit"]');
     if (btn) btn.innerText = 'Actualizar Cuenta';
 }
 
 async function updateTreasurySummary() {
-    // Calcular totales globales independientemente de la pestaña
+    // Calcular totales globales independientemente de la pestaÃ±a
     try {
         // 1. Cuentas (Todas)
         const allAccounts = await fetchSupabaseData(DB_CONFIG.tableCuentas);
@@ -2341,7 +2345,7 @@ async function updateTreasurySummary() {
         });
 
         // 2. Viajes por Cobrar (Todos los NO pagados)
-        // Podríamos usar allTripsData si ya se cargó, o hacer fetch
+        // PodrÃ­amos usar allTripsData si ya se cargÃ³, o hacer fetch
         const allTrips = await fetchSupabaseData(DB_CONFIG.tableViajes);
         let totalViajes = 0;
         allTrips.forEach(t => {
@@ -2360,11 +2364,11 @@ async function updateTreasurySummary() {
         if (elViajes) elViajes.innerText = `$${totalViajes.toLocaleString(undefined, { minimumFractionDigits: 2 })} `;
 
     } catch (err) {
-        console.error('Error actualizando resumen tesorería:', err);
+        console.error('Error actualizando resumen tesorerÃ­a:', err);
     }
 }
 // This line was incorrectly placed in the original instruction, it should not be here.
-// The `|| '<tr><td colspan="6" class="p-10 text-center text-slate-400">No hay registros en esta categoría</td></tr>'`
+// The `|| '<tr><td colspan="6" class="p-10 text-center text-slate-400">No hay registros en esta categorÃ­a</td></tr>'`
 // belongs to the `tbody.innerHTML = ...` assignment.
 // The correct placement is already handled by the `join('')` part.
 
@@ -2375,7 +2379,7 @@ async function updateTreasurySummary() {
 // These lines are now correctly placed after the `updateTreasurySummary()` call within `loadTreasuryList`.
 
 async function markTripAsPaid(id_viaje) {
-    if (!confirm('¿Marcar este viaje como PAGADO por el cliente?')) return;
+    if (!confirm('Â¿Marcar este viaje como PAGADO por el cliente?')) return;
     const { error } = await window.supabaseClient
         .from(DB_CONFIG.tableViajes)
         .update({ estatus_pago: 'Pagado' })
@@ -2445,7 +2449,7 @@ function prepareAdvance(viajeId, choferId) {
         if (actorManual) {
             actorManual.value = choferId;
             document.getElementById('acc-actor-type').value = 'otro';
-            loadActorOptions(); // Forzar actualización de UI si es necesario
+            loadActorOptions(); // Forzar actualizaciÃ³n de UI si es necesario
         }
     }
 
@@ -2512,7 +2516,7 @@ async function enviarCuenta(e) {
 
         if (error) throw error;
 
-        alert(isEditingAccount ? '✅ Cuenta actualizada.' : '✅ Cuenta registrada con éxito.');
+        alert(isEditingAccount ? 'âœ… Cuenta actualizada.' : 'âœ… Cuenta registrada con Ã©xito.');
         e.target.reset();
 
         // Reset state
@@ -2524,7 +2528,7 @@ async function enviarCuenta(e) {
         hideAccountForm();
         loadTreasuryList();
     } catch (err) {
-        alert('❌ Error: ' + err.message);
+        alert('âŒ Error: ' + err.message);
     } finally {
         btn.disabled = false;
         btn.innerText = original;
@@ -2532,9 +2536,9 @@ async function enviarCuenta(e) {
 }
 
 async function markAccountLiquidated(id) {
-    if (!confirm('¿Desea marcar esta cuenta como liquidada?')) return;
+    if (!confirm('Â¿Desea marcar esta cuenta como liquidada?')) return;
 
-    // 1. Obtener datos de la cuenta para ver si está ligada a un gasto
+    // 1. Obtener datos de la cuenta para ver si estÃ¡ ligada a un gasto
     const { data: account } = await window.supabaseClient
         .from(DB_CONFIG.tableCuentas)
         .select('*')
@@ -2549,7 +2553,7 @@ async function markAccountLiquidated(id) {
     if (error) {
         alert('Error: ' + error.message);
     } else {
-        // 2. Si la cuenta era un gasto a crédito, marcar el gasto como pagado
+        // 2. Si la cuenta era un gasto a crÃ©dito, marcar el gasto como pagado
         if (account && account.id_gasto_ref) {
             await window.supabaseClient
                 .from(DB_CONFIG.tableGastos)
@@ -2581,7 +2585,7 @@ async function crearGastoComisionAutomatica({ id_viaje, monto, id_chofer, id_uni
         id_viaje: id_viaje,
         id_unidad: id_unidad,
         id_chofer: id_chofer,
-        concepto: 'Comisión Chofer',
+        concepto: 'ComisiÃ³n Chofer',
         monto: monto,
         forma_pago: 'Contado',
         estatus_pago: 'Pagado',
@@ -2639,7 +2643,7 @@ async function loadDriverSettlementDetail(id_chofer) {
     currentDebts = accounts.data || [];
 
     // Llenar UI
-    document.getElementById('set-trip-id').innerText = `LIQUIDACIÓN: ${id_chofer}`;
+    document.getElementById('set-trip-id').innerText = `LIQUIDACIÃ“N: ${id_chofer}`;
     document.getElementById('set-trip-info').innerText = `Consolidado de ${pendingTripsForDriver.length} viajes pendientes.`;
 
     let sumFletes = 0;
@@ -2655,10 +2659,10 @@ async function loadDriverSettlementDetail(id_chofer) {
     const expList = document.getElementById('set-expenses-list');
     let sumExp = 0;
 
-    // Filtramos SOLO los gastos de Contado/Efectivo QUE SEAN DEDUCIBLES ('Sí')
+    // Filtramos SOLO los gastos de Contado/Efectivo QUE SEAN DEDUCIBLES ('SÃ­')
     const reimbursableExpenses = currentExpenses.filter(g =>
         ['Contado', 'Efectivo'].includes(g.forma_pago) &&
-        String(g.es_deducible || 'Sí').trim() === 'Sí'
+        String(g.es_deducible || 'SÃ­').trim() === 'SÃ­'
     );
 
     expList.innerHTML = reimbursableExpenses.map(g => {
@@ -2705,7 +2709,7 @@ async function loadDriverSettlementDetail(id_chofer) {
     const approvedExpenses = currentExpenses.filter(g =>
         (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
         ['Contado', 'Efectivo'].includes(g.forma_pago) &&
-        String(g.es_deducible || 'Sí').trim() === 'Sí'
+        String(g.es_deducible || 'SÃ­').trim() === 'SÃ­'
     );
     const sumApprovedExp = approvedExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
     const neto = sumComisionesBrutas + sumApprovedExp - sumDebtNeto;
@@ -2727,7 +2731,7 @@ function showSettlementFullDetail() {
     const title = document.getElementById('modal-title');
 
     modal.classList.remove('hidden');
-    title.innerText = 'Detalle Completo de Liquidación';
+    title.innerText = 'Detalle Completo de LiquidaciÃ³n';
 
     // Generar tabla de Viajes
     const tripsHtml = pendingTripsForDriver.map(t => `
@@ -2743,7 +2747,7 @@ function showSettlementFullDetail() {
     // Generar tabla de Gastos (Aprobados)
     const activeExpenses = currentExpenses.filter(g =>
         g.forma_pago === 'Contado' &&
-        String(g.es_deducible || 'Sí').trim() === 'Sí'
+        String(g.es_deducible || 'SÃ­').trim() === 'SÃ­'
     );
     const expensesHtml = activeExpenses.map(g => `
         <tr class="border-b border-slate-100 text-xs text-slate-600">
@@ -2767,18 +2771,18 @@ function showSettlementFullDetail() {
 
     content.innerHTML = `
         <div class="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
-            <!-- Sección Viajes -->
+            <!-- SecciÃ³n Viajes -->
             <div>
-                <h4 class="font-bold text-blue-600 uppercase text-xs mb-2 border-b border-blue-100 pb-1">1. Viajes a Liquidar (Comisión 15%)</h4>
+                <h4 class="font-bold text-blue-600 uppercase text-xs mb-2 border-b border-blue-100 pb-1">1. Viajes a Liquidar (ComisiÃ³n 15%)</h4>
                 <table class="w-full text-left">
                     <thead class="bg-blue-50 text-[10px] uppercase font-bold text-blue-400">
-                        <tr><th class="p-2">ID</th><th class="p-2">Ruta</th><th class="p-2 text-right">Flete</th><th class="p-2 text-right">Comisión</th></tr>
+                        <tr><th class="p-2">ID</th><th class="p-2">Ruta</th><th class="p-2 text-right">Flete</th><th class="p-2 text-right">ComisiÃ³n</th></tr>
                     </thead>
                     <tbody>${tripsHtml}</tbody>
                 </table>
             </div>
 
-            <!-- Sección Gastos -->
+            <!-- SecciÃ³n Gastos -->
             <div>
                 <h4 class="font-bold text-slate-600 uppercase text-xs mb-2 border-b border-slate-100 pb-1">2. Reembolsos (Gastos Contado)</h4>
                 <table class="w-full text-left">
@@ -2789,7 +2793,7 @@ function showSettlementFullDetail() {
                 </table>
             </div>
 
-            <!-- Sección Deudas -->
+            <!-- SecciÃ³n Deudas -->
             <div>
                 <h4 class="font-bold text-amber-600 uppercase text-xs mb-2 border-b border-amber-100 pb-1">3. Descuentos (Adelantos/Deudas)</h4>
                 <table class="w-full text-left">
@@ -2812,19 +2816,19 @@ async function finalizeSettlement() {
     // Check for unapproved expenses
     const unapproved = currentExpenses.filter(g => (g.estatus_aprobacion || 'Pendiente') === 'Pendiente');
     if (unapproved.length > 0) {
-        alert('❌ No se puede finalizar la liquidación: Hay ' + unapproved.length + ' gastos pendientes de aprobación.');
+        alert('âŒ No se puede finalizar la liquidaciÃ³n: Hay ' + unapproved.length + ' gastos pendientes de aprobaciÃ³n.');
         return;
     }
 
     const settleData = calculateCurrentSettlement();
     if (!settleData || settleData.monto_neto <= 0) {
-        if (!confirm('La liquidación es de $0.00 o menor. ¿Desea continuar de todos modos?')) return;
+        if (!confirm('La liquidaciÃ³n es de $0.00 o menor. Â¿Desea continuar de todos modos?')) return;
     }
 
-    if (!confirm(`¿Desea cerrar la liquidación para ${selectedDriverForSettlement} ?\nTotal Neto: $${settleData.monto_neto.toLocaleString()}`)) return;
+    if (!confirm(`Â¿Desea cerrar la liquidaciÃ³n para ${selectedDriverForSettlement} ?\nTotal Neto: $${settleData.monto_neto.toLocaleString()}`)) return;
 
     try {
-        // 1. Guardar Maestro de Liquidación
+        // 1. Guardar Maestro de LiquidaciÃ³n
         const { error: lErr } = await window.supabaseClient.from(DB_CONFIG.tableLiquidaciones).insert([{
             id_chofer: selectedDriverForSettlement,
             fecha_inicio: pendingTripsForDriver.length > 0 ? pendingTripsForDriver[0].fecha : new Date().toISOString().split('T')[0],
@@ -2847,7 +2851,7 @@ async function finalizeSettlement() {
             const ids = pendingTripsForDriver.map(t => t.id_viaje);
             await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_viaje: 'Liquidado', estatus_pago: 'Pagado' }).in('id_viaje', ids);
 
-            // Generar gastos de comisión por cada viaje
+            // Generar gastos de comisiÃ³n por cada viaje
             for (const t of pendingTripsForDriver) {
                 await crearGastoComisionAutomatica({
                     id_viaje: t.id_viaje,
@@ -2860,12 +2864,12 @@ async function finalizeSettlement() {
 
         // 4. Marcar gastos como pagados
         // 4. Marcar gastos como pagados (SOLO LOS REEMBOLSABLES: Contado o Efectivo)
-        // OJO: Si pagamos todo lo 'Aprobado', podríamos pagar créditos por error si no filtramos.
-        // La lógica visual solo muestra Contado/Efectivo, así que solo debemos liquidar esos.
+        // OJO: Si pagamos todo lo 'Aprobado', podrÃ­amos pagar crÃ©ditos por error si no filtramos.
+        // La lÃ³gica visual solo muestra Contado/Efectivo, asÃ­ que solo debemos liquidar esos.
         const approvedExpenses = currentExpenses.filter(g =>
             (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
             ['Contado', 'Efectivo'].includes(g.forma_pago) &&
-            String(g.es_deducible || 'Sí').trim() === 'Sí'
+            String(g.es_deducible || 'SÃ­').trim() === 'SÃ­'
         );
 
         if (approvedExpenses.length > 0) {
@@ -2873,7 +2877,7 @@ async function finalizeSettlement() {
             await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_pago: 'Pagado' }).in('id_gasto', ids);
         }
 
-        alert('✅ Liquidación consolidada guardada y cuentas cerradas.');
+        alert('âœ… LiquidaciÃ³n consolidada guardada y cuentas cerradas.');
         loadSettlementTrips();
         document.getElementById('settlement-detail').classList.add('hidden');
         document.getElementById('settlement-empty').classList.remove('hidden');
@@ -2887,11 +2891,11 @@ function calculateCurrentSettlement() {
     const approvedReimbursable = currentExpenses.filter(g =>
         (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
         ['Contado', 'Efectivo'].includes(g.forma_pago) &&
-        String(g.es_deducible || 'Sí').trim() === 'Sí'
+        String(g.es_deducible || 'SÃ­').trim() === 'SÃ­'
     );
     const totalGastosAprobados = approvedReimbursable.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
 
-    // totalDebts = Solo A Favor (Se recuperan de la liquidación)
+    // totalDebts = Solo A Favor (Se recuperan de la liquidaciÃ³n)
     const totalDebts = currentDebts.reduce((sum, d) => {
         return d.tipo === 'A Favor' ? sum + (parseFloat(d.monto) || 0) : sum;
     }, 0);
@@ -2907,7 +2911,7 @@ function calculateCurrentSettlement() {
     };
 }
 
-// Inicializar vista de tesorería al cargar
+// Inicializar vista de tesorerÃ­a al cargar
 switchTreasuryTab('favor');
 
 // --- FUNCIONES EXTRA (Inline Edit Helpers) ---
@@ -2918,7 +2922,7 @@ async function editCatalogInline(type, id) {
     const row = document.getElementById(`row-${type}-${id}`);
     if (!row) return;
 
-    // Obtener datos actuales del servidor o una caché si existiera
+    // Obtener datos actuales del servidor o una cachÃ© si existiera
     const table = DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)];
     const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
 
@@ -2928,32 +2932,32 @@ async function editCatalogInline(type, id) {
     let editHtml = '';
     if (type === 'choferes') {
         editHtml = `
-            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_chofer}" class="w-20 p-1 border rounded" readonly></td>
-            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre}" class="w-full p-1 border rounded"></td>
-            <td class="px-6 py-4"><input type="text" id="edit-licencia-${id}" value="${item.licencia || ''}" class="w-full p-1 border rounded"></td>
-            <td class="px-6 py-4"><input type="text" id="edit-unidad-${id}" value="${item.id_unidad || ''}" class="w-full p-1 border rounded"></td>
-            <td class="px-6 py-4 text-slate-400 text-xs">No editable aquí</td>
+            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_chofer}" class="w-24 p-1 border rounded bg-slate-50 text-slate-900 font-bold focus:ring-2 focus:ring-blue-500"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre}" class="w-full p-1 border rounded bg-white text-slate-800 font-bold focus:ring-2 focus:ring-blue-500"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-licencia-${id}" value="${item.licencia || ''}" class="w-full p-1 border rounded text-slate-800 bg-white"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-unidad-${id}" value="${item.id_unidad || ''}" class="w-full p-1 border rounded text-slate-800 bg-white"></td>
+            <td class="px-6 py-4 text-slate-400 text-[10px] uppercase font-bold tracking-tight">Cálculo Auto</td>
         `;
     } else if (type === 'unidades') {
         editHtml = `
-            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_unidad}" class="w-20 p-1 border rounded" readonly></td>
-            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_unidad}" class="w-full p-1 border rounded"></td>
-            <td class="px-6 py-4"><input type="text" id="edit-placas-${id}" value="${item.placas || ''}" class="w-full p-1 border rounded"></td>
-            <td class="px-6 py-4"><input type="text" id="edit-chofer-${id}" value="${item.id_chofer || ''}" class="w-full p-1 border rounded"></td>
-           <td class="px-6 py-4 text-slate-400 text-xs">No editable aquí</td>
+            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_unidad}" class="w-24 p-1 border rounded bg-slate-50 text-slate-900 font-bold"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_unidad || ''}" class="w-full p-1 border rounded bg-white"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-placas-${id}" value="${item.placas || ''}" class="w-full p-1 border rounded bg-white"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-chofer-${id}" value="${item.id_chofer || ''}" class="w-full p-1 border rounded bg-white"></td>
+           <td class="px-6 py-4 text-slate-400 text-[10px] uppercase font-bold tracking-tight">Cálculo Auto</td>
         `;
     } else if (type === 'clientes') {
         editHtml = `
-            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_cliente}" class="w-full p-1 border rounded" readonly></td>
-            <td class="px-6 py-4"><input type="text" id="edit-rfc-${id}" value="${item.rfc || ''}" class="w-24 p-1 border rounded"></td>
-            <td class="px-6 py-4"><input type="text" id="edit-contacto-${id}" value="${item.contacto_nombre || ''}" class="w-full p-1 border rounded"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_cliente}" class="w-full p-1 border rounded bg-slate-50 text-slate-900 font-bold"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-rfc-${id}" value="${item.rfc || ''}" class="w-24 p-1 border rounded bg-white"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-contacto-${id}" value="${item.contacto_nombre || ''}" class="w-full p-1 border rounded bg-white"></td>
         `;
     } else if (type === 'proveedores') {
         editHtml = `
-            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_proveedor}" class="w-20 p-1 border rounded" readonly></td>
-            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_proveedor}" class="w-full p-1 border rounded"></td>
-            <td class="px-6 py-4"><input type="text" id="edit-tipo-${id}" value="${item.tipo_proveedor || ''}" class="w-full p-1 border rounded"></td>
-            <td class="px-6 py-4"><input type="text" id="edit-tel-${id}" value="${item.telefono || ''}" class="w-full p-1 border rounded"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_proveedor}" class="w-24 p-1 border rounded bg-slate-50 text-slate-900 font-bold"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_proveedor}" class="w-full p-1 border rounded bg-white"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-tipo-${id}" value="${item.tipo_proveedor || ''}" class="w-full p-1 border rounded bg-white"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-tel-${id}" value="${item.telefono || ''}" class="w-full p-1 border rounded bg-white"></td>
         `;
     }
 
@@ -2982,17 +2986,21 @@ async function saveCatalogInline(type, id) {
     };
 
     if (type === 'choferes') {
+        updateData.id_chofer = document.getElementById(`edit-id-${id}`).value;
         updateData.nombre = document.getElementById(`edit-nombre-${id}`).value;
         updateData.licencia = document.getElementById(`edit-licencia-${id}`).value;
         updateData.id_unidad = document.getElementById(`edit-unidad-${id}`).value;
     } else if (type === 'unidades') {
+        updateData.id_unidad = document.getElementById(`edit-id-${id}`).value;
         updateData.nombre_unidad = document.getElementById(`edit-nombre-${id}`).value;
         updateData.placas = document.getElementById(`edit-placas-${id}`).value;
         updateData.id_chofer = document.getElementById(`edit-chofer-${id}`).value;
     } else if (type === 'clientes') {
+        updateData.nombre_cliente = document.getElementById(`edit-nombre-${id}`).value;
         updateData.rfc = document.getElementById(`edit-rfc-${id}`).value;
         updateData.contacto_nombre = document.getElementById(`edit-contacto-${id}`).value;
     } else if (type === 'proveedores') {
+        updateData.id_proveedor = document.getElementById(`edit-id-${id}`).value;
         updateData.nombre_proveedor = document.getElementById(`edit-nombre-${id}`).value;
         updateData.tipo_proveedor = document.getElementById(`edit-tipo-${id}`).value;
         updateData.telefono = document.getElementById(`edit-tel-${id}`).value;
@@ -3001,7 +3009,7 @@ async function saveCatalogInline(type, id) {
     try {
         const { error } = await window.supabaseClient.from(table).update(updateData).eq(idCol, id);
         if (error) throw error;
-        alert('Cambios guardados con éxito.');
+        alert('Cambios guardados con Ã©xito.');
         location.reload();
     } catch (err) {
         alert('Error al guardar: ' + err.message);
@@ -3030,3 +3038,44 @@ async function rejectSettlementExpense(id, id_chofer) {
         loadExpensesList(); // Update background list too
     } catch (err) { alert('Error: ' + err.message); }
 }
+
+
+// --- DRIVER FORM HELPER ---
+async function populateDriverFormOptions() {
+    const unitSelect = document.getElementById('ID_Unidad');
+    const driverSelect = document.getElementById('ID_Chofer');
+
+    if (!unitSelect && !driverSelect) return;
+
+    try {
+        // Fetch Data: Units and Drivers
+        const [units, drivers] = await Promise.all([
+            fetchSupabaseData(DB_CONFIG.tableUnidades),
+            fetchSupabaseData(DB_CONFIG.tableChoferes)
+        ]);
+
+        // Populate Units
+        if (unitSelect) {
+            const activeUnits = units.filter(u => (u.estatus || 'Activo') === 'Activo');
+            unitSelect.innerHTML = '<option value="" class="bg-slate-900">Selecciona Unidad</option>' +
+                activeUnits.map(u => `<option value="${u.id_unidad}" class="bg-slate-900">${u.id_unidad} - ${u.nombre_unidad} (${u.placas || 'S/P'})</option>`).join('');
+        }
+
+        // Populate Drivers
+        if (driverSelect) {
+            const activeDrivers = drivers.filter(d => (d.estatus || 'Activo') === 'Activo');
+            driverSelect.innerHTML = '<option value="" class="bg-slate-900">Selecciona Chofer</option>' +
+                activeDrivers.map(d => `<option value="${d.id_chofer}" class="bg-slate-900">${d.nombre}</option>`).join('');
+
+            // Auto-select current driver if session exists
+            const session = checkAuth();
+            if (session && session.id_chofer) {
+                driverSelect.value = session.id_chofer;
+            }
+        }
+
+    } catch (err) {
+        console.error('Error populating driver form options:', err);
+    }
+}
+

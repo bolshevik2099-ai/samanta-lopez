@@ -130,9 +130,20 @@
                     <div>
                         <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Eco /
                             Placas</label>
-                        <input type="text" id="ID_Unidad" required
-                            class="w-full px-4 py-3 rounded-xl input-dark outline-none" placeholder="ECO-01">
+                        <select id="ID_Unidad" required
+                            class="w-full px-4 py-3 rounded-xl input-dark outline-none cursor-pointer">
+                            <option value="" class="bg-slate-900">Cargando...</option>
+                        </select>
                     </div>
+                </div>
+
+                <!-- ID Chofer (Nuevo) -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Chofer</label>
+                    <select id="ID_Chofer" required
+                        class="w-full px-4 py-3 rounded-xl input-dark outline-none cursor-pointer">
+                        <option value="" class="bg-slate-900">Cargando...</option>
+                    </select>
                 </div>
 
                 <!-- Concepto -->
@@ -288,10 +299,10 @@
         Registro enviado con éxito.
     </div>
 
-    <script src="./js/config.js?v=11.9"></script>
+    <script src="./js/config.js?v=11.10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=11.9"></script>
-    <script src="./js/main.js?v=11.9"></script>
+    <script src="./js/supabase-client.js?v=11.10"></script>
+    <script src="./js/main.js?v=11.10"></script>
     <script>
         // Set Date to Local Today
         const today = new Date();
