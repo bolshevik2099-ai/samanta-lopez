@@ -1,9 +1,12 @@
-/**
- * Procesa-T - Asistente Virtual (IA)
- * Conexión con Supabase Edge Function (Gemini)
- */
+const VENTAS_URL = `${SUPABASE_CONFIG.url}/functions/v1/webhook-ventas`;
+const ADMIN_URL = `${SUPABASE_CONFIG.url}/functions/v1/webhook-admin`;
 
-const GEMINI_CHAT_URL = `${SUPABASE_CONFIG.url}/functions/v1/gemini-chat-lite`;
+// ID de sesión para persistencia de memoria
+let sessionId = localStorage.getItem('chat_session_id');
+if (!sessionId) {
+    sessionId = 'sess-' + Math.random().toString(36).substring(2, 9);
+    localStorage.setItem('chat_session_id', sessionId);
+}
 
 function initChat() {
     const chatBtn = document.getElementById('chat-toggle');
@@ -28,55 +31,45 @@ function initChat() {
         e.preventDefault();
         const input = document.getElementById('chat-input');
         const message = input.value.trim();
-
         if (!message) return;
 
-        // Obtener sesión para el ID de usuario
-        const session = typeof checkAuth === 'function' ? checkAuth() : null;
-        const userId = session ? session.userID : null;
-
-        // Añadir mensaje del usuario
         appendMessage('user', message);
         input.value = '';
 
-        // Indicador de escritura
         const typingId = appendMessage('bot', '<i class="fas fa-circle-notch fa-spin text-slate-400"></i>', true);
 
         try {
-            console.log('Enviando mensaje a Gemini via Supabase:', GEMINI_CHAT_URL);
-            const response = await fetch(GEMINI_CHAT_URL, {
+            const session = typeof checkAuth === 'function' ? checkAuth() : null;
+            const isAdmin = session && (session.rol === 'admin' || session.rol === 'superadmin');
+            const targetUrl = isAdmin ? ADMIN_URL : VENTAS_URL;
+            const userId = session ? session.userID : null;
+
+            const response = await fetch(targetUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'apikey': SUPABASE_CONFIG.anonKey
+                    'apikey': SUPABASE_CONFIG.anonKey,
+                    'Authorization': session ? `Bearer ${session.access_token}` : ''
                 },
                 body: JSON.stringify({
                     message: message,
                     userId: userId,
-                    timestamp: new Date().toISOString()
+                    sessionId: sessionId
                 })
             });
 
             const data = await response.json();
-            console.log('Respuesta de Gemini:', data);
-
             removeMessage(typingId);
 
             if (response.ok) {
-                const aiMessage = data.reply || 'Lo siento, no pude procesar tu solicitud.';
-                appendMessage('bot', aiMessage);
+                appendMessage('bot', data.reply || 'Sin respuesta.');
             } else {
-                console.error('Edge Function Error:', response.status, data);
-                appendMessage('bot', `Error ${response.status}: ${data.error || 'Problema en el servidor'}`);
+                appendMessage('bot', `Error ${response.status}: ${data.error || 'Problema en servidor'}`);
             }
         } catch (error) {
             removeMessage(typingId);
-            let userMsg = 'Hubo un problema al conectar con el asistente.';
-            if (error.message.includes('Failed to fetch')) {
-                userMsg = 'Error de Red: No se pudo contactar con el servidor. ¿La función está desplegada?';
-            }
-            appendMessage('bot', userMsg + ' (Ver consola para detalles)');
-            console.error('Chat Error Detail:', error);
+            appendMessage('bot', 'Error de conexión con el asistente.');
+            console.error('Chat Error:', error);
         }
     });
 
