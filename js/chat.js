@@ -54,7 +54,8 @@ function initChat() {
                 body: JSON.stringify({
                     message: message,
                     userId: userId,
-                    sessionId: sessionId
+                    sessionId: sessionId,
+                    localDate: new Date().toLocaleDateString('en-CA') // YYYY-MM-DD local
                 })
             });
 
