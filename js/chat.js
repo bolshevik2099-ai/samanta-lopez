@@ -105,6 +105,39 @@ function initChat() {
         const el = document.getElementById(id);
         if (el) el.remove();
     }
+
+    // CARGAR HISTORIAL AL INICIAR
+    async function loadHistory() {
+        if (!window.supabaseClient) {
+            console.warn('Supabase client no cargado aún.');
+            return;
+        }
+
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('chat_logs')
+                .select('*')
+                .eq('session_id', sessionId)
+                .order('created_at', { ascending: true })
+                .limit(10); // Cargamos los últimos 10 mensajes
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                // Limpiar mensajes de bienvenida si hay historial
+                chatMessages.innerHTML = '';
+                data.forEach(log => {
+                    appendMessage('user', log.message);
+                    appendMessage('bot', log.response);
+                });
+            }
+        } catch (err) {
+            console.error('Error loading chat history:', err);
+        }
+    }
+
+    // Ejecutar carga de historial
+    loadHistory();
 }
 
 document.addEventListener('DOMContentLoaded', initChat);
