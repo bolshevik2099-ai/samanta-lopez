@@ -3,7 +3,7 @@
  * Conexión con Supabase Edge Function (Gemini)
  */
 
-const GEMINI_CHAT_URL = `${SUPABASE_CONFIG.url}/functions/v1/gemini-chat-v2`;
+const GEMINI_CHAT_URL = `${SUPABASE_CONFIG.url}/functions/v1/gemini-chat-v3`;
 
 function initChat() {
     const chatBtn = document.getElementById('chat-toggle');
