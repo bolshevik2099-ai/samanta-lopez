@@ -1,6 +1,6 @@
 # Procesa-T CRM
 
-CRM de Transporte para Samanta López.
+CRM de Transporte para TU ERP DE AUTOTRANSPORTE.
 
 Este proyecto es una interfaz avanzada para la gestión logística, conectada con AppSheet API para el registro de gastos, control de viajes y administración de flota.
 
