@@ -2904,15 +2904,39 @@ switchTreasuryTab('favor');
 // --- UNIVERSAL INLINE EDITING ---
 
 async function editCatalogInline(type, id) {
+    console.log(`[DEBUG] Intentando editar: Type=${type}, ID=${id}`);
     const row = document.getElementById(`row-${type}-${id}`);
-    if (!row) return;
+    if (!row) {
+        console.error(`[DEBUG] No se encontró el row-Element: row-${type}-${id}`);
+        return;
+    }
 
     // Obtener datos actuales del servidor o una caché si existiera
-    const table = DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)];
-    const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
+    const tableKey = 'table' + type.charAt(0).toUpperCase() + type.slice(1);
+    const table = DB_CONFIG[tableKey];
+    console.log(`[DEBUG] Table Key: ${tableKey}, Table Name: ${table}`);
 
-    const { data: item } = await window.supabaseClient.from(table).select('*').eq(idCol, id).single();
-    if (!item) return;
+    if (!table) {
+        alert('Error de configuración: No se encontró la tabla para ' + type);
+        return;
+    }
+
+    const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
+    console.log(`[DEBUG] Consultando Supabase: Table=${table}, ID_Col=${idCol}, Value=${id}`);
+
+    const { data: item, error } = await window.supabaseClient.from(table).select('*').eq(idCol, id).single();
+
+    if (error) {
+        console.error('[DEBUG] Supabase Error:', error);
+        alert('Error al obtener datos: ' + error.message);
+        return;
+    }
+
+    if (!item) {
+        console.warn('[DEBUG] No se encontró el item en la BD');
+        alert('Registro no encontrado en la base de datos.');
+        return;
+    }
 
     let editHtml = '';
     if (type === 'choferes') {
