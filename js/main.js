@@ -1859,7 +1859,11 @@ function renderCatalogTable(type, data, expenses = []) {
     }
 
     tbody.innerHTML = data.map(d => {
-        const id = d.id_chofer || d.id_unidad || d.nombre_cliente || d.id_proveedor;
+        let id = '';
+        if (type === 'choferes') id = d.id_chofer;
+        else if (type === 'unidades') id = d.id_unidad;
+        else if (type === 'clientes') id = d.nombre_cliente;
+        else if (type === 'proveedores') id = d.id_proveedor;
         const idCol = d.id_chofer ? 'id_chofer' : (d.id_unidad ? 'id_unidad' : (d.nombre_cliente ? 'nombre_cliente' : 'id_proveedor'));
 
         return `
@@ -2904,17 +2908,12 @@ switchTreasuryTab('favor');
 // --- UNIVERSAL INLINE EDITING ---
 
 async function editCatalogInline(type, id) {
-    console.log(`[DEBUG] Intentando editar: Type=${type}, ID=${id}`);
     const row = document.getElementById(`row-${type}-${id}`);
-    if (!row) {
-        console.error(`[DEBUG] No se encontró el row-Element: row-${type}-${id}`);
-        return;
-    }
+    if (!row) return;
 
     // Obtener datos actuales del servidor o una caché si existiera
     const tableKey = 'table' + type.charAt(0).toUpperCase() + type.slice(1);
     const table = DB_CONFIG[tableKey];
-    console.log(`[DEBUG] Table Key: ${tableKey}, Table Name: ${table}`);
 
     if (!table) {
         alert('Error de configuración: No se encontró la tabla para ' + type);
@@ -2922,18 +2921,14 @@ async function editCatalogInline(type, id) {
     }
 
     const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
-    console.log(`[DEBUG] Consultando Supabase: Table=${table}, ID_Col=${idCol}, Value=${id}`);
-
     const { data: item, error } = await window.supabaseClient.from(table).select('*').eq(idCol, id).single();
 
     if (error) {
-        console.error('[DEBUG] Supabase Error:', error);
         alert('Error al obtener datos: ' + error.message);
         return;
     }
 
     if (!item) {
-        console.warn('[DEBUG] No se encontró el item en la BD');
         alert('Registro no encontrado en la base de datos.');
         return;
     }
