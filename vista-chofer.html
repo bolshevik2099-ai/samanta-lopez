@@ -314,35 +314,7 @@
         // Generar un ID de gasto temporal basado en tiempo (opcional, user puede cambiarlo)
         document.getElementById('ID_Gasto').value = 'G-' + Date.now().toString().slice(-6);
 
-        // Toggle Diesel Fields
-        const conceptoSelect = document.getElementById('Concepto');
-        const dieselFields = document.getElementById('diesel-fields');
-        const dieselInputs = ['Kmts_Anteriores', 'Kmts_Actuales', 'Litros_Rellenados', 'Foto_tacometro'];
 
-        conceptoSelect.addEventListener('change', function () {
-            if (this.value === 'Diesel') {
-                dieselFields.classList.remove('hidden');
-                dieselInputs.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.setAttribute('required', 'true');
-                });
-            } else {
-                dieselFields.classList.add('hidden');
-                dieselInputs.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.removeAttribute('required');
-                });
-            }
-        });
-
-        // Cálculo Automático de Kilómetros
-        const calcKm = () => {
-            const ant = parseFloat(document.getElementById('Kmts_Anteriores').value) || 0;
-            const act = parseFloat(document.getElementById('Kmts_Actuales').value) || 0;
-            document.getElementById('Kmts_Recorridos').value = act > ant ? (act - ant) : 0;
-        };
-        document.getElementById('Kmts_Anteriores').addEventListener('input', calcKm);
-        document.getElementById('Kmts_Actuales').addEventListener('input', calcKm);
     </script>
 </body>
 

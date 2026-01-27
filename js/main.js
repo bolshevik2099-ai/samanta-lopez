@@ -367,20 +367,6 @@ async function renderDriverDetail(id) {
     }
 }
 
-async function renderClientDetail(id) {
-    // ... (Use existing code, no changes needed here but I must include it if I'm replacing the whole block or carefully slicing. 
-    // The prompt is "Replace... renderDriverDetail... renderUnitDetail".
-    // I will assume I need to RE-EMIT renderClientDetail unchanged if it falls in the range, OR I will target smaller chunks.
-    // The provided range 129-488 covers ALL render functions. I must re-emit ALL of them.
-    // To save tokens, I will just re-implement renderDriverDetail and renderUnitDetail and KEEP renderClientDetail/renderProviderDetail as they were in the previous turn since I have their code.)
-
-    // ... Actually, I'll allow this tool to use multiple chunks to avoid re-writing everything.
-    // WAIT. The Instruction says "Replace showDetailModal...". The previous tool used a huge Replace.
-    // I can stick to a single Replace content if I copy paste correctly.
-    // Let's TRY to use MultiReplace to be surgical.
-    return; // See next tool call.
-}
-
 
 async function renderClientDetail(id) {
     // id comes as 'nombre_cliente' in current logic, need to be careful if it's ID or Name.
@@ -777,7 +763,7 @@ async function updateDashboardByPeriod() {
     if (loader) loader.classList.remove('hidden');
 
     try {
-        console.log('Cargando datos para el periodo:', start, 'al', end);
+
 
         // Fetch de datos maestros
         const [viajesRaw, gastosRaw, unidadesRaw] = await Promise.all([
@@ -798,8 +784,7 @@ async function updateDashboardByPeriod() {
             }
         }
 
-        console.log('Respuesta Viajes (total):', viajesRaw.length);
-        console.log('Respuesta Gastos (total):', gastosRaw.length);
+
 
         // Helper para normalizar fechas de AppSheet (vienen como MM/DD/YYYY en es-MX o YYYY-MM-DD)
         const parseDate = (d) => {
@@ -1299,7 +1284,7 @@ async function handleTripSubmit(e) {
         editingTripId = null;
         btn.innerText = 'Guardar Viaje'; // Reset text
 
-        document.getElementById('V_Fecha').value = new Date().toISOString().split('T')[0];
+        document.getElementById('V_Fecha').value = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
         if (typeof generateTripID === 'function') generateTripID();
 
         // Return to list view
@@ -1458,7 +1443,7 @@ function registerExpenseFromTrip(tripId, unitId, driverId) {
 
     // Generar ID Gasto nuevo y fecha hoy
     document.getElementById('ID_Gasto').value = 'GAS-' + Date.now().toString().slice(-6);
-    document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
+    document.getElementById('Fecha').value = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })();
 
     isEditingExpense = false;
     const btn = document.querySelector('#gasto-form button[type="submit"]');
@@ -2460,7 +2445,7 @@ function prepareAdvance(viajeId, choferId) {
 async function crearCXCAutomatica(idViaje, monto, cliente, noInterno) {
     const data = {
         id_cuenta: 'CXC-' + Date.now().toString().slice(-6),
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(),
         tipo: 'A Favor',
         actor_nombre: cliente,
         concepto: 'Pago de flete via auto-CXC',
@@ -2489,7 +2474,7 @@ async function enviarCuenta(e) {
         const actor = actorType === 'otro' ? getVal('acc-actor-manual') : getVal('acc-actor');
 
         const data = {
-            fecha: new Date().toISOString().split('T')[0],
+            fecha: (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(),
             tipo: getVal('acc-tipo'),
             actor_nombre: actor,
             concepto: getVal('acc-concepto'),
@@ -2567,7 +2552,7 @@ async function markAccountLiquidated(id) {
 async function crearCXPAutomatica({ id_gasto, monto, concepto, actor }) {
     const data = {
         id_cuenta: 'CXP-' + Date.now().toString().slice(-6),
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(),
         tipo: 'En Contra',
         actor_nombre: actor,
         concepto: concepto,
@@ -2581,7 +2566,7 @@ async function crearCXPAutomatica({ id_gasto, monto, concepto, actor }) {
 async function crearGastoComisionAutomatica({ id_viaje, monto, id_chofer, id_unidad }) {
     const data = {
         id_gasto: 'COM-' + Date.now().toString().slice(-6),
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(),
         id_viaje: id_viaje,
         id_unidad: id_unidad,
         id_chofer: id_chofer,
@@ -2831,8 +2816,8 @@ async function finalizeSettlement() {
         // 1. Guardar Maestro de LiquidaciÃ³n
         const { error: lErr } = await window.supabaseClient.from(DB_CONFIG.tableLiquidaciones).insert([{
             id_chofer: selectedDriverForSettlement,
-            fecha_inicio: pendingTripsForDriver.length > 0 ? pendingTripsForDriver[0].fecha : new Date().toISOString().split('T')[0],
-            fecha_fin: new Date().toISOString().split('T')[0],
+            fecha_inicio: pendingTripsForDriver.length > 0 ? pendingTripsForDriver[0].fecha : (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(),
+            fecha_fin: (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(),
             total_fletes: settleData.total_fletes,
             total_gastos: settleData.total_gastos,
             monto_comision: settleData.monto_comision,
