@@ -79,9 +79,20 @@ function initChat() {
         div.id = id;
         div.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'} mb-4`;
 
+        // Procesar enlaces para que sean clickeables
+        let processedText = text;
+        if (!isTyping) {
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            processedText = text.replace(urlRegex, (url) => {
+                return `<a href="${url}" target="_blank" class="text-blue-600 underline hover:text-blue-800 break-all">${url}</a>`;
+            });
+            // También procesar saltos de línea
+            processedText = processedText.replace(/\n/g, '<br>');
+        }
+
         const inner = `
-            <div class="max-w-[80%] rounded-2xl px-4 py-2 ${sender === 'user' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-800'} text-sm shadow-sm ring-1 ring-slate-900/5">
-                ${text}
+            <div class="max-w-[85%] rounded-2xl px-4 py-2 ${sender === 'user' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-800'} text-sm shadow-sm ring-1 ring-slate-900/5">
+                ${processedText}
             </div>
         `;
         div.innerHTML = inner;
