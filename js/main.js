@@ -1326,14 +1326,32 @@ async function handleExpenseSubmit(e) {
     try {
         const tripID = getVal('ID_Viaje');
 
-        // Validación básica
-        if (!tripID) throw new Error('El ID de Viaje es obligatorio.');
+        // REGLA DE NEGOCIO: Validación Diferenciada (Chofer vs Admin)
+        if (String(session.rol).toLowerCase() !== 'admin' && String(session.rol).toLowerCase() !== 'superadmin') {
+            // Lógica para CHOFERES
+            if (!tripID) throw new Error('Es obligatorio indicar el ID de Viaje para registrar un gasto.');
+
+            // Validar existencia y estatus En Proceso
+            const { data: tripCheck, error: tripCheckErr } = await window.supabaseClient
+                .from(DB_CONFIG.tableViajes)
+                .select('estatus_viaje')
+                .eq('id_viaje', tripID)
+                .single();
+
+            if (tripCheckErr || !tripCheck) throw new Error('El ID de Viaje ingresado no existe.');
+
+            // REGLA: Solo viajes en proceso
+            if (tripCheck.estatus_viaje !== 'En Proceso') {
+                throw new Error(`El viaje ${tripID} no está en curso (Estatus: ${tripCheck.estatus_viaje}). No se pueden registrar gastos.`);
+            }
+        }
+        // Nota: Los admins pueden dejar tripID vacío para gastos generales.
 
         const formaPago = document.getElementById('Exp_Forma_Pago')?.value || 'Contado';
 
         const expenseData = {
             fecha: getVal('Fecha'),
-            id_viaje: tripID,
+            id_viaje: tripID || null, // Permitir NULL para admins
             id_unidad: getVal('ID_Unidad'),
             id_chofer: (document.getElementById('ID_Chofer') ? (getVal('ID_Chofer') || null) : (session.id_contacto || session.usuario)),
             concepto: getVal('Concepto'),

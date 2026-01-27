@@ -160,21 +160,50 @@
                     </div>
                 </div>
 
-                <!-- Tipo Pago -->
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Tipo de
-                        Pago</label>
-                    <div class="grid grid-cols-2 gap-3">
-                        <label
-                            class="flex items-center justify-center p-4 border border-white/5 rounded-xl cursor-pointer hover:bg-white/5 transition-all has-[:checked]:bg-green-500/10 has-[:checked]:border-green-500/50 has-[:checked]:ring-1 has-[:checked]:ring-green-500/50">
-                            <input type="radio" name="Tipo_Pago" value="Efectivo" class="hidden" required>
-                            <span class="text-base font-semibold text-slate-300">Efectivo</span>
+                <!-- Tipo Pago y Deducible (High Visibility) -->
+                <div
+                    class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-2xl bg-gradient-to-br from-red-900/20 to-yellow-900/20 border border-red-500/30">
+                    <!-- Tipo Pago (Efectivo/Tarjeta) -->
+                    <div>
+                        <label class="block text-xs font-black text-yellow-500 uppercase tracking-wider mb-2">
+                            <i class="fas fa-money-bill-wave mr-1"></i> Tipo de Pago
                         </label>
-                        <label
-                            class="flex items-center justify-center p-4 border border-white/5 rounded-xl cursor-pointer hover:bg-white/5 transition-all has-[:checked]:bg-green-500/10 has-[:checked]:border-green-500/50 has-[:checked]:ring-1 has-[:checked]:ring-green-500/50">
-                            <input type="radio" name="Tipo_Pago" value="Tarjeta" class="hidden">
-                            <span class="text-base font-semibold text-slate-300">Tarjeta/Tag</span>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label
+                                class="flex items-center justify-center p-3 border border-red-500/30 rounded-xl cursor-pointer hover:bg-red-500/10 transition-all has-[:checked]:bg-yellow-500 has-[:checked]:text-black has-[:checked]:font-bold has-[:checked]:border-yellow-400">
+                                <input type="radio" name="Tipo_Pago" value="Efectivo" class="hidden" required>
+                                <span class="text-sm">Efectivo</span>
+                            </label>
+                            <label
+                                class="flex items-center justify-center p-3 border border-red-500/30 rounded-xl cursor-pointer hover:bg-red-500/10 transition-all has-[:checked]:bg-yellow-500 has-[:checked]:text-black has-[:checked]:font-bold has-[:checked]:border-yellow-400">
+                                <input type="radio" name="Tipo_Pago" value="Tarjeta" class="hidden">
+                                <span class="text-sm">Tarjeta/Tag</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Forma de Pago (Contado/Crédito) -->
+                    <div>
+                        <label class="block text-xs font-black text-yellow-500 uppercase tracking-wider mb-2">
+                            <i class="fas fa-hand-holding-usd mr-1"></i> Forma de Pago
                         </label>
+                        <select id="Exp_Forma_Pago"
+                            class="w-full px-4 py-3 rounded-xl bg-slate-900/80 border border-red-500/50 text-white outline-none focus:ring-2 focus:ring-yellow-500">
+                            <option value="Contado" class="bg-slate-900">Contado</option>
+                            <option value="Crédito" class="bg-slate-900">A Crédito</option>
+                        </select>
+                    </div>
+
+                    <!-- Es Deducible -->
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-black text-yellow-500 uppercase tracking-wider mb-2">
+                            <i class="fas fa-file-invoice mr-1"></i> ¿Es Deducible?
+                        </label>
+                        <select id="Exp_Deducible"
+                            class="w-full px-4 py-3 rounded-xl bg-slate-900/80 border border-red-500/50 text-white outline-none focus:ring-2 focus:ring-yellow-500">
+                            <option value="Sí" class="bg-slate-900">Sí (Bonificar)</option>
+                            <option value="No" class="bg-slate-900">No (Nota/Sin comp.)</option>
+                        </select>
                     </div>
                 </div>
 
@@ -259,10 +288,10 @@
         Registro enviado con éxito.
     </div>
 
-    <script src="./js/config.js?v=5.8"></script>
+    <script src="./js/config.js?v=11.9"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=5.8"></script>
-    <script src="./js/main.js?v=5.8"></script>
+    <script src="./js/supabase-client.js?v=11.9"></script>
+    <script src="./js/main.js?v=11.9"></script>
     <script>
         // Set Date to Local Today
         const today = new Date();
