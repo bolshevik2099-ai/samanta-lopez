@@ -2907,7 +2907,7 @@ async function editCatalogInline(type, id) {
     const row = document.getElementById(`row-${type}-${id}`);
     if (!row) return;
 
-    // Obtener datos actuales del servidor o una cachÃ© si existiera
+    // Obtener datos actuales del servidor o una caché si existiera
     const table = DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)];
     const idCol = type === 'choferes' ? 'id_chofer' : (type === 'unidades' ? 'id_unidad' : (type === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
 
@@ -2917,7 +2917,7 @@ async function editCatalogInline(type, id) {
     let editHtml = '';
     if (type === 'choferes') {
         editHtml = `
-            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_chofer}" class="w-24 p-1 border rounded bg-slate-50 text-slate-900 font-bold focus:ring-2 focus:ring-blue-500"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_chofer}" class="w-24 p-1 border rounded bg-white text-slate-900 font-bold focus:ring-2 focus:ring-blue-500"></td>
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre}" class="w-full p-1 border rounded bg-white text-slate-800 font-bold focus:ring-2 focus:ring-blue-500"></td>
             <td class="px-6 py-4"><input type="text" id="edit-licencia-${id}" value="${item.licencia || ''}" class="w-full p-1 border rounded text-slate-800 bg-white"></td>
             <td class="px-6 py-4"><input type="text" id="edit-unidad-${id}" value="${item.id_unidad || ''}" class="w-full p-1 border rounded text-slate-800 bg-white"></td>
@@ -2925,7 +2925,7 @@ async function editCatalogInline(type, id) {
         `;
     } else if (type === 'unidades') {
         editHtml = `
-            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_unidad}" class="w-24 p-1 border rounded bg-slate-50 text-slate-900 font-bold"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_unidad}" class="w-24 p-1 border rounded bg-white text-slate-900 font-bold focus:ring-2 focus:ring-blue-500"></td>
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_unidad || ''}" class="w-full p-1 border rounded bg-white"></td>
             <td class="px-6 py-4"><input type="text" id="edit-placas-${id}" value="${item.placas || ''}" class="w-full p-1 border rounded bg-white"></td>
             <td class="px-6 py-4"><input type="text" id="edit-chofer-${id}" value="${item.id_chofer || ''}" class="w-full p-1 border rounded bg-white"></td>
@@ -2933,13 +2933,13 @@ async function editCatalogInline(type, id) {
         `;
     } else if (type === 'clientes') {
         editHtml = `
-            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_cliente}" class="w-full p-1 border rounded bg-slate-50 text-slate-900 font-bold"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_cliente}" class="w-full p-1 border rounded bg-white text-slate-900 font-bold focus:ring-2 focus:ring-blue-500"></td>
             <td class="px-6 py-4"><input type="text" id="edit-rfc-${id}" value="${item.rfc || ''}" class="w-24 p-1 border rounded bg-white"></td>
             <td class="px-6 py-4"><input type="text" id="edit-contacto-${id}" value="${item.contacto_nombre || ''}" class="w-full p-1 border rounded bg-white"></td>
         `;
     } else if (type === 'proveedores') {
         editHtml = `
-            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_proveedor}" class="w-24 p-1 border rounded bg-slate-50 text-slate-900 font-bold"></td>
+            <td class="px-6 py-4"><input type="text" id="edit-id-${id}" value="${item.id_proveedor}" class="w-24 p-1 border rounded bg-white text-slate-900 font-bold focus:ring-2 focus:ring-blue-500"></td>
             <td class="px-6 py-4"><input type="text" id="edit-nombre-${id}" value="${item.nombre_proveedor}" class="w-full p-1 border rounded bg-white"></td>
             <td class="px-6 py-4"><input type="text" id="edit-tipo-${id}" value="${item.tipo_proveedor || ''}" class="w-full p-1 border rounded bg-white"></td>
             <td class="px-6 py-4"><input type="text" id="edit-tel-${id}" value="${item.telefono || ''}" class="w-full p-1 border rounded bg-white"></td>
