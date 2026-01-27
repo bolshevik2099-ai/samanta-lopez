@@ -1315,9 +1315,9 @@ async function handleExpenseSubmit(e) {
     try {
         const tripID = getVal('ID_Viaje');
 
-        // REGLA DE NEGOCIO: ValidaciÃ³n Diferenciada (Chofer vs Admin)
+        // REGLA DE NEGOCIO: Validación Diferenciada (Chofer vs Admin)
         if (String(session.rol).toLowerCase() !== 'admin' && String(session.rol).toLowerCase() !== 'superadmin') {
-            // LÃ³gica para CHOFERES
+            // Lógica para CHOFERES
             if (!tripID) throw new Error('Es obligatorio indicar el ID de Viaje para registrar un gasto.');
 
             // Validar existencia y estatus En Proceso
@@ -1350,8 +1350,8 @@ async function handleExpenseSubmit(e) {
             kmts_actuales: parseFloat(getVal('Kmts_Actuales')) || 0,
             kmts_recorridos: parseFloat(getVal('Kmts_Recorridos')) || 0,
             forma_pago: formaPago,
-            es_deducible: getVal('Exp_Deducible') || 'SÃ­',
-            estatus_pago: 'Pendiente' // Regla de negocio: Todo nace/renace pendiente de revisiÃ³n
+            es_deducible: getVal('Exp_Deducible') || 'Sí',
+            estatus_pago: 'Pendiente' // Regla de negocio: Todo nace/renace pendiente de revisión
         };
 
         const acreedorVal = document.getElementById('Exp_Acreedor')?.value;
@@ -1394,6 +1394,18 @@ async function handleExpenseSubmit(e) {
             const id = getVal('ID_Gasto') || 'GAS-' + Date.now().toString().slice(-6);
             expenseData.id_gasto = id;
             expenseData.estatus_aprobacion = 'Pendiente';
+
+            // Auto-fill Driver from Trip if missing (Corrective Logic)
+            if (!expenseData.id_chofer && expenseData.id_viaje) {
+                try {
+                    const { data: trip } = await window.supabaseClient
+                        .from(DB_CONFIG.tableViajes)
+                        .select('id_chofer')
+                        .eq('id_viaje', expenseData.id_viaje)
+                        .single();
+                    if (trip && trip.id_chofer) expenseData.id_chofer = trip.id_chofer;
+                } catch (e) { console.warn('Could not auto-fill driver', e); }
+            }
 
             const { error: insertError } = await window.supabaseClient
                 .from(DB_CONFIG.tableGastos)
@@ -1513,7 +1525,7 @@ function editExpense(id) {
     }
 
     if (document.getElementById('Exp_Deducible')) {
-        document.getElementById('Exp_Deducible').value = expense.es_deducible || 'SÃ­';
+        document.getElementById('Exp_Deducible').value = expense.es_deducible || 'Sí';
     }
 
     if (expense.acreedor_nombre && document.getElementById('Exp_Acreedor')) {
@@ -2620,19 +2632,34 @@ async function loadDriverSettlementDetail(id_chofer) {
     detail.classList.remove('hidden');
     empty.classList.add('hidden');
 
-    // Cargar datos: Viajes Terminados/En Proceso no liquidados + Gastos + Cuentas (Solo Anticipos/A Favor)
-    const [trips, expenses, accounts] = await Promise.all([
-        window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_chofer', id_chofer).neq('estatus_viaje', 'Liquidado'),
+    // Cargar datos: Viajes Terminados/En Proceso no liquidados + Gastos (Por Chofer O Por Viaje) + Cuentas
+    // 1. Fetch Trips first to get relevant Trip IDs
+    const { data: trips } = await window.supabaseClient
+        .from(DB_CONFIG.tableViajes)
+        .select('*')
+        .eq('id_chofer', id_chofer)
+        .neq('estatus_viaje', 'Liquidado');
+
+    const activeTrips = trips || [];
+    const tripIds = activeTrips.map(t => t.id_viaje);
+
+    // 2. Fetch Expenses (By Driver OR By Trip) & Accounts
+    const [expByDriver, expByTrip, accounts] = await Promise.all([
         window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_chofer', id_chofer).neq('estatus_pago', 'Pagado'),
+        tripIds.length > 0 ? window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').in('id_viaje', tripIds).neq('estatus_pago', 'Pagado') : { data: [] },
         window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').eq('actor_nombre', id_chofer).eq('estatus', 'No Liquidado').eq('tipo', 'A Favor')
     ]);
 
-    pendingTripsForDriver = trips.data || [];
-    currentExpenses = expenses.data || [];
+    // Merge and Dedup Expenses
+    const allExp = [...(expByDriver.data || []), ...(expByTrip.data || [])];
+    const uniqueExp = Array.from(new Map(allExp.map(item => [item.id_gasto, item])).values());
+
+    pendingTripsForDriver = activeTrips;
+    currentExpenses = uniqueExp;
     currentDebts = accounts.data || [];
 
     // Llenar UI
-    document.getElementById('set-trip-id').innerText = `LIQUIDACIÃ“N: ${id_chofer}`;
+    document.getElementById('set-trip-id').innerText = `LIQUIDACIÓN: ${id_chofer}`;
     document.getElementById('set-trip-info').innerText = `Consolidado de ${pendingTripsForDriver.length} viajes pendientes.`;
 
     let sumFletes = 0;
@@ -2648,11 +2675,14 @@ async function loadDriverSettlementDetail(id_chofer) {
     const expList = document.getElementById('set-expenses-list');
     let sumExp = 0;
 
-    // Filtramos SOLO los gastos de Contado/Efectivo QUE SEAN DEDUCIBLES ('SÃ­')
-    const reimbursableExpenses = currentExpenses.filter(g =>
-        ['Contado', 'Efectivo'].includes(g.forma_pago) &&
-        String(g.es_deducible || 'SÃ­').trim() === 'SÃ­'
-    );
+    // Filtramos SOLO los gastos QUE SEAN DEDUCIBLES (Regla Absoluta: Si es Deducible, entra)
+    const reimbursableExpenses = currentExpenses.filter(g => {
+        const deducible = String(g.es_deducible || '').trim().toLowerCase();
+        // Allow Si, Sí, SI, sÃ­, True, true, yes, 1, Bonificable (starts with b)
+        const isDeducible = deducible.startsWith('s') || deducible === 'true' || deducible === '1' || deducible === 'yes' || deducible.startsWith('b');
+
+        return isDeducible;
+    });
 
     expList.innerHTML = reimbursableExpenses.map(g => {
         const estAprob = g.estatus_aprobacion || 'Pendiente';
@@ -2695,11 +2725,13 @@ async function loadDriverSettlementDetail(id_chofer) {
     document.getElementById('set-sum-debts').innerText = `- $${sumDebtNeto.toLocaleString()}`;
 
     // Totales finales
-    const approvedExpenses = currentExpenses.filter(g =>
-        (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
-        ['Contado', 'Efectivo'].includes(g.forma_pago) &&
-        String(g.es_deducible || 'SÃ­').trim() === 'SÃ­'
-    );
+    const approvedExpenses = currentExpenses.filter(g => {
+        const estAprob = (g.estatus_aprobacion || 'Pendiente');
+        const deducible = String(g.es_deducible || '').trim().toLowerCase();
+        const isDeducible = deducible.startsWith('s') || deducible === 'true' || deducible === '1' || deducible === 'yes' || deducible.startsWith('b');
+
+        return estAprob === 'Aprobado' && isDeducible;
+    });
     const sumApprovedExp = approvedExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
     const neto = sumComisionesBrutas + sumApprovedExp - sumDebtNeto;
 
@@ -2720,7 +2752,8 @@ function showSettlementFullDetail() {
     const title = document.getElementById('modal-title');
 
     modal.classList.remove('hidden');
-    title.innerText = 'Detalle Completo de LiquidaciÃ³n';
+    modal.classList.remove('hidden');
+    title.innerText = 'Detalle Completo de Liquidación';
 
     // Generar tabla de Viajes
     const tripsHtml = pendingTripsForDriver.map(t => `
@@ -2734,10 +2767,12 @@ function showSettlementFullDetail() {
 
     // Generar tabla de Gastos (Aprobados)
     // Generar tabla de Gastos (Aprobados)
-    const activeExpenses = currentExpenses.filter(g =>
-        g.forma_pago === 'Contado' &&
-        String(g.es_deducible || 'SÃ­').trim() === 'SÃ­'
-    );
+    // Generar tabla de Gastos (Aprobados) - Robust Check
+    const activeExpenses = currentExpenses.filter(g => {
+        const deducible = String(g.es_deducible || '').trim().toLowerCase();
+        const isDeducible = deducible.startsWith('s') || deducible === 'true' || deducible === '1' || deducible === 'yes' || deducible.startsWith('b');
+        return isDeducible;
+    });
     const expensesHtml = activeExpenses.map(g => `
         <tr class="border-b border-slate-100 text-xs text-slate-600">
             <td class="p-2 font-mono">${g.id_gasto}</td>

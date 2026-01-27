@@ -11,6 +11,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Registro de Gastos - TU ERP DE AUTOTRANSPORTE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -102,12 +105,12 @@
 
             <form id="gasto-form" class="space-y-6">
                 <div class="grid grid-cols-2 gap-4">
-                    <!-- ID Gasto -->
-                    <div>
+                    <!-- ID Gasto (Oculto / Auto) -->
+                    <div class="hidden">
                         <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">ID
                             Gasto</label>
-                        <input type="text" id="ID_Gasto" required
-                            class="w-full px-4 py-3 rounded-xl input-dark outline-none" placeholder="GAS-XXX">
+                        <input type="text" id="ID_Gasto" class="w-full px-4 py-3 rounded-xl input-dark outline-none"
+                            placeholder="GAS-XXX">
                     </div>
                     <!-- Fecha -->
                     <div>
@@ -299,10 +302,10 @@
         Registro enviado con éxito.
     </div>
 
-    <script src="./js/config.js?v=11.12"></script>
+    <script src="./js/config.js?v=1337.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=11.12"></script>
-    <script src="./js/main.js?v=11.12"></script>
+    <script src="./js/supabase-client.js?v=1337.0"></script>
+    <script src="./js/main.js?v=1337.0"></script>
     <script>
         // Set Date to Local Today
         const today = new Date();
