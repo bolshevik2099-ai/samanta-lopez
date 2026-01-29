@@ -38,6 +38,9 @@ function initChat() {
 
         const typingId = appendMessage('bot', '<i class="fas fa-circle-notch fa-spin text-slate-400"></i>', true);
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
         try {
             const session = typeof checkAuth === 'function' ? checkAuth() : null;
             const isAdmin = session && (session.rol === 'admin' || session.rol === 'superadmin');
@@ -56,9 +59,11 @@ function initChat() {
                     userId: userId,
                     sessionId: sessionId,
                     localDate: new Date().toLocaleDateString('en-CA') // YYYY-MM-DD local
-                })
+                }),
+                signal: controller.signal
             });
 
+            clearTimeout(timeoutId);
             const data = await response.json();
             removeMessage(typingId);
 
@@ -68,8 +73,13 @@ function initChat() {
                 appendMessage('bot', `Error ${response.status}: ${data.error || 'Problema en servidor'}`);
             }
         } catch (error) {
+            clearTimeout(timeoutId);
             removeMessage(typingId);
-            appendMessage('bot', 'Error de conexión con el asistente.');
+            if (error.name === 'AbortError') {
+                appendMessage('bot', 'La respuesta está tardando demasiado. Por favor, intenta de nuevo.');
+            } else {
+                appendMessage('bot', 'Error de conexión con el asistente: ' + error.message);
+            }
             console.error('Chat Error:', error);
         }
     });
