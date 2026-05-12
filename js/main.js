@@ -1416,6 +1416,16 @@ async function handleExpenseSubmit(e) {
 
         if (error) throw error;
 
+        // Auto-create CXP if payment is Crédito and it's a new expense
+        if (!isEditingExpense && expenseData.forma_pago.includes('rÃ©dito') || expenseData.forma_pago === 'Crédito') {
+            await crearCXPAutomatica({
+                id_gasto: expenseData.id_gasto,
+                monto: expenseData.monto,
+                concepto: expenseData.concepto,
+                actor: expenseData.acreedor_nombre || expenseData.id_chofer || 'Proveedor'
+            });
+        }
+
         alert(isEditingExpense ? 'Gasto actualizado.' : 'Gasto registrado correctamente.');
         e.target.reset();
         isEditingExpense = false;
