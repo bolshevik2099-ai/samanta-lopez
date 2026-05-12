@@ -19,8 +19,8 @@ const DB_CONFIG = {
 };
 
 const SUPABASE_CONFIG = {
-    url: 'https://mjaiggtclxycjarfeewd.supabase.co',
-    anonKey: 'sb_publishable_uCvLBKSsOn-NNpdVmyq-yA_RX0NFll-'
+    url: 'https://jglptpkrqbwvnhpoockb.supabase.co',
+    anonKey: 'sb_publishable_PR54H17KFdtc5sxPBeACeA_zhmE1j8w'
 };
 
 
