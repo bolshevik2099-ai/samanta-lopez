@@ -1617,17 +1617,7 @@ async function initFormCatalogs() {
 }
 
 function toggleAcreedorField() {
-    const formaPago = document.getElementById('Exp_Forma_Pago')?.value;
-    const container = document.getElementById('acreedor-container');
-    if (container) {
-        if (formaPago === 'CrÃ©dito') {
-            container.classList.remove('hidden');
-        } else {
-            container.classList.add('hidden');
-            const acreedorSelect = document.getElementById('Exp_Acreedor');
-            if (acreedorSelect) acreedorSelect.value = '';
-        }
-    }
+    // Disabled logic: The user requested the provider dropdown to be always visible.
 }
 
 function generateTripID() {
