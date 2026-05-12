@@ -101,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const navId = e.currentTarget.id.replace('nav-', '');
             if (navId === 'viajes') loadTripsList();
             if (navId === 'gastos') loadExpensesList();
+            if (navId === 'dashboard') updateDashboardByPeriod();
         });
     });
 
