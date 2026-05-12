@@ -229,7 +229,9 @@ function calculateEntityFuelMetrics(expenses, entityId, entityType) {
     // If called from Detail Modal, expenses are already filtered by Supabase query, but we filter for 'Diesel' and Liters > 0 just in case.
 
     const fuelExpenses = expenses.filter(g => {
-        const isFuel = (parseFloat(g.litros_rellenados) > 0);
+        const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+        const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+        const isFuel = (effectiveVol > 0);
         // If entityId is provided, double check (though usually pre-filtered)
         const isMatch = entityId ? (entityType === 'choferes' ? g.id_chofer === entityId : (g.id_unidad === entityId || g.id_unit_eco === entityId)) : true;
         return isFuel && isMatch;
@@ -242,13 +244,17 @@ function calculateEntityFuelMetrics(expenses, entityId, entityType) {
 
     // 1. Last Yield (Most recent fill-up)
     const last = fuelExpenses[0];
-    const lastYield = (parseFloat(last.litros_rellenados) > 0)
-        ? (parseFloat(last.kmts_recorridos) / parseFloat(last.litros_rellenados))
-        : 0;
+    const lastTSupport = (parseFloat(last.litros_tracto) > 0 || parseFloat(last.litros_termo) > 0);
+    const lastVol = lastTSupport ? (parseFloat(last.litros_tracto) || 0) : (parseFloat(last.litros_rellenados) || 0);
+    const lastYield = (lastVol > 0) ? (parseFloat(last.kmts_recorridos) / lastVol) : 0;
 
     // 2. Historical Average (Total Km / Total Liters) - Robust Method
     const totalKm = fuelExpenses.reduce((sum, g) => sum + (parseFloat(g.kmts_recorridos) || 0), 0);
-    const totalLiters = fuelExpenses.reduce((sum, g) => sum + (parseFloat(g.litros_rellenados) || 0), 0);
+    const totalLiters = fuelExpenses.reduce((sum, g) => {
+        const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+        const vol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+        return sum + vol;
+    }, 0);
     const avgYield = totalLiters > 0 ? (totalKm / totalLiters) : 0;
 
     return {
@@ -1346,6 +1352,8 @@ async function handleExpenseSubmit(e) {
             id_chofer: (document.getElementById('ID_Chofer') ? (getVal('ID_Chofer') || null) : (session.id_contacto || session.usuario)),
             concepto: getVal('Concepto'),
             monto: parseFloat(getVal('Monto')) || 0,
+            litros_tracto: document.getElementById('chk-tracto')?.checked ? (parseFloat(getVal('Litros_Tracto')) || 0) : 0,
+            litros_termo: document.getElementById('chk-termo')?.checked ? (parseFloat(getVal('Litros_Termo')) || 0) : 0,
             litros_rellenados: parseFloat(getVal('Litros_Rellenados')) || 0,
             kmts_anteriores: parseFloat(getVal('Kmts_Anteriores')) || 0,
             kmts_actuales: parseFloat(getVal('Kmts_Actuales')) || 0,
@@ -1524,6 +1532,15 @@ function editExpense(id) {
     document.getElementById('Concepto').value = expense.concepto;
     document.getElementById('Monto').value = expense.monto;
     document.getElementById('Litros_Rellenados').value = expense.litros_rellenados;
+    if (document.getElementById('Litros_Tracto')) {
+        document.getElementById('Litros_Tracto').value = expense.litros_tracto || '';
+        document.getElementById('Litros_Termo').value = expense.litros_termo || '';
+        document.getElementById('chk-tracto').checked = (parseFloat(expense.litros_tracto) > 0);
+        document.getElementById('chk-termo').checked = (parseFloat(expense.litros_termo) > 0);
+        document.getElementById('div-litros-tracto').classList.toggle('hidden', !document.getElementById('chk-tracto').checked);
+        document.getElementById('div-litros-termo').classList.toggle('hidden', !document.getElementById('chk-termo').checked);
+        if (typeof window.calcLitrosTotales === 'function') window.calcLitrosTotales();
+    }
     document.getElementById('Kmts_Anteriores').value = expense.kmts_anteriores;
     document.getElementById('Kmts_Actuales').value = expense.kmts_actuales;
     document.getElementById('Kmts_Recorridos').value = expense.kmts_recorridos;
@@ -1952,6 +1969,20 @@ function hideCatalogForm() {
     document.getElementById('catalog-list-view').classList.remove('hidden');
     document.getElementById('catalog-form-view').classList.add('hidden');
 }
+
+window.calcLitrosTotales = function () {
+    const t = parseFloat(document.getElementById('Litros_Tracto')?.value) || 0;
+    const r = parseFloat(document.getElementById('Litros_Termo')?.value) || 0;
+    const chkTracto = document.getElementById('chk-tracto')?.checked;
+    const chkTermo = document.getElementById('chk-termo')?.checked;
+
+    let sum = 0;
+    if (chkTracto) sum += t;
+    if (chkTermo) sum += r;
+
+    const el = document.getElementById('Litros_Rellenados');
+    if (el) el.value = sum > 0 ? sum.toFixed(1) : '';
+};
 
 // Inicializar envÃ­o del formulario de catÃ¡logo
 document.addEventListener('DOMContentLoaded', () => {

@@ -254,12 +254,46 @@
                             placeholder="0">
                     </div>
 
-                    <!-- Litros Rellenados (Opcional) -->
-                    <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Litros
-                            Rellenados</label>
-                        <input type="number" id="Litros_Rellenados" step="0.1"
-                            class="w-full px-4 py-3 rounded-xl input-dark outline-none" placeholder="0.0">
+                    <!-- Litros Tracto / Termo -->
+                    <div class="col-span-full bg-slate-900/50 p-4 rounded-2xl border border-white/5 space-y-4">
+                        <div class="flex items-center gap-6 mb-2">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="chk-tracto" class="w-4 h-4 accent-amber-500"
+                                    onchange="document.getElementById('div-litros-tracto').classList.toggle('hidden', !this.checked); calcLitrosTotales();">
+                                <span class="text-xs font-bold text-slate-300">Llenó Tracto</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="chk-termo" class="w-4 h-4 accent-amber-500"
+                                    onchange="document.getElementById('div-litros-termo').classList.toggle('hidden', !this.checked); calcLitrosTotales();">
+                                <span class="text-xs font-bold text-slate-300">Llenó Termo</span>
+                            </label>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div id="div-litros-tracto" class="hidden">
+                                <label
+                                    class="block text-[10px] font-black text-amber-500 uppercase tracking-widest mb-2 px-1">Lts.
+                                    Tracto</label>
+                                <input type="number" id="Litros_Tracto" step="0.1" placeholder="0.0"
+                                    oninput="calcLitrosTotales()"
+                                    class="w-full px-4 py-2.5 rounded-xl input-dark outline-none bg-slate-950">
+                            </div>
+                            <div id="div-litros-termo" class="hidden">
+                                <label
+                                    class="block text-[10px] font-black text-amber-500 uppercase tracking-widest mb-2 px-1">Lts.
+                                    Termo</label>
+                                <input type="number" id="Litros_Termo" step="0.1" placeholder="0.0"
+                                    oninput="calcLitrosTotales()"
+                                    class="w-full px-4 py-2.5 rounded-xl input-dark outline-none bg-slate-950">
+                            </div>
+                        </div>
+                        <div class="mt-2 pt-3 border-t border-white/5">
+                            <label
+                                class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Total
+                                de Litros Rellenados</label>
+                            <input type="number" id="Litros_Rellenados" step="0.1" placeholder="0.0"
+                                class="w-full px-4 py-3 rounded-xl input-dark outline-none cursor-not-allowed bg-slate-900 border-dashed border border-white/10"
+                                readonly>
+                        </div>
                     </div>
 
                     <!-- Fotos -->
