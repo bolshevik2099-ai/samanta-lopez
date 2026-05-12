@@ -1587,28 +1587,20 @@ async function initFormCatalogs() {
         }
     }
 
-    // Special case for Acreedor (Drivers + Clients + Providers)
+    // Special case for Acreedor (Only Providers requested)
     const acreedorSelect = document.getElementById('Exp_Acreedor');
     if (acreedorSelect) {
         try {
-            const [choferes, clientes, proveedores] = await Promise.all([
-                fetchSupabaseData(DB_CONFIG.tableChoferes),
-                fetchSupabaseData(DB_CONFIG.tableClientes),
+            const [proveedores] = await Promise.all([
                 fetchSupabaseData(DB_CONFIG.tableProveedores)
             ]);
 
-            acreedorSelect.innerHTML = '<option value="">-- Selecciona Acreedor (Opcional) --</option>';
-            choferes.filter(x => (x.estatus || 'Activo') === 'Activo').forEach(x => {
-                acreedorSelect.innerHTML += `<option value="${x.nombre}">${x.nombre} (Chofer)</option>`;
-            });
-            clientes.filter(x => (x.estatus || 'Activo') === 'Activo').forEach(x => {
-                acreedorSelect.innerHTML += `<option value="${x.nombre_cliente}">${x.nombre_cliente} (Cliente)</option>`;
-            });
+            acreedorSelect.innerHTML = '<option value="">-- Selecciona Proveedor (Opcional) --</option>';
             proveedores.filter(x => (x.estatus || 'Activo') === 'Activo').forEach(x => {
-                acreedorSelect.innerHTML += `<option value="${x.nombre_proveedor}">${x.nombre_proveedor} (Proveedor)</option>`;
+                acreedorSelect.innerHTML += `<option value="${x.nombre_proveedor}">${x.nombre_proveedor}</option>`;
             });
         } catch (err) {
-            console.error('Error cargando catÃ¡logo de acreedores:', err);
+            console.error('Error cargando catÃ¡logo de proveedores:', err);
         }
     }
 
