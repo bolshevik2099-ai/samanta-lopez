@@ -120,8 +120,8 @@ function redirectByRol(rol) {
     const routes = {
         'chofer': 'vista-chofer.html',
         'admin': 'vista-admin.html',
-        'superadmin': 'vista-superadmin.html',
-        'super admin': 'vista-superadmin.html'
+        'superadmin': 'vista-admin.html',
+        'super admin': 'vista-admin.html'
     };
 
     const target = routes[r];
