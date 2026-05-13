@@ -5,6 +5,8 @@ let mainChart = null; // Instancia global para el grÃ¡fico
 let allTripsData = [];
 let allExpensesData = [];
 let currentExpenseTab = 'todos';
+let globalDriverMap = {};
+let globalUnitMap = {};
 
 document.addEventListener('DOMContentLoaded', () => {
     // Verificar sesiÃ³n al cargar
@@ -182,6 +184,17 @@ function showDetailModal(type, id) {
     }
 }
 
+async function ensureGlobalMapsLoaded() {
+    if (Object.keys(globalDriverMap).length === 0) {
+        const drivers = await fetchSupabaseData(DB_CONFIG.tableChoferes);
+        drivers.forEach(d => globalDriverMap[d.id_chofer] = d.nombre);
+    }
+    if (Object.keys(globalUnitMap).length === 0) {
+        const units = await fetchSupabaseData(DB_CONFIG.tableUnidades);
+        units.forEach(u => globalUnitMap[u.id_unidad] = u.nombre_unidad || u.id_unidad);
+    }
+}
+
 // --- SPECIALIZED DETAIL RENDERERS ---
 
 async function renderGenericDetail(table, idCol, id, titleText) {
@@ -190,6 +203,7 @@ async function renderGenericDetail(table, idCol, id, titleText) {
     if (title) title.innerText = titleText + ': ' + id;
 
     try {
+        await ensureGlobalMapsLoaded();
         const { data, error } = await window.supabaseClient.from(table).select('*').eq(idCol, id).single();
         if (error) throw error;
 
@@ -198,8 +212,18 @@ async function renderGenericDetail(table, idCol, id, titleText) {
             if (key === 'created_at' || value === null) continue;
 
             const label = key.replace(/_/g, ' ');
+            let displayValue = value;
 
-            // Image Rendering Logic
+            // Mapeo de IDs a Nombres
+            if (key === 'id_chofer' || key === 'chofer') {
+                displayValue = globalDriverMap[value] ? `${globalDriverMap[value]} [${value}]` : value;
+            } else if (key === 'id_unidad' || key === 'id_unit_eco' || key === 'unidad') {
+                displayValue = globalUnitMap[value] ? `${globalUnitMap[value]} [${value}]` : value;
+            } else if (key === 'actor_nombre') {
+                displayValue = globalDriverMap[value] ? `${globalDriverMap[value]} [${value}]` : (globalUnitMap[value] ? `${globalUnitMap[value]} [${value}]` : value);
+            }
+
+            // Rendering LÃ³gico de Imagenes
             if (['ticket_foto', 'foto_tacometro', 'ticket_url'].includes(key)) {
                 const url = window.supabaseClient.storage.from('tickets-gastos').getPublicUrl(value).data.publicUrl;
                 html += `
@@ -217,7 +241,7 @@ async function renderGenericDetail(table, idCol, id, titleText) {
             html += `
                 <div class="border-b border-slate-50 pb-2">
                     <label class="block text-[10px] uppercase font-black text-slate-400 mb-1">${label}</label>
-                    <div class="text-sm font-semibold text-slate-800">${value}</div>
+                    <div class="text-sm font-semibold text-slate-800">${displayValue}</div>
                 </div>
             `;
         }
@@ -320,7 +344,7 @@ async function renderDriverDetail(id) {
                             </div>
                             <div class="bg-white/[0.02] p-5 rounded-3xl border border-white/5">
                                 <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Unidad</p>
-                                <p class="text-sm font-bold text-blue-400">${driver.id_unidad || 'N/A'}</p>
+                                <p class="text-sm font-bold text-blue-400">${globalUnitMap[driver.id_unidad] ? `${globalUnitMap[driver.id_unidad]} [${driver.id_unidad}]` : (driver.id_unidad || 'N/A')}</p>
                             </div>
                         </div>
                     </div>
@@ -502,6 +526,7 @@ async function renderUnitDetail(id) {
                             <div class="mt-6 flex flex-wrap gap-4 text-[10px] font-black uppercase tracking-widest">
                                 <span class="bg-white/5 px-4 py-2 rounded-full border border-white/5 text-slate-300"><i class="fas fa-barcode mr-2 text-blue-400"></i>${unit.placas || 'Sin Placas'}</span>
                                 <span class="bg-white/5 px-4 py-2 rounded-full border border-white/5 text-slate-300"><i class="fas fa-gas-pump mr-2 text-amber-400"></i>${unit.tipo_combustible || 'Diesel'}</span>
+                                <span class="bg-blue-500/10 px-4 py-2 rounded-full border border-blue-500/20 text-blue-400"><i class="fas fa-user-tie mr-2"></i>${globalDriverMap[unit.id_chofer] ? `${globalDriverMap[unit.id_chofer]} [${unit.id_chofer}]` : (unit.id_chofer || 'Sin Chofer')}</span>
                             </div>
                         </div>
                         <div class="grid grid-cols-2 lg:grid-cols-1 gap-4 w-full md:w-auto">
