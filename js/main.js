@@ -102,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (navId === 'viajes') loadTripsList();
             if (navId === 'gastos') loadExpensesList();
             if (navId === 'dashboard') updateDashboardByPeriod();
+            if (navId === 'movimientos') loadMovementsByPeriod();
         });
     });
 
@@ -964,6 +965,110 @@ function renderChart(viajes, gastos) {
             }
         }
     });
+}
+
+// --- MOVIMIENTOS POR PERIODO ---
+
+function loadMovementsByPeriod() {
+    const startInput = document.getElementById('mov-filter-start');
+    const endInput = document.getElementById('mov-filter-end');
+
+    if (startInput && !startInput.value) {
+        const today = new Date().toISOString().split('T')[0];
+        startInput.value = today;
+        endInput.value = today;
+    }
+
+    updateMovementsList();
+}
+
+async function updateMovementsList() {
+    const start = document.getElementById('mov-filter-start')?.value;
+    const end = document.getElementById('mov-filter-end')?.value;
+    const loader = document.getElementById('movements-loader');
+    const tbody = document.getElementById('movements-table-body');
+
+    if (!tbody) return;
+
+    if (loader) loader.classList.remove('hidden');
+    tbody.innerHTML = '';
+
+    try {
+        const [viajesRaw, gastosRaw] = await Promise.all([
+            fetchSupabaseData(DB_CONFIG.tableViajes),
+            fetchSupabaseData(DB_CONFIG.tableGastos)
+        ]);
+
+        const parseDate = (d) => {
+            if (!d) return null;
+            if (d.includes('/')) {
+                const parts = d.split('/');
+                if (parseInt(parts[0]) > 12) {
+                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                } else {
+                    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                }
+            }
+            return d;
+        };
+
+        const filterByDate = (rows, s, e) => rows.filter(r => {
+            const rowDate = parseDate(r.fecha);
+            return rowDate && rowDate >= s && rowDate <= e;
+        });
+
+        const viajes = filterByDate(viajesRaw, start, end);
+        const gastos = filterByDate(gastosRaw, start, end);
+
+        const combined = [
+            ...viajes.map(v => ({
+                type: 'venta',
+                date: v.fecha,
+                ref: v.id_viaje || '---',
+                concept: `${v.origen} -> ${v.destino}`,
+                amount: v.monto_flete
+            })),
+            ...gastos.map(g => ({
+                type: 'gasto',
+                date: g.fecha,
+                ref: g.id_gasto || '---',
+                concept: g.concepto || 'Gasto',
+                amount: g.monto
+            }))
+        ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        const label = document.getElementById('mov-period-label');
+        if (label) label.innerText = `Periodo: ${start} al ${end}`;
+
+        if (combined.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-16 text-center text-slate-500 italic">No se encontraron movimientos en este periodo.</td></tr>';
+        } else {
+            tbody.innerHTML = combined.map(m => `
+                <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0">
+                    <td class="px-8 py-5 text-xs font-mono text-slate-400">${m.date}</td>
+                    <td class="px-8 py-5">
+                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${m.type === 'venta' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}">
+                            ${m.type === 'venta' ? 'Viaje' : 'Gasto'}
+                        </span>
+                    </td>
+                    <td class="px-8 py-5">
+                        <div class="text-sm font-bold text-white">${m.ref}</div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-tighter">${m.concept}</div>
+                    </td>
+                    <td class="px-8 py-5 text-right">
+                        <span class="text-sm font-black ${m.type === 'venta' ? 'text-blue-400' : 'text-red-400'}">
+                            ${m.type === 'venta' ? '+' : '-'}$${(parseFloat(m.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    } catch (err) {
+        console.error(err);
+        tbody.innerHTML = `<tr><td colspan="4" class="p-16 text-center text-red-400">Error al cargar datos: ${err.message}</td></tr>`;
+    } finally {
+        if (loader) loader.classList.add('hidden');
+    }
 }
 
 async function fetchSupabaseData(tableName) {
