@@ -1001,12 +1001,19 @@ async function updateMovementsList() {
     tbody.innerHTML = '';
 
     try {
-        const [viajesRaw, gastosRaw, cuentasRaw, liquidacionesRaw] = await Promise.all([
+        const [viajesRaw, gastosRaw, cuentasRaw, liquidacionesRaw, choferesRaw, unidadesRaw] = await Promise.all([
             fetchSupabaseData(DB_CONFIG.tableViajes),
             fetchSupabaseData(DB_CONFIG.tableGastos),
             fetchSupabaseData(DB_CONFIG.tableCuentas),
-            fetchSupabaseData(DB_CONFIG.tableLiquidaciones)
+            fetchSupabaseData(DB_CONFIG.tableLiquidaciones),
+            fetchSupabaseData(DB_CONFIG.tableChoferes),
+            fetchSupabaseData(DB_CONFIG.tableUnidades)
         ]);
+
+        const driverMap = {};
+        choferesRaw.forEach(c => driverMap[c.id_chofer] = c.nombre);
+        const unitMap = {};
+        unidadesRaw.forEach(u => unitMap[u.id_unidad] = u.nombre_unidad || u.id_unidad);
 
         const parseDate = (d) => {
             if (!d) return null;
@@ -1039,17 +1046,21 @@ async function updateMovementsList() {
                 date: v.fecha,
                 ref: v.id_viaje || '---',
                 concept: `${v.origen} -> ${v.destino}`,
-                actor: v.cliente || v.id_chofer || '---',
+                actor: v.cliente || (v.id_chofer ? (driverMap[v.id_chofer] ? `${driverMap[v.id_chofer]} [${v.id_chofer}]` : v.id_chofer) : '---'),
                 amount: v.monto_flete
             })),
-            ...gastos.map(g => ({
-                type: 'gasto',
-                date: g.fecha,
-                ref: g.id_gasto || '---',
-                concept: g.concepto || 'Gasto',
-                actor: g.id_chofer || '---',
-                amount: g.monto
-            })),
+            ...gastos.map(g => {
+                const dName = driverMap[g.id_chofer] ? `${driverMap[g.id_chofer]} [${g.id_chofer}]` : g.id_chofer;
+                const uName = unitMap[g.id_unidad] || g.id_unidad;
+                return {
+                    type: 'gasto',
+                    date: g.fecha,
+                    ref: g.id_gasto || '---',
+                    concept: g.concepto || 'Gasto',
+                    actor: `${dName || '---'}${uName ? ' | ' + uName : ''}`,
+                    amount: g.monto
+                };
+            }),
             ...cuentas.map(c => {
                 let type = c.tipo === 'A Favor' ? 'anticipo' : 'deuda';
                 if (c.estatus === 'Liquidado') {
@@ -1069,7 +1080,7 @@ async function updateMovementsList() {
                 date: l.created_at ? l.created_at.split('T')[0] : l.fecha_fin,
                 ref: `LIQ-${l.id}`,
                 concept: `Liquidación Chofer: ${l.id_chofer}`,
-                actor: l.id_chofer || '---',
+                actor: driverMap[l.id_chofer] ? `${driverMap[l.id_chofer]} [${l.id_chofer}]` : (l.id_chofer || '---'),
                 amount: l.monto_neto
             }))
         ].sort((a, b) => new Date(b.date) - new Date(a.date));
