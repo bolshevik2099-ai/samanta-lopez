@@ -2001,18 +2001,31 @@ async function loadCatalog(type) {
         'proveedores': DB_CONFIG.tableProveedores
     };
 
-    // Parallel fetch: Catalog Data + Expenses (if needed for yield)
+    // Parallel fetch: Catalog Data + Expenses (if needed for yield) + Cross-ref Data
     const promises = [fetchSupabaseData(tables[type])];
+    
+    // Gastos para rendimiento
     if (type === 'choferes' || type === 'unidades') {
         promises.push(fetchSupabaseData(DB_CONFIG.tableGastos));
+    } else {
+        promises.push(Promise.resolve([]));
     }
 
-    const [data, expenses] = await Promise.all(promises);
+    // Datos extra para referencia cruzada
+    if (type === 'choferes') {
+        promises.push(fetchSupabaseData(DB_CONFIG.tableUnidades));
+    } else if (type === 'unidades') {
+        promises.push(fetchSupabaseData(DB_CONFIG.tableChoferes));
+    } else {
+        promises.push(Promise.resolve([]));
+    }
+
+    const [data, expenses, crossRef] = await Promise.all(promises);
     catalogData = data;
 
     if (loader) loader.classList.add('hidden');
 
-    renderCatalogTable(type, catalogData, expenses || []);
+    renderCatalogTable(type, catalogData, expenses || [], crossRef || []);
 }
 
 function calculateFuelMetrics(id, type, expenses) {
@@ -2024,53 +2037,59 @@ function calculateFuelMetrics(id, type, expenses) {
     };
 }
 
-function renderCatalogTable(type, data, expenses = []) {
+function renderCatalogTable(type, data, expenses = [], crossRef = []) {
     const thead = document.getElementById('catalog-table-head');
     const tbody = document.getElementById('catalog-table-body');
     if (!thead || !tbody) return;
 
     const config = {
         'choferes': {
-            headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada', 'Rendimiento (Ãšltimo / Promedio)'],
+            headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada', 'Rendimiento (Último / Promedio)'],
             row: d => {
                 const metrics = calculateFuelMetrics(d.id_chofer, 'choferes', expenses);
+                const unit = crossRef.find(u => u.id_unidad === d.id_unidad);
+                const unitDisplay = unit ? `${unit.id_unidad} (${unit.nombre_unidad || 'Sin nombre'})` : (d.id_unidad || '<span class="text-slate-600 font-normal">Sin asignar</span>');
+
                 return `<td class="px-6 py-4 font-black text-white text-xs tracking-tight">${d.id_chofer}</td>
                        <td class="px-6 py-4 font-bold text-slate-200 text-xs">${d.nombre}</td>
                        <td class="px-6 py-4 text-slate-400 text-[11px] font-medium">${d.licencia || '-'}</td>
-                       <td class="px-6 py-4 text-blue-400 font-black text-xs">${d.id_unidad || '<span class="text-slate-600 font-normal">Sin asignar</span>'}</td>
+                       <td class="px-6 py-4 text-blue-400 font-black text-xs">${unitDisplay}</td>
                        <td class="px-6 py-4">
-                           <div class="text-[10px] font-black text-amber-500">Ãšlt: ${metrics.last}</div>
+                           <div class="text-[10px] font-black text-amber-500">Últ: ${metrics.last}</div>
                            <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Prom: ${metrics.avg}</div>
                        </td>`;
             }
         },
         'unidades': {
-            headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado', 'Rendimiento (Ãšltimo / Promedio)'],
+            headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado', 'Rendimiento (Último / Promedio)'],
             row: d => {
                 const id = d.id_unidad; // Use ECO ID usually
                 const metrics = calculateFuelMetrics(id, 'unidades', expenses);
+                const driver = crossRef.find(c => c.id_chofer === d.id_chofer);
+                const driverDisplay = driver ? `${driver.nombre} [${driver.id_chofer}]` : (d.id_chofer || '<span class="text-slate-600 font-normal">Sin asignar</span>');
+
                 return `<td class="px-6 py-4 font-black text-white text-xs tracking-tight">${d.id_unidad}</td>
                        <td class="px-6 py-4 font-bold text-slate-200 text-xs">${d.nombre_unidad}</td>
                        <td class="px-6 py-4 text-slate-400 text-[11px] font-medium">${d.placas || '-'}</td>
-                       <td class="px-6 py-4 text-emerald-400 font-black text-xs">${d.id_chofer || '<span class="text-slate-600 font-normal">Sin asignar</span>'}</td>
+                       <td class="px-6 py-4 text-emerald-400 font-black text-xs">${driverDisplay}</td>
                        <td class="px-6 py-4">
-                           <div class="text-[10px] font-black text-amber-500">Ãšlt: ${metrics.last}</div>
+                           <div class="text-[10px] font-black text-amber-500">Últ: ${metrics.last}</div>
                            <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Prom: ${metrics.avg}</div>
                        </td>`;
             }
         },
         'clientes': {
-            headers: ['Nombre', 'RFC/RazÃ³n Social', 'Contacto'],
-            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.nombre_cliente}</td>
-                       <td class="px-6 py-4 font-semibold text-slate-700 text-xs">${d.rfc} / ${d.razon_social}</td>
-                       <td class="px-6 py-4 text-slate-500 text-xs">${d.contacto_nombre} <br/> ${d.email}</td>`
+            headers: ['Nombre', 'RFC/Razón Social', 'Contacto'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-200 text-xs">${d.nombre_cliente}</td>
+                       <td class="px-6 py-4 font-semibold text-slate-400 text-[11px]">${d.rfc} / ${d.razon_social}</td>
+                       <td class="px-6 py-4 text-slate-500 text-[11px]">${d.contacto_nombre} <br/> ${d.email}</td>`
         },
         'proveedores': {
-            headers: ['ID', 'Proveedor', 'Tipo', 'TelÃ©fono'],
-            row: d => `<td class="px-6 py-4 font-bold text-slate-800">${d.id_proveedor}</td>
-                       <td class="px-6 py-4 font-semibold text-slate-700">${d.nombre_proveedor}</td>
-                       <td class="px-6 py-4 text-slate-500">${d.tipo_proveedor}</td>
-                       <td class="px-6 py-4 text-slate-500">${d.telefono || '-'}</td>`
+            headers: ['ID', 'Proveedor', 'Tipo', 'Teléfono'],
+            row: d => `<td class="px-6 py-4 font-bold text-slate-200 text-xs">${d.id_proveedor}</td>
+                       <td class="px-6 py-4 font-semibold text-slate-200 text-xs">${d.nombre_proveedor}</td>
+                       <td class="px-6 py-4 text-slate-400 text-[11px]">${d.tipo_proveedor}</td>
+                       <td class="px-6 py-4 text-slate-500 text-[11px]">${d.telefono || '-'}</td>`
         }
     };
 
