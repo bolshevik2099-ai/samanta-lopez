@@ -170,6 +170,13 @@ function showDetailModal(type, id) {
         case 'liquidaciones':
             showEnhancedSettlement(id);
             break;
+        case 'anticipo':
+        case 'deuda':
+        case 'cobro':
+        case 'pago_deuda':
+        case 'cuentas':
+            renderGenericDetail(DB_CONFIG.tableCuentas, 'id_cuenta', id, 'Detalle de Movimiento / Cuenta');
+            break;
         default:
             content.innerHTML = '<p class="text-center text-slate-500">Tipo de detalle no soportado.</p>';
     }
@@ -1141,6 +1148,13 @@ async function updateMovementsList() {
                         <span class="text-sm font-black ${amountClass}">
                             ${sign}$${(parseFloat(m.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </span>
+                    </td>
+                    <td class="px-8 py-5 text-right">
+                        <button onclick="showDetailModal('${m.type === 'venta' ? 'viajes' : (m.type === 'gasto' ? 'gastos' : (m.type === 'liquidacion' ? 'liquidaciones' : 'cuentas'))}', '${m.ref}')" 
+                            title="Ver Detalle" 
+                            class="w-8 h-8 rounded-lg bg-white/5 hover:bg-indigo-500/20 text-slate-400 hover:text-indigo-400 transition-all flex items-center justify-center">
+                            <i class="fas fa-eye text-xs"></i>
+                        </button>
                     </td>
                 </tr>
             `;
