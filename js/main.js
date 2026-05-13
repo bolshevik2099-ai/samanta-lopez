@@ -1066,12 +1066,13 @@ async function updateMovementsList() {
                 if (c.estatus === 'Liquidado') {
                     type = c.tipo === 'A Favor' ? 'cobro' : 'pago_deuda';
                 }
+                const actorDisplay = driverMap[c.actor_nombre] ? `${driverMap[c.actor_nombre]} [${c.actor_nombre}]` : (unitMap[c.actor_nombre] ? `${unitMap[c.actor_nombre]} [${c.actor_nombre}]` : c.actor_nombre);
                 return {
                     type: type,
                     date: c.fecha,
                     ref: c.id_cuenta || '---',
                     concept: c.concepto || 'Cuenta/Deuda',
-                    actor: c.actor_nombre || '---',
+                    actor: actorDisplay || '---',
                     amount: c.monto
                 };
             }),
