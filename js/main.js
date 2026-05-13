@@ -1043,14 +1043,20 @@ async function updateMovementsList() {
                 actor: g.id_chofer || '---',
                 amount: g.monto
             })),
-            ...cuentas.map(c => ({
-                type: c.tipo === 'A Favor' ? 'anticipo' : 'deuda',
-                date: c.fecha,
-                ref: c.id_cuenta || '---',
-                concept: c.concepto || 'Cuenta/Deuda',
-                actor: c.actor_nombre || '---',
-                amount: c.monto
-            })),
+            ...cuentas.map(c => {
+                let type = c.tipo === 'A Favor' ? 'anticipo' : 'deuda';
+                if (c.estatus === 'Liquidado') {
+                    type = c.tipo === 'A Favor' ? 'cobro' : 'pago_deuda';
+                }
+                return {
+                    type: type,
+                    date: c.fecha,
+                    ref: c.id_cuenta || '---',
+                    concept: c.concepto || 'Cuenta/Deuda',
+                    actor: c.actor_nombre || '---',
+                    amount: c.monto
+                };
+            }),
             ...liquidaciones.map(l => ({
                 type: 'liquidacion',
                 date: l.created_at ? l.created_at.split('T')[0] : l.fecha_fin,
@@ -1102,6 +1108,18 @@ async function updateMovementsList() {
                         badgeClass = 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
                         typeLabel = 'Liquidación';
                         amountClass = 'text-purple-400';
+                        sign = '-';
+                        break;
+                    case 'cobro':
+                        badgeClass = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                        typeLabel = 'Cobro / Ingreso';
+                        amountClass = 'text-emerald-400';
+                        sign = '+';
+                        break;
+                    case 'pago_deuda':
+                        badgeClass = 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                        typeLabel = 'Pago / Egreso';
+                        amountClass = 'text-rose-400';
                         sign = '-';
                         break;
                 }
@@ -2574,14 +2592,44 @@ async function updateTreasurySummary() {
 // These lines are now correctly placed after the `updateTreasurySummary()` call within `loadTreasuryList`.
 
 async function markTripAsPaid(id_viaje) {
-    if (!confirm('Â¿Marcar este viaje como PAGADO por el cliente?')) return;
-    const { error } = await window.supabaseClient
-        .from(DB_CONFIG.tableViajes)
-        .update({ estatus_pago: 'Pagado' })
-        .eq('id_viaje', id_viaje);
+    if (!confirm('¿Desea marcar este viaje como pagado por el cliente?')) return;
+    try {
+        // 1. Obtener datos del viaje para el registro de movimiento
+        const { data: trip } = await window.supabaseClient
+            .from(DB_CONFIG.tableViajes)
+            .select('*')
+            .eq('id_viaje', id_viaje)
+            .single();
 
-    if (error) alert('Error: ' + error.message);
-    else loadTreasuryList();
+        // 2. Actualizar estatus del viaje
+        const { error } = await window.supabaseClient
+            .from(DB_CONFIG.tableViajes)
+            .update({ estatus_pago: 'Pagado' })
+            .eq('id_viaje', id_viaje);
+
+        if (error) throw error;
+
+        // 3. Crear un registro de "Cobro" en reg_cuentas para que aparezca en movimientos
+        if (trip) {
+            const paymentData = {
+                id_cuenta: 'COB-' + Date.now().toString().slice(-6),
+                fecha: (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(),
+                tipo: 'A Favor',
+                actor_nombre: trip.cliente || 'Cliente Genérico',
+                concepto: 'Cobro de Flete: ' + (trip.no_interno || trip.id_viaje),
+                monto: parseFloat(trip.monto_flete) || 0,
+                id_viaje: id_viaje,
+                estatus: 'Liquidado' // Se marca como liquidado de inmediato porque es el registro del pago
+            };
+            await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([paymentData]);
+        }
+
+        alert('✅ Viaje marcado como pagado y movimiento registrado.');
+        loadTreasuryList();
+        if (typeof updateMovementsList === 'function') updateMovementsList(); 
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
 }
 
 async function loadActorOptions() {
