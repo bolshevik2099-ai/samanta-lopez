@@ -1,4 +1,4 @@
-﻿
+
 let mainChart = null; // Instancia global para el grÃ¡fico
 
 // Variables Globales de Datos (para bÃºsqueda)
@@ -2785,7 +2785,7 @@ function showSettlementFullDetail() {
             <td class="p-2 font-mono">${t.id_viaje}</td>
             <td class="p-2">${t.origen} -> ${t.destino}</td>
             <td class="p-2 text-right font-bold">$${(parseFloat(t.monto_flete) || 0).toLocaleString()}</td>
-            <td class="p-2 text-right text-green-600 font-bold">$${((parseFloat(t.monto_flete) || 0) * 0.15).toLocaleString()}</td>
+            <td class="p-2 text-right text-green-600 font-bold">$${(parseFloat(t.comision_chofer) || 0).toLocaleString()}</td>
         </tr>
     `).join('') || '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin viajes pendientes</td></tr>';
 
@@ -2821,7 +2821,7 @@ function showSettlementFullDetail() {
         <div class="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
             <!-- SecciÃ³n Viajes -->
             <div>
-                <h4 class="font-bold text-blue-600 uppercase text-xs mb-2 border-b border-blue-100 pb-1">1. Viajes a Liquidar (ComisiÃ³n 15%)</h4>
+                <h4 class="font-bold text-blue-600 uppercase text-xs mb-2 border-b border-blue-100 pb-1">1. Viajes a Liquidar</h4>
                 <table class="w-full text-left">
                     <thead class="bg-blue-50 text-[10px] uppercase font-bold text-blue-400">
                         <tr><th class="p-2">ID</th><th class="p-2">Ruta</th><th class="p-2 text-right">Flete</th><th class="p-2 text-right">ComisiÃ³n</th></tr>
@@ -2903,7 +2903,7 @@ async function finalizeSettlement() {
             for (const t of pendingTripsForDriver) {
                 await crearGastoComisionAutomatica({
                     id_viaje: t.id_viaje,
-                    monto: parseFloat(t.comision_chofer) || (parseFloat(t.monto_flete) * 0.15),
+                    monto: parseFloat(t.comision_chofer) || 0,
                     id_chofer: t.id_chofer,
                     id_unidad: t.id_unidad
                 });
@@ -2948,7 +2948,7 @@ function calculateCurrentSettlement() {
         return d.tipo === 'A Favor' ? sum + (parseFloat(d.monto) || 0) : sum;
     }, 0);
 
-    const comm = totalFletes * 0.15;
+    const comm = pendingTripsForDriver.reduce((sum, t) => sum + (parseFloat(t.comision_chofer) || 0), 0);
     const neto = comm + totalGastosAprobados - totalDebts;
 
     return {
