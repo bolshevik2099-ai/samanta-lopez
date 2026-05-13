@@ -994,9 +994,11 @@ async function updateMovementsList() {
     tbody.innerHTML = '';
 
     try {
-        const [viajesRaw, gastosRaw] = await Promise.all([
+        const [viajesRaw, gastosRaw, cuentasRaw, liquidacionesRaw] = await Promise.all([
             fetchSupabaseData(DB_CONFIG.tableViajes),
-            fetchSupabaseData(DB_CONFIG.tableGastos)
+            fetchSupabaseData(DB_CONFIG.tableGastos),
+            fetchSupabaseData(DB_CONFIG.tableCuentas),
+            fetchSupabaseData(DB_CONFIG.tableLiquidaciones)
         ]);
 
         const parseDate = (d) => {
@@ -1013,12 +1015,16 @@ async function updateMovementsList() {
         };
 
         const filterByDate = (rows, s, e) => rows.filter(r => {
-            const rowDate = parseDate(r.fecha);
+            // reg_liquidaciones usa created_at o fecha_fin, usemos created_at simplificado a YYYY-MM-DD
+            const dStr = r.fecha || r.created_at || r.fecha_fin;
+            const rowDate = parseDate(dStr ? dStr.split('T')[0] : null);
             return rowDate && rowDate >= s && rowDate <= e;
         });
 
         const viajes = filterByDate(viajesRaw, start, end);
         const gastos = filterByDate(gastosRaw, start, end);
+        const cuentas = filterByDate(cuentasRaw, start, end);
+        const liquidaciones = filterByDate(liquidacionesRaw, start, end);
 
         const combined = [
             ...viajes.map(v => ({
@@ -1026,6 +1032,7 @@ async function updateMovementsList() {
                 date: v.fecha,
                 ref: v.id_viaje || '---',
                 concept: `${v.origen} -> ${v.destino}`,
+                actor: v.cliente || v.id_chofer || '---',
                 amount: v.monto_flete
             })),
             ...gastos.map(g => ({
@@ -1033,7 +1040,24 @@ async function updateMovementsList() {
                 date: g.fecha,
                 ref: g.id_gasto || '---',
                 concept: g.concepto || 'Gasto',
+                actor: g.id_chofer || '---',
                 amount: g.monto
+            })),
+            ...cuentas.map(c => ({
+                type: c.tipo === 'A Favor' ? 'anticipo' : 'deuda',
+                date: c.fecha,
+                ref: c.id_cuenta || '---',
+                concept: c.concepto || 'Cuenta/Deuda',
+                actor: c.actor_nombre || '---',
+                amount: c.monto
+            })),
+            ...liquidaciones.map(l => ({
+                type: 'liquidacion',
+                date: l.created_at ? l.created_at.split('T')[0] : l.fecha_fin,
+                ref: `LIQ-${l.id}`,
+                concept: `Liquidación Chofer: ${l.id_chofer}`,
+                actor: l.id_chofer || '---',
+                amount: l.monto_neto
             }))
         ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -1041,31 +1065,72 @@ async function updateMovementsList() {
         if (label) label.innerText = `Periodo: ${start} al ${end}`;
 
         if (combined.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="p-16 text-center text-slate-500 italic">No se encontraron movimientos en este periodo.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="p-16 text-center text-slate-500 italic">No se encontraron movimientos en este periodo.</td></tr>';
         } else {
-            tbody.innerHTML = combined.map(m => `
+            tbody.innerHTML = combined.map(m => {
+                let badgeClass = '';
+                let typeLabel = '';
+                let amountClass = '';
+                let sign = '';
+
+                switch (m.type) {
+                    case 'venta':
+                        badgeClass = 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+                        typeLabel = 'Viaje';
+                        amountClass = 'text-blue-400';
+                        sign = '+';
+                        break;
+                    case 'gasto':
+                        badgeClass = 'bg-red-500/10 text-red-400 border border-red-500/20';
+                        typeLabel = 'Gasto';
+                        amountClass = 'text-red-400';
+                        sign = '-';
+                        break;
+                    case 'anticipo':
+                        badgeClass = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+                        typeLabel = 'Anticipo';
+                        amountClass = 'text-emerald-400';
+                        sign = '+';
+                        break;
+                    case 'deuda':
+                        badgeClass = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                        typeLabel = 'Deuda/CXP';
+                        amountClass = 'text-amber-400';
+                        sign = '-';
+                        break;
+                    case 'liquidacion':
+                        badgeClass = 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
+                        typeLabel = 'Liquidación';
+                        amountClass = 'text-purple-400';
+                        sign = '-';
+                        break;
+                }
+
+                return `
                 <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0">
                     <td class="px-8 py-5 text-xs font-mono text-slate-400">${m.date}</td>
                     <td class="px-8 py-5">
-                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${m.type === 'venta' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}">
-                            ${m.type === 'venta' ? 'Viaje' : 'Gasto'}
+                        <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${badgeClass}">
+                            ${typeLabel}
                         </span>
                     </td>
                     <td class="px-8 py-5">
                         <div class="text-sm font-bold text-white">${m.ref}</div>
                         <div class="text-[10px] text-slate-500 uppercase tracking-tighter">${m.concept}</div>
                     </td>
+                    <td class="px-8 py-5 text-sm font-medium text-slate-400">${m.actor}</td>
                     <td class="px-8 py-5 text-right">
-                        <span class="text-sm font-black ${m.type === 'venta' ? 'text-blue-400' : 'text-red-400'}">
-                            ${m.type === 'venta' ? '+' : '-'}$${(parseFloat(m.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        <span class="text-sm font-black ${amountClass}">
+                            ${sign}$${(parseFloat(m.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </span>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         }
     } catch (err) {
         console.error(err);
-        tbody.innerHTML = `<tr><td colspan="4" class="p-16 text-center text-red-400">Error al cargar datos: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="p-16 text-center text-red-400">Error al cargar datos: ${err.message}</td></tr>`;
     } finally {
         if (loader) loader.classList.add('hidden');
     }
