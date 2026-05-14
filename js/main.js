@@ -3512,42 +3512,55 @@ function renderRatesList(rates) {
     const sortedClients = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
 
     container.innerHTML = sortedClients.map(client => `
-        <div class="space-y-4">
-            <h3 class="text-xs font-black text-amber-500 uppercase tracking-[0.2em] px-4 flex items-center gap-2">
-                <i class="fas fa-building opacity-50"></i> ${client}
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                ${grouped[client].map(r => `
-                    <div class="bg-slate-900/60 backdrop-blur-md p-6 rounded-3xl border border-white/5 hover:border-blue-500/30 transition-all group relative overflow-hidden">
-                        <div class="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                            <button onclick="editRate('${r.id}')" class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-all">
-                                <i class="fas fa-edit text-xs"></i>
-                            </button>
-                            <button onclick="deleteRate('${r.id}')" class="w-8 h-8 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
-                                <i class="fas fa-trash text-xs"></i>
-                            </button>
-                        </div>
-                        <div class="flex justify-between items-start mb-4">
-                            <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
-                                <i class="fas fa-map-marked-alt"></i>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Monto</span>
-                                <span class="text-lg font-black text-white">$${parseFloat(r.monto).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
-                            </div>
-                        </div>
-                        <div class="space-y-2">
-                            <div class="flex items-center gap-3">
-                                <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-                                <span class="text-[11px] font-bold text-slate-300">${r.origen}</span>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                                <span class="text-[11px] font-bold text-slate-300">${r.destino}</span>
-                            </div>
-                        </div>
-                    </div>
-                `).join('')}
+        <div class="bg-slate-900/40 backdrop-blur-xl rounded-3xl border border-white/5 overflow-hidden shadow-xl mb-10">
+            <div class="bg-white/5 px-8 py-4 border-b border-white/5 flex items-center justify-between">
+                <h3 class="text-xs font-black text-amber-500 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <i class="fas fa-building opacity-50"></i> ${client}
+                </h3>
+                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">${grouped[client].length} Rutas</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-white/[0.02] border-b border-white/5">
+                            <th class="px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Origen</th>
+                            <th class="px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Destino</th>
+                            <th class="px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Monto ($)</th>
+                            <th class="px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5">
+                        ${grouped[client].map(r => `
+                            <tr class="hover:bg-white/[0.02] transition-colors group">
+                                <td class="px-8 py-5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+                                        <span class="text-sm font-bold text-slate-200">${r.origen}</span>
+                                    </div>
+                                </td>
+                                <td class="px-8 py-5">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                        <span class="text-sm font-bold text-slate-200">${r.destino}</span>
+                                    </div>
+                                </td>
+                                <td class="px-8 py-5 text-right">
+                                    <span class="text-sm font-black text-white">$${parseFloat(r.monto).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                </td>
+                                <td class="px-8 py-5 text-right">
+                                    <div class="flex justify-end gap-2">
+                                        <button onclick="editRate('${r.id}')" title="Editar" class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-all">
+                                            <i class="fas fa-edit text-xs"></i>
+                                        </button>
+                                        <button onclick="deleteRate('${r.id}')" title="Eliminar" class="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
+                                            <i class="fas fa-trash text-xs"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
         </div>
     `).join('');
