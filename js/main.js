@@ -3525,12 +3525,13 @@ function renderRatesList(rates) {
                         <tr class="bg-white/[0.02] border-b border-white/5">
                             <th class="px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Origen</th>
                             <th class="px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Destino</th>
-                            <th class="px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Monto ($)</th>
+                            <th class="px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Flete ($)</th>
+                            <th class="px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right text-amber-500">Comisión ($)</th>
                             <th class="px-8 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Acciones</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-white/5">
-                        ${grouped[client].map(r => `
+                        ${grouped[client].sort((a, b) => (a.origen || '').localeCompare(b.origen || '')).map(r => `
                             <tr class="hover:bg-white/[0.02] transition-colors group">
                                 <td class="px-8 py-5">
                                     <div class="flex items-center gap-3">
@@ -3546,6 +3547,9 @@ function renderRatesList(rates) {
                                 </td>
                                 <td class="px-8 py-5 text-right">
                                     <span class="text-sm font-black text-white">$${parseFloat(r.monto).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                </td>
+                                <td class="px-8 py-5 text-right">
+                                    <span class="text-sm font-black text-amber-500">$${parseFloat(r.comision_chofer || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                                 </td>
                                 <td class="px-8 py-5 text-right">
                                     <div class="flex justify-end gap-2">
@@ -3598,6 +3602,7 @@ async function editRate(id) {
         document.getElementById('rate-origen').value = data.origen;
         document.getElementById('rate-destino').value = data.destino;
         document.getElementById('rate-monto').value = data.monto;
+        document.getElementById('rate-comision').value = data.comision_chofer || 0;
         document.getElementById('rate-tipo').value = data.tipo;
     } catch (err) {
         alert('Error al cargar tarifa: ' + err.message);
@@ -3636,6 +3641,7 @@ async function handleRateSubmit(e) {
             origen: document.getElementById('rate-origen').value,
             destino: document.getElementById('rate-destino').value,
             monto: parseFloat(document.getElementById('rate-monto').value) || 0,
+            comision_chofer: parseFloat(document.getElementById('rate-comision').value) || 0,
             tipo: document.getElementById('rate-tipo').value
         };
 
