@@ -31,10 +31,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const accountForm = document.getElementById('account-form');
     if (accountForm) {
-        // Asumiendo que enviarCuenta existe o necesitamos crear un handleAccountSubmit.
-        // Si no existe handleAccountSubmit, verificar si enviarCuenta existe.
         if (typeof enviarCuenta === 'function') accountForm.addEventListener('submit', enviarCuenta);
     }
+
+    const rateForm = document.getElementById('rate-form');
+    if (rateForm) rateForm.addEventListener('submit', handleRateSubmit);
 
     // Live Commission Calculation (15%)
     const fleteInput = document.getElementById('V_Monto_Flete');
@@ -105,6 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (navId === 'gastos') loadExpensesList();
             if (navId === 'dashboard') updateDashboardByPeriod();
             if (navId === 'movimientos') loadMovementsByPeriod();
+            if (navId === 'tarifas') loadRatesList();
         });
     });
 
@@ -3427,6 +3429,227 @@ async function populateDriverFormOptions() {
 
     } catch (err) {
         console.error('Error populating driver form options:', err);
+    }
+}
+
+// --- GESTIÓN DE TARIFAS ---
+
+let currentRateTab = 'Trailer';
+
+async function loadRatesList() {
+    const loader = document.getElementById('rates-loader');
+    const container = document.getElementById('rates-container');
+    if (!container) return;
+
+    if (loader) loader.classList.remove('hidden');
+    container.innerHTML = '';
+
+    try {
+        const [rates, clients] = await Promise.all([
+            fetchSupabaseData(DB_CONFIG.tableTarifas),
+            fetchSupabaseData(DB_CONFIG.tableClientes)
+        ]);
+
+        // Populate client select in form if not done
+        const clientSelect = document.getElementById('rate-cliente');
+        if (clientSelect && clientSelect.options.length <= 1) {
+            clientSelect.innerHTML = '<option value="" class="bg-slate-900">Selecciona Cliente</option>' +
+                clients.sort((a,b) => (a.nombre_cliente || '').localeCompare(b.nombre_cliente || ''))
+                       .map(c => `<option value="${c.nombre_cliente}" class="bg-slate-900">${c.nombre_cliente}</option>`).join('');
+        }
+
+        renderRatesList(rates);
+    } catch (err) {
+        console.error('Error cargando tarifas:', err);
+        container.innerHTML = `<p class="text-center text-red-400">Error: ${err.message}</p>`;
+    } finally {
+        if (loader) loader.classList.add('hidden');
+    }
+}
+
+function switchRateTab(type) {
+    currentRateTab = type;
+    
+    // UI Update
+    document.querySelectorAll('.rate-tab').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-600/20');
+        btn.classList.add('text-slate-500', 'hover:text-white');
+    });
+
+    const activeBtn = document.getElementById(`rate-tab-${type.toLowerCase()}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('text-slate-500', 'hover:text-white');
+        activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-600/20');
+    }
+
+    loadRatesList();
+}
+
+function renderRatesList(rates) {
+    const container = document.getElementById('rates-container');
+    if (!container) return;
+
+    const filtered = rates.filter(r => r.tipo === currentRateTab);
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-20 bg-white/5 rounded-[2.5rem] border border-dashed border-white/10">
+                <i class="fas fa-tags text-4xl text-slate-700 mb-4"></i>
+                <p class="text-slate-500 font-bold uppercase tracking-widest text-xs">No hay tarifas registradas para ${currentRateTab}</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Group by client
+    const grouped = {};
+    filtered.forEach(r => {
+        if (!grouped[r.cliente]) grouped[r.cliente] = [];
+        grouped[r.cliente].push(r);
+    });
+
+    // Sort clients alphabetically
+    const sortedClients = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
+
+    container.innerHTML = sortedClients.map(client => `
+        <div class="space-y-4">
+            <h3 class="text-xs font-black text-amber-500 uppercase tracking-[0.2em] px-4 flex items-center gap-2">
+                <i class="fas fa-building opacity-50"></i> ${client}
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                ${grouped[client].map(r => `
+                    <div class="bg-slate-900/60 backdrop-blur-md p-6 rounded-3xl border border-white/5 hover:border-blue-500/30 transition-all group relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                            <button onclick="editRate('${r.id}')" class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-all">
+                                <i class="fas fa-edit text-xs"></i>
+                            </button>
+                            <button onclick="deleteRate('${r.id}')" class="w-8 h-8 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
+                                <i class="fas fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+                                <i class="fas fa-map-marked-alt"></i>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Monto</span>
+                                <span class="text-lg font-black text-white">$${parseFloat(r.monto).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                                <span class="text-[11px] font-bold text-slate-300">${r.origen}</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                <span class="text-[11px] font-bold text-slate-300">${r.destino}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function showRateForm() {
+    document.getElementById('rates-list-view').classList.add('hidden');
+    document.getElementById('rates-form-view').classList.remove('hidden');
+    document.getElementById('rate-form').reset();
+    document.getElementById('rate-id').value = '';
+    document.getElementById('rate-form-title').innerText = 'Nueva Tarifa';
+    document.getElementById('rate-tipo').value = currentRateTab;
+}
+
+function hideRateForm() {
+    document.getElementById('rates-list-view').classList.remove('hidden');
+    document.getElementById('rates-form-view').classList.add('hidden');
+}
+
+async function editRate(id) {
+    showRateForm();
+    document.getElementById('rate-form-title').innerText = 'Editar Tarifa';
+    
+    try {
+        const { data, error } = await window.supabaseClient
+            .from(DB_CONFIG.tableTarifas)
+            .select('*')
+            .eq('id', id)
+            .single();
+        
+        if (error) throw error;
+
+        document.getElementById('rate-id').value = data.id;
+        document.getElementById('rate-cliente').value = data.cliente;
+        document.getElementById('rate-origen').value = data.origen;
+        document.getElementById('rate-destino').value = data.destino;
+        document.getElementById('rate-monto').value = data.monto;
+        document.getElementById('rate-tipo').value = data.tipo;
+    } catch (err) {
+        alert('Error al cargar tarifa: ' + err.message);
+        hideRateForm();
+    }
+}
+
+async function deleteRate(id) {
+    if (!confirm('¿Estás seguro de eliminar esta tarifa?')) return;
+
+    try {
+        const { error } = await window.supabaseClient
+            .from(DB_CONFIG.tableTarifas)
+            .delete()
+            .eq('id', id);
+        
+        if (error) throw error;
+        alert('Tarifa eliminada.');
+        loadRatesList();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    }
+}
+
+async function handleRateSubmit(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerText;
+    btn.innerText = 'Guardando...';
+    btn.disabled = true;
+
+    try {
+        const id = document.getElementById('rate-id').value;
+        const rateData = {
+            cliente: document.getElementById('rate-cliente').value,
+            origen: document.getElementById('rate-origen').value,
+            destino: document.getElementById('rate-destino').value,
+            monto: parseFloat(document.getElementById('rate-monto').value) || 0,
+            tipo: document.getElementById('rate-tipo').value
+        };
+
+        let error;
+        if (id) {
+            const { error: err } = await window.supabaseClient
+                .from(DB_CONFIG.tableTarifas)
+                .update(rateData)
+                .eq('id', id);
+            error = err;
+        } else {
+            const { error: err } = await window.supabaseClient
+                .from(DB_CONFIG.tableTarifas)
+                .insert([rateData]);
+            error = err;
+        }
+
+        if (error) throw error;
+
+        alert('Tarifa guardada correctamente.');
+        hideRateForm();
+        loadRatesList();
+    } catch (err) {
+        alert('Error: ' + err.message);
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
     }
 }
 

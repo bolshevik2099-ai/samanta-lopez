@@ -15,7 +15,8 @@ const DB_CONFIG = {
     tableClientes: 'cat_clientes',
     tableProveedores: 'cat_proveedores',
     tableCuentas: 'reg_cuentas',
-    tableLiquidaciones: 'reg_liquidaciones'
+    tableLiquidaciones: 'reg_liquidaciones',
+    tableTarifas: 'cat_tarifas'
 };
 
 const SUPABASE_CONFIG = {
