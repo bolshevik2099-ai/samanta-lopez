@@ -57,6 +57,17 @@
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
             border-radius: 12px !important;
         }
+
+        @media (max-width: 768px) {
+            main {
+                width: 100% !important;
+                min-height: calc(100vh - 60px);
+                padding-top: 5rem !important; /* Spacing for the mobile menu button */
+            }
+            .content-section:not(.hidden) {
+                display: block !important;
+            }
+        }
     </style>
 </head>
 
@@ -81,7 +92,7 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-xl font-bold flex items-center gap-2">
                     <i class="fas fa-shield-alt text-blue-400"></i>
-                    Procesa-T <span class="text-xs font-light text-slate-400">Admin</span>
+                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.2</span>
                 </h1>
                 <!-- Close Button Mobile -->
                 <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white">
@@ -90,24 +101,23 @@
             </div>
         </div>
         <nav class="mt-4 px-4 space-y-2 overflow-y-auto h-[calc(100vh-100px)]">
-            <button onclick="showSection('dashboard'); toggleSidebarMobile()" id="nav-dashboard"
+            <button onclick="showSection('dashboard')" id="nav-dashboard"
                 class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all active">
                 <i class="fas fa-chart-line w-5"></i> Dashboard
             </button>
-            <button onclick="showSection('viajes'); toggleSidebarMobile()" id="nav-viajes"
+            <button onclick="showSection('viajes')" id="nav-viajes"
                 class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all">
                 <i class="fas fa-route w-5"></i> Viajes
             </button>
-            <button onclick="showSection('gastos'); toggleSidebarMobile()" id="nav-gastos"
+            <button onclick="showSection('gastos')" id="nav-gastos"
                 class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all">
                 <i class="fas fa-file-invoice-dollar w-5"></i> Gastos
             </button>
-            <button onclick="showSection('tesoreria'); loadTreasuryList(); toggleSidebarMobile()" id="nav-tesoreria"
+            <button onclick="showSection('tesoreria')" id="nav-tesoreria"
                 class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all">
                 <i class="fas fa-university w-5"></i> Tesorería
             </button>
-            <button onclick="showSection('liquidaciones'); loadSettlementTrips(); toggleSidebarMobile()"
-                id="nav-liquidaciones"
+            <button onclick="showSection('liquidaciones')" id="nav-liquidaciones"
                 class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all">
                 <i class="fas fa-file-contract w-5"></i> Liquidaciones
             </button>

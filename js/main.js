@@ -1890,22 +1890,59 @@ function generateTripID() {
 }
 
 // Re-vincular al abrir el formulario de Viaje
-function showSection(sectionId) {
+async function showSection(sectionId) {
+    console.log('Navegando a sección:', sectionId);
+    
+    // Ocultar todas las secciones
     document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+    
+    // Quitar clase activa de todos los links
     document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
 
     const section = document.getElementById('section-' + sectionId);
     const nav = document.getElementById('nav-' + sectionId);
 
-    if (section) section.classList.remove('hidden');
+    if (section) {
+        section.classList.remove('hidden');
+        window.scrollTo(0, 0);
+    }
     if (nav) nav.classList.add('active');
 
-    if (section) section.classList.remove('hidden');
-    if (nav) nav.classList.add('active');
+    // Cerrar sidebar en móvil si está abierto
+    if (typeof toggleSidebarMobile === 'function') toggleSidebarMobile();
 
-    // Refrescar catÃ¡logos al entrar a secciones relevantes
-    if (['viajes', 'gastos', 'tesoreria', 'liquidaciones'].includes(sectionId)) {
-        initFormCatalogs();
+    // Cargar datos específicos por sección
+    try {
+        switch (sectionId) {
+            case 'dashboard':
+                if (typeof renderDashboard === 'function') renderDashboard();
+                break;
+            case 'viajes':
+                if (typeof loadTripsList === 'function') loadTripsList();
+                break;
+            case 'gastos':
+                if (typeof loadExpensesList === 'function') loadExpensesList();
+                break;
+            case 'tesoreria':
+                if (typeof switchTreasuryTab === 'function') {
+                    if (!currentTreasuryTab) currentTreasuryTab = 'favor';
+                    switchTreasuryTab(currentTreasuryTab);
+                }
+                break;
+            case 'liquidaciones':
+                if (typeof loadSettlementTrips === 'function') loadSettlementTrips();
+                break;
+            case 'catalogos':
+                if (typeof loadCatalog === 'function') loadCatalog('choferes');
+                break;
+        }
+        
+        // Inicializar catálogos si es necesario
+        if (['viajes', 'gastos', 'tesoreria', 'liquidaciones'].includes(sectionId)) {
+            initFormCatalogs();
+        }
+    } catch (err) {
+        console.error('Error al cargar la sección ' + sectionId + ':', err);
     }
 }
 // --- LÃ“GICA DE LISTADOS Y BÃšSQUEDA ---
@@ -2505,7 +2542,9 @@ function renderTreasuryHeader(tab) {
 async function loadTreasuryList() {
     const tbody = document.getElementById('treasury-table-body');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>';
+
+    try {
+        tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center"><i class="fas fa-spinner fa-spin"></i> Cargando datos de tesorería...</td></tr>';
 
     let data = [];
     if (currentTreasuryTab === 'viajes') {
@@ -2588,6 +2627,10 @@ async function loadTreasuryList() {
 
     // updateTreasurySummary se encarga de los totales globales
     updateTreasurySummary();
+    } catch (err) {
+        console.error('Error en loadTreasuryList:', err);
+        tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-red-500">Error: ${err.message}</td></tr>`;
+    }
 }
 
 // Variables globales para ediciÃ³n de cuenta
@@ -2938,7 +2981,9 @@ let pendingTripsForDriver = [];
 async function loadSettlementTrips() {
     const list = document.getElementById('liquidation-driver-list');
     if (!list) return;
-    list.innerHTML = '<div class="p-4 text-center"><i class="fas fa-spinner fa-spin"></i></div>';
+    
+    try {
+        list.innerHTML = '<div class="p-4 text-center text-slate-500"><i class="fas fa-spinner fa-spin"></i> Cargando choferes...</div>';
 
     // 1. Obtener choferes activos
     const drivers = await fetchSupabaseData(DB_CONFIG.tableChoferes);
@@ -2954,6 +2999,10 @@ async function loadSettlementTrips() {
             <i class="fas fa-chevron-right text-slate-600 group-hover:text-blue-400 transition-all"></i>
         </button>
         `).join('') || '<p class="text-sm p-4 text-slate-500">No hay choferes disponibles.</p>';
+    } catch (err) {
+        console.error('Error en loadSettlementTrips:', err);
+        list.innerHTML = `<div class="p-4 text-center text-red-500 text-xs">Error: ${err.message}</div>`;
+    }
 }
 
 async function loadDriverSettlementDetail(id_chofer) {
