@@ -2522,7 +2522,6 @@ async function loadTreasuryList() {
     let total = 0;
 
     tbody.innerHTML = data.map(item => {
-        if (currentTreasuryTab === 'viajes') {
             const isPaid = item.estatus_pago === 'Pagado';
             if (!isPaid) total += parseFloat(item.monto_flete) || 0;
             return `
@@ -2535,10 +2534,10 @@ async function loadTreasuryList() {
                         <div class="text-xs font-black text-slate-200 tracking-tight">${item.cliente}</div>
                         <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 italic">${item.id_viaje}</div>
                     </td>
-                    <td class="px-6 py-4 font-bold text-slate-800">$${(parseFloat(item.monto_flete) || 0).toLocaleString()}</td>
+                    <td class="px-6 py-4 font-bold text-white">$${(parseFloat(item.monto_flete) || 0).toLocaleString()}</td>
                     <td class="px-6 py-4">
                         <span class="text-[10px] font-bold ${isPaid ? 'text-green-500' : 'text-amber-500'}">
-                            â— ${item.estatus_pago || 'Pendiente'}
+                            ● ${item.estatus_pago || 'Pendiente'}
                         </span>
                     </td>
                     <td class="px-6 py-4">
@@ -2555,27 +2554,32 @@ async function loadTreasuryList() {
             const monto = parseFloat(item.monto) || 0;
             if (item.estatus !== 'Liquidado') total += monto;
             return `
-                <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
+                <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0 hover:border-white/10">
                     <td class="px-6 py-4">
-                        <div class="font-bold text-slate-800 text-xs">${item.id_cuenta}</div>
-                        <div class="text-[10px] text-slate-400 font-mono">${item.fecha}</div>
+                        <div class="font-bold text-white text-xs">${item.id_cuenta}</div>
+                        <div class="text-[10px] text-slate-500 font-mono">${item.fecha}</div>
                     </td>
                     <td class="px-6 py-4">
-                        <div class="text-sm font-semibold text-slate-800">${item.actor_nombre}</div>
-                        <div class="text-[10px] text-slate-400 italic">${item.concepto}</div>
+                        <div class="text-sm font-semibold text-slate-200">${item.actor_nombre}</div>
+                        <div class="text-[10px] text-slate-500 italic">${item.concepto}</div>
                     </td>
-                    <td class="px-6 py-4 font-bold text-slate-800">$${monto.toLocaleString()}</td>
+                    <td class="px-6 py-4 font-bold text-white">$${monto.toLocaleString()}</td>
                     <td class="px-6 py-4">
                         <span class="text-[10px] font-bold ${item.estatus === 'Liquidado' ? 'text-green-500' : 'text-amber-500'}">
-                            â— ${item.estatus}
+                            ● ${item.estatus}
                         </span>
                     </td>
                     <td class="px-6 py-4">
                         ${item.estatus !== 'Liquidado' ? `<button onclick="markAccountLiquidated('${item.id_cuenta}')" class="text-xs text-green-500 hover:underline">Liquidar</button>` : '<span class="text-slate-300">-</span>'}
                     </td>
                     <td class="px-6 py-4 text-right space-x-2">
-                         ${item.id_cuenta.startsWith('ACC-') ? `<button onclick="editAccount('${item.id_cuenta}')" title="Editar Cuenta" class="text-blue-400 hover:text-blue-600 p-1"><i class="fas fa-edit"></i></button>` : '<span title="Generado AutomÃ¡ticamente" class="text-slate-200 cursor-not-allowed mx-1"><i class="fas fa-edit"></i></span>'}
+                         ${item.id_cuenta.startsWith('ACC-') ? `<button onclick="editAccount('${item.id_cuenta}')" title="Editar Cuenta" class="text-blue-400 hover:text-blue-600 p-1"><i class="fas fa-edit"></i></button>` : '<span title="Generado Automáticamente" class="text-slate-500 cursor-not-allowed mx-1"><i class="fas fa-edit"></i></span>'}
                         <button onclick="deleteItem('${DB_CONFIG.tableCuentas}', '${item.id_cuenta}', 'id_cuenta')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
+                    </td>
+                </tr>
+            `;
+        }
+', 'id_cuenta')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
                     </td>
                 </tr>
             `;
@@ -2942,14 +2946,14 @@ async function loadSettlementTrips() {
 
     list.innerHTML = activeDrivers.map(d => `
         <button onclick="loadDriverSettlementDetail('${d.id_chofer}')" 
-            class="w-full text-left p-4 rounded-xl border border-slate-100 hover:border-blue-500 hover:bg-blue-50 transition-all flex justify-between items-center group">
+            class="w-full text-left p-4 rounded-xl border border-white/5 hover:border-blue-500 hover:bg-blue-500/10 transition-all flex justify-between items-center group bg-slate-950/20">
             <div>
-                <div class="font-black text-slate-800 truncate">${d.nombre}</div>
-                <div class="text-[10px] text-slate-400">ID: ${d.id_chofer}</div>
+                <div class="font-black text-white truncate">${d.nombre}</div>
+                <div class="text-[10px] text-slate-500">ID: ${d.id_chofer}</div>
             </div>
-            <i class="fas fa-chevron-right text-slate-200 group-hover:text-blue-500 transition-all"></i>
+            <i class="fas fa-chevron-right text-slate-600 group-hover:text-blue-400 transition-all"></i>
         </button>
-        `).join('') || '<p class="text-sm p-4 text-slate-400">No hay choferes disponibles.</p>';
+        `).join('') || '<p class="text-sm p-4 text-slate-500">No hay choferes disponibles.</p>';
 }
 
 async function loadDriverSettlementDetail(id_chofer) {
@@ -3022,12 +3026,12 @@ async function loadDriverSettlementDetail(id_chofer) {
         sumExp += parseFloat(g.monto);
 
         return `
-    < div class= "flex flex-col gap-1 border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0" >
+            <div class="flex flex-col gap-1 border-b border-white/5 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs font-semibold text-slate-700">
+                    <span class="text-xs font-semibold text-slate-200">
                         ${g.concepto} (${g.id_viaje})
                     </span>
-                    <span class="font-mono font-bold">$${parseFloat(g.monto).toLocaleString()}</span>
+                    <span class="font-mono font-bold text-white">$${parseFloat(g.monto).toLocaleString()}</span>
                 </div>
                 <div class="flex justify-between items-center">
                     <span class="text-[8px] font-black uppercase ${aprobColor}">${estAprob}</span>
@@ -3038,7 +3042,7 @@ async function loadDriverSettlementDetail(id_chofer) {
                         </div>
                     ` : ''}
                 </div>
-            </div >
+            </div>
         `;
     }).join('') || '<span class="text-slate-400 italic">Sin gastos a reembolsar</span>';
     document.getElementById('set-sum-expenses').innerText = `$${sumExp.toLocaleString()}`;
@@ -3049,7 +3053,7 @@ async function loadDriverSettlementDetail(id_chofer) {
     debtList.innerHTML = currentDebts.map(d => {
         const monto = parseFloat(d.monto) || 0;
         sumDebtNeto += monto;
-        return `< div class= "flex justify-between text-amber-700" ><span>${d.concepto} (Anticipo)</span><span class="font-mono">-$${monto.toLocaleString()}</span></div > `;
+        return `<div class="flex justify-between text-amber-500"><span>${d.concepto} (Anticipo)</span><span class="font-mono">-$${monto.toLocaleString()}</span></div> `;
     }).join('') || '<span class="text-amber-400 italic">Sin anticipos pendientes</span>';
     document.getElementById('set-sum-debts').innerText = `- $${sumDebtNeto.toLocaleString()}`;
 
@@ -3086,11 +3090,11 @@ function showSettlementFullDetail() {
 
     // Generar tabla de Viajes
     const tripsHtml = pendingTripsForDriver.map(t => `
-        <tr class="border-b border-slate-100 text-xs text-slate-600">
+        <tr class="border-b border-white/5 text-xs text-slate-300">
             <td class="p-2 font-mono">${t.id_viaje}</td>
             <td class="p-2">${t.origen} -> ${t.destino}</td>
-            <td class="p-2 text-right font-bold">$${(parseFloat(t.monto_flete) || 0).toLocaleString()}</td>
-            <td class="p-2 text-right text-green-600 font-bold">$${(parseFloat(t.comision_chofer) || 0).toLocaleString()}</td>
+            <td class="p-2 text-right font-bold text-white">$${(parseFloat(t.monto_flete) || 0).toLocaleString()}</td>
+            <td class="p-2 text-right text-green-400 font-bold">$${(parseFloat(t.comision_chofer) || 0).toLocaleString()}</td>
         </tr>
     `).join('') || '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin viajes pendientes</td></tr>';
 
