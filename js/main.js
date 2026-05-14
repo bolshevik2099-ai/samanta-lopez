@@ -1935,7 +1935,12 @@ async function loadTripsList() {
     if (loader) loader.classList.remove('hidden');
     if (tbody) tbody.innerHTML = '';
 
-    allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
+    try {
+        await ensureGlobalMapsLoaded();
+        allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
+    } catch (err) {
+        console.error('Error loading trips:', err);
+    }
 
     if (loader) loader.classList.add('hidden');
     renderTripsTable(allTripsData);
@@ -1957,8 +1962,8 @@ function renderTripsTable(data) {
                 </div>
             </td>
             <td class="px-6 py-4 text-[10px] font-bold text-slate-400 space-y-1">
-                <div class="flex items-center gap-2"><i class="fas fa-truck text-blue-500/50 w-3"></i> ${v.id_unidad}</div>
-                <div class="flex items-center gap-2"><i class="fas fa-user-tie text-blue-500/50 w-3"></i> ${v.id_chofer}</div>
+                <div class="flex items-center gap-2"><i class="fas fa-truck text-blue-500/50 w-3"></i> ${globalUnitMap[v.id_unidad] ? `${globalUnitMap[v.id_unidad]} [${v.id_unidad}]` : (v.id_unidad || '---')}</div>
+                <div class="flex items-center gap-2"><i class="fas fa-user-tie text-blue-500/50 w-3"></i> ${globalDriverMap[v.id_chofer] ? `${globalDriverMap[v.id_chofer]} [${v.id_chofer}]` : (v.id_chofer || '---')}</div>
             </td>
             <td class="px-6 py-4 font-black text-white text-xs">$${(parseFloat(v.monto_flete) || 0).toLocaleString()}</td>
             <td class="px-6 py-4">
@@ -2309,7 +2314,12 @@ async function loadTripsList() {
     if (loader) loader.classList.remove('hidden');
     if (tbody) tbody.innerHTML = '';
 
-    allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
+    try {
+        await ensureGlobalMapsLoaded();
+        allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
+    } catch (err) {
+        console.error('Error loading trips:', err);
+    }
 
     if (loader) loader.classList.add('hidden');
     renderTripsTable(allTripsData);
@@ -2321,7 +2331,12 @@ async function loadExpensesList() {
     if (loader) loader.classList.remove('hidden');
     if (tbody) tbody.innerHTML = '';
 
-    allExpensesData = await fetchSupabaseData(DB_CONFIG.tableGastos);
+    try {
+        await ensureGlobalMapsLoaded();
+        allExpensesData = await fetchSupabaseData(DB_CONFIG.tableGastos);
+    } catch (err) {
+        console.error('Error loading expenses:', err);
+    }
 
     // Update pending count
     const pendingCount = allExpensesData.filter(g => g.estatus_aprobacion === 'Pendiente').length;
@@ -2372,12 +2387,12 @@ function renderExpensesTable(data) {
                     <div class="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">${g.fecha}</div>
                 </td>
                 <td class="px-6 py-4">
-                    <div class="text-sm font-semibold text-slate-700">Viaje: ${g.id_viaje}</div>
-                    <div class="text-[10px] text-slate-400">Unidad: ${g.id_unit_eco || g.id_unidad}</div>
+                    <div class="text-sm font-semibold text-slate-700">Viaje: ${g.id_viaje || '---'}</div>
+                    <div class="text-[10px] text-slate-400">Unidad: ${globalUnitMap[g.id_unidad] ? `${globalUnitMap[g.id_unidad]} [${g.id_unidad}]` : (g.id_unidad || '---')}</div>
                 </td>
                 <td class="px-6 py-4 text-sm text-slate-600">
                     <div class="font-bold text-slate-800 text-sm">${g.concepto}</div>
-                    <div class="text-[10px] text-slate-400">Chofer: ${g.id_chofer}</div>
+                    <div class="text-[10px] text-slate-400">Chofer: ${globalDriverMap[g.id_chofer] ? `${globalDriverMap[g.id_chofer]} [${g.id_chofer}]` : (g.id_chofer || '---')}</div>
                 </td>
                 <td class="px-6 py-4 text-right font-mono font-bold text-red-600 text-sm">
                     $${(parseFloat(g.monto) || 0).toLocaleString()}
