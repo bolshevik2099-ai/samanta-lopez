@@ -2433,16 +2433,20 @@ let currentTreasuryTab = 'favor';
 
 async function switchTreasuryTab(tab) {
     currentTreasuryTab = tab;
+
+    // Actualizar estilos de tabs con null-check
     document.querySelectorAll('.treasury-tab').forEach(btn => {
-        btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm');
-        btn.classList.add('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
+        btn.classList.remove('bg-blue-600', 'text-white', 'shadow-sm', 'shadow-blue-600/20');
+        btn.classList.add('text-slate-500');
     });
     const activeBtn = document.getElementById('t-tab-' + tab);
-    activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
-    activeBtn.classList.remove('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
+    if (activeBtn) {
+        activeBtn.classList.remove('text-slate-500');
+        activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+    }
 
     renderTreasuryHeader(tab);
-    loadTreasuryList();
+    await loadTreasuryList();
 }
 
 function renderTreasuryHeader(tab) {
@@ -2474,89 +2478,82 @@ async function loadTreasuryList() {
     const tbody = document.getElementById('treasury-table-body');
     if (!tbody) return;
 
+    tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-slate-400"><i class="fas fa-spinner fa-spin mr-2"></i>Cargando...</td></tr>';
+
     try {
-        tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center"><i class="fas fa-spinner fa-spin"></i> Cargando datos de tesorería...</td></tr>';
+        let data = [];
+        if (currentTreasuryTab === 'viajes') {
+            data = await fetchSupabaseData(DB_CONFIG.tableViajes);
+        } else {
+            const type = currentTreasuryTab === 'favor' ? 'A Favor' : 'En Contra';
+            const allData = await fetchSupabaseData(DB_CONFIG.tableCuentas);
+            data = allData.filter(c => c.tipo === type);
+        }
 
-    let data = [];
-    if (currentTreasuryTab === 'viajes') {
-        data = await fetchSupabaseData(DB_CONFIG.tableViajes);
-        // Filtrar solo los que NO están pagados si queremos ver pendientes, 
-        // pero el usuario pidió "viajes por cobrar", usualmente incluye pagados recientes o todos.
-        // Mostraremos todos los que no tengan estatus_pago = 'Pagado' por defecto.
-    } else {
-        const type = currentTreasuryTab === 'favor' ? 'A Favor' : 'En Contra';
-        const allData = await fetchSupabaseData(DB_CONFIG.tableCuentas);
-        data = allData.filter(c => c.tipo === type);
-    }
-
-    let total = 0;
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-slate-500 italic">No hay registros en esta categoría.</td></tr>';
+            updateTreasurySummary();
+            return;
+        }
 
         tbody.innerHTML = data.map(item => {
             if (currentTreasuryTab === 'viajes') {
                 const isPaid = item.estatus_pago === 'Pagado';
-                if (!isPaid) total += parseFloat(item.monto_flete) || 0;
                 return `
-                    <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0 hover:border-white/10">
+                    <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0">
                         <td class="px-6 py-4">
                             <div class="font-black text-white text-xs tracking-tight">${item.no_interno || 'S/N'}</div>
-                            <div class="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">${item.fecha}</div>
+                            <div class="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">${item.fecha || ''}</div>
                         </td>
                         <td class="px-6 py-4">
-                            <div class="text-xs font-black text-slate-200 tracking-tight">${item.cliente}</div>
-                            <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 italic">${item.id_viaje}</div>
+                            <div class="text-xs font-black text-slate-200 tracking-tight">${item.cliente || '-'}</div>
+                            <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 italic">${item.id_viaje || ''}</div>
                         </td>
                         <td class="px-6 py-4 font-bold text-white">$${(parseFloat(item.monto_flete) || 0).toLocaleString()}</td>
                         <td class="px-6 py-4">
-                            <span class="text-[10px] font-bold ${isPaid ? 'text-green-500' : 'text-amber-500'}">
-                                ● ${item.estatus_pago || 'Pendiente'}
-                            </span>
+                            <span class="text-[10px] font-bold ${isPaid ? 'text-green-500' : 'text-amber-500'}">● ${item.estatus_pago || 'Pendiente'}</span>
                         </td>
                         <td class="px-6 py-4">
-                            ${!isPaid ? `<button onclick="markTripAsPaid('${item.id_viaje}')" class="text-xs text-blue-500 hover:underline">Marcar Pagado</button>` : '<span class="text-slate-300">-</span>'}
+                            ${!isPaid ? `<button onclick="markTripAsPaid('${item.id_viaje}')" class="text-xs text-blue-500 hover:underline">Marcar Pagado</button>` : '<span class="text-slate-500">-</span>'}
                         </td>
-                        <td class="px-6 py-4 text-right space-x-2">
-                            <button onclick="editTrip('${item.id_viaje}')" title="Editar Viaje" class="text-blue-400 hover:text-blue-600 p-1"><i class="fas fa-edit"></i></button>
-                            <button onclick="showDetailModal('viajes', '${item.id_viaje}')" title="Ver Detalle" class="text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-eye"></i></button>
-                            <button onclick="deleteItem('${DB_CONFIG.tableViajes}', '${item.id_viaje}', 'id_viaje')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
+                        <td class="px-6 py-4 text-right space-x-1">
+                            <button onclick="editTrip('${item.id_viaje}')" class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all"><i class="fas fa-edit text-xs"></i></button>
+                            <button onclick="showDetailModal('viajes','${item.id_viaje}')" class="w-7 h-7 rounded-lg bg-white/5 text-slate-400 hover:bg-white/10 transition-all"><i class="fas fa-eye text-xs"></i></button>
+                            <button onclick="deleteItem('${DB_CONFIG.tableViajes}','${item.id_viaje}','id_viaje')" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"><i class="fas fa-trash text-xs"></i></button>
                         </td>
-                    </tr>
-                `;
+                    </tr>`;
             } else {
                 const monto = parseFloat(item.monto) || 0;
-                if (item.estatus !== 'Liquidado') total += monto;
+                const isLiquidated = item.estatus === 'Liquidado';
                 return `
-                    <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0 hover:border-white/10">
+                    <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0">
                         <td class="px-6 py-4">
-                            <div class="font-bold text-white text-xs">${item.id_cuenta}</div>
-                            <div class="text-[10px] text-slate-500 font-mono">${item.fecha}</div>
+                            <div class="font-bold text-white text-xs">${item.id_cuenta || '-'}</div>
+                            <div class="text-[10px] text-slate-500 font-mono">${item.fecha || ''}</div>
                         </td>
                         <td class="px-6 py-4">
-                            <div class="text-sm font-semibold text-slate-200">${item.actor_nombre}</div>
-                            <div class="text-[10px] text-slate-500 italic">${item.concepto}</div>
+                            <div class="text-sm font-semibold text-slate-200">${item.actor_nombre || '-'}</div>
+                            <div class="text-[10px] text-slate-500 italic">${item.concepto || ''}</div>
                         </td>
                         <td class="px-6 py-4 font-bold text-white">$${monto.toLocaleString()}</td>
                         <td class="px-6 py-4">
-                            <span class="text-[10px] font-bold ${item.estatus === 'Liquidado' ? 'text-green-500' : 'text-amber-500'}">
-                                ● ${item.estatus}
-                            </span>
+                            <span class="text-[10px] font-bold ${isLiquidated ? 'text-green-500' : 'text-amber-500'}">● ${item.estatus || 'Pendiente'}</span>
                         </td>
                         <td class="px-6 py-4">
-                            ${item.estatus !== 'Liquidado' ? `<button onclick="markAccountLiquidated('${item.id_cuenta}')" class="text-xs text-green-500 hover:underline">Liquidar</button>` : '<span class="text-slate-300">-</span>'}
+                            ${!isLiquidated ? `<button onclick="markAccountLiquidated('${item.id_cuenta}')" class="text-xs text-green-500 hover:underline">Liquidar</button>` : '<span class="text-slate-500">-</span>'}
                         </td>
-                        <td class="px-6 py-4 text-right space-x-2">
-                             ${item.id_cuenta.startsWith('ACC-') ? `<button onclick="editAccount('${item.id_cuenta}')" title="Editar Cuenta" class="text-blue-400 hover:text-blue-600 p-1"><i class="fas fa-edit"></i></button>` : '<span title="Generado Automáticamente" class="text-slate-500 cursor-not-allowed mx-1"><i class="fas fa-edit"></i></span>'}
-                            <button onclick="deleteItem('${DB_CONFIG.tableCuentas}', '${item.id_cuenta}', 'id_cuenta')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash-alt"></i></button>
+                        <td class="px-6 py-4 text-right space-x-1">
+                            ${(item.id_cuenta || '').startsWith('ACC-') ? `<button onclick="editAccount('${item.id_cuenta}')" class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all"><i class="fas fa-edit text-xs"></i></button>` : '<span class="w-7 h-7 inline-block"></span>'}
+                            <button onclick="deleteItem('${DB_CONFIG.tableCuentas}','${item.id_cuenta}','id_cuenta')" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"><i class="fas fa-trash text-xs"></i></button>
                         </td>
-                    </tr>
-                `;
+                    </tr>`;
             }
         }).join('');
 
-    // updateTreasurySummary se encarga de los totales globales
-    updateTreasurySummary();
+        updateTreasurySummary();
     } catch (err) {
         console.error('Error en loadTreasuryList:', err);
-        tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-red-500">Error: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-red-400 font-bold"><i class="fas fa-exclamation-triangle mr-2"></i>Error al cargar: ${err.message}</td></tr>`;
     }
 }
 
