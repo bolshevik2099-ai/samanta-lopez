@@ -37,6 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const rateForm = document.getElementById('rate-form');
     if (rateForm) rateForm.addEventListener('submit', handleRateSubmit);
 
+    const catalogForm = document.getElementById('catalog-form');
+    if (catalogForm) catalogForm.addEventListener('submit', handleCatalogSubmit);
+
     // Live Commission Calculation (15%)
     const fleteInput = document.getElementById('V_Monto_Flete');
     const commInput = document.getElementById('V_Comision_Chofer');
@@ -2276,6 +2279,48 @@ function showCatalogForm() {
 function hideCatalogForm() {
     document.getElementById('catalog-list-view').classList.remove('hidden');
     document.getElementById('catalog-form-view').classList.add('hidden');
+}
+
+async function handleCatalogSubmit(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerText;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+    btn.disabled = true;
+
+    try {
+        const payload = {};
+        const inputs = e.target.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            if (input.id) {
+                payload[input.id] = input.value;
+            }
+        });
+
+        payload.estatus = 'Activo';
+
+        const tableName = 'table' + currentCatalog.charAt(0).toUpperCase() + currentCatalog.slice(1);
+        const table = DB_CONFIG[tableName];
+        
+        if (!table) throw new Error('Tabla no configurada para ' + currentCatalog);
+
+        const { error } = await window.supabaseClient
+            .from(table)
+            .insert([payload]);
+
+        if (error) throw error;
+
+        hideCatalogForm();
+        e.target.reset();
+        await loadCatalog(currentCatalog);
+
+    } catch (err) {
+        console.error('Error guardando registro:', err);
+        alert('Error al guardar: ' + err.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
 
 window.calcLitrosTotales = function () {
