@@ -2236,34 +2236,34 @@ function showCatalogForm() {
     const fieldsContainer = document.getElementById('catalog-form-fields');
     const config = {
         'choferes': [
-            { id: 'C_ID', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01' },
-            { id: 'C_Nombre', label: 'Nombre Completo', type: 'text', placeholder: 'Nombre Apellido' },
-            { id: 'C_Licencia', label: 'Num. Licencia', type: 'text', placeholder: 'LIC-000' },
-            { id: 'C_Telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
-            { id: 'C_Unidad', label: 'Unidad Asignada (ID ECO)', type: 'text', placeholder: 'ECO-01' }
+            { id: 'id_chofer', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01' },
+            { id: 'nombre', label: 'Nombre Completo', type: 'text', placeholder: 'Nombre Apellido' },
+            { id: 'licencia', label: 'Num. Licencia', type: 'text', placeholder: 'LIC-000' },
+            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
+            { id: 'id_unidad', label: 'Unidad Asignada (ID ECO)', type: 'text', placeholder: 'ECO-01' }
         ],
         'unidades': [
-            { id: 'U_ID', label: 'ID Unidad (ECO)', type: 'text', placeholder: 'ECO-01' },
-            { id: 'U_Nombre', label: 'Nombre/Alias', type: 'text', placeholder: 'Kenworth T680' },
-            { id: 'U_Placas', label: 'Placas', type: 'text', placeholder: '00-AA-00' },
-            { id: 'U_Modelo', label: 'Modelo', type: 'text', placeholder: '2024' },
-            { id: 'U_Marca', label: 'Marca', type: 'text', placeholder: 'Freightliner' },
-            { id: 'U_Chofer', label: 'Chofer Asignado (ID)', type: 'text', placeholder: 'CHO-01' }
+            { id: 'id_unidad', label: 'ID Unidad (ECO)', type: 'text', placeholder: 'ECO-01' },
+            { id: 'nombre_unidad', label: 'Nombre/Alias', type: 'text', placeholder: 'Kenworth T680' },
+            { id: 'placas', label: 'Placas', type: 'text', placeholder: '00-AA-00' },
+            { id: 'modelo', label: 'Modelo', type: 'text', placeholder: '2024' },
+            { id: 'marca', label: 'Marca', type: 'text', placeholder: 'Freightliner' },
+            { id: 'id_chofer', label: 'Chofer Asignado (ID)', type: 'text', placeholder: 'CHO-01' }
         ],
         'clientes': [
-            { id: 'CL_ID', label: 'ID Cliente (Opcional)', type: 'text', placeholder: 'CLI-01' },
-            { id: 'CL_Nombre', label: 'Nombre Comercial', type: 'text', placeholder: 'Empresa S.A.' },
-            { id: 'CL_Razon', label: 'Razón Social', type: 'text', placeholder: 'Logística Total S.A. de C.V.' },
-            { id: 'CL_RFC', label: 'RFC', type: 'text', placeholder: 'RFC000000AAA' },
-            { id: 'CL_Contacto', label: 'Nombre de Contacto', type: 'text', placeholder: 'Juan Pérez' },
-            { id: 'CL_Email', label: 'Email', type: 'email', placeholder: 'contacto@empresa.com' },
-            { id: 'CL_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+            { id: 'id_cliente', label: 'ID Cliente (Opcional)', type: 'text', placeholder: 'CLI-01' },
+            { id: 'nombre_cliente', label: 'Nombre Comercial', type: 'text', placeholder: 'Empresa S.A.' },
+            { id: 'razon_social', label: 'Razón Social', type: 'text', placeholder: 'Logística Total S.A. de C.V.' },
+            { id: 'rfc', label: 'RFC', type: 'text', placeholder: 'RFC000000AAA' },
+            { id: 'contacto_nombre', label: 'Nombre de Contacto', type: 'text', placeholder: 'Juan Pérez' },
+            { id: 'email', label: 'Email', type: 'email', placeholder: 'contacto@empresa.com' },
+            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
         ],
         'proveedores': [
-            { id: 'P_ID', label: 'ID Proveedor', type: 'text', placeholder: 'PROV-01' },
-            { id: 'P_Nombre', label: 'Nombre/Razón Social', type: 'text', placeholder: 'Gasolinera Plus' },
-            { id: 'P_Tipo', label: 'Tipo Proveedor', type: 'text', placeholder: 'Diesel / Refacciones' },
-            { id: 'P_Tel', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+            { id: 'id_proveedor', label: 'ID Proveedor', type: 'text', placeholder: 'PROV-01' },
+            { id: 'nombre_proveedor', label: 'Nombre/Razón Social', type: 'text', placeholder: 'Gasolinera Plus' },
+            { id: 'tipo_proveedor', label: 'Tipo Proveedor', type: 'text', placeholder: 'Diesel / Refacciones' },
+            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
         ]
     };
 
