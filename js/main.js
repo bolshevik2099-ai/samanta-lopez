@@ -2075,12 +2075,16 @@ function filterTrips(query) {
     }
     
     if (q) {
-        filtered = filtered.filter(v =>
-            String(v.id_viaje).toLowerCase().includes(q) ||
-            String(v.cliente).toLowerCase().includes(q) ||
-            String(v.id_chofer).toLowerCase().includes(q) ||
-            String(v.id_unidad).toLowerCase().includes(q)
-        );
+        filtered = filtered.filter(v => {
+            const driverName = (globalDriverMap[v.id_chofer] || '').toLowerCase();
+            const unitName = (globalUnitMap[v.id_unidad] || '').toLowerCase();
+            return String(v.id_viaje).toLowerCase().includes(q) ||
+                   String(v.cliente).toLowerCase().includes(q) ||
+                   String(v.id_chofer).toLowerCase().includes(q) ||
+                   driverName.includes(q) ||
+                   String(v.id_unidad).toLowerCase().includes(q) ||
+                   unitName.includes(q);
+        });
     }
     renderTripsTable(filtered);
 }
@@ -2518,13 +2522,17 @@ function filterExpenses(query) {
     }
     
     if (q) {
-        filtered = filtered.filter(g =>
-            String(g.id_viaje).toLowerCase().includes(q) ||
-            String(g.concepto).toLowerCase().includes(q) ||
-            String(g.id_chofer).toLowerCase().includes(q) ||
-            String(g.id_unidad).toLowerCase().includes(q) ||
-            String(g.id_unit_eco).toLowerCase().includes(q)
-        );
+        filtered = filtered.filter(g => {
+            const driverName = (globalDriverMap[g.id_chofer] || '').toLowerCase();
+            const unitName = (globalUnitMap[g.id_unidad] || '').toLowerCase();
+            return String(g.id_viaje).toLowerCase().includes(q) ||
+                   String(g.concepto).toLowerCase().includes(q) ||
+                   String(g.id_chofer).toLowerCase().includes(q) ||
+                   driverName.includes(q) ||
+                   String(g.id_unidad).toLowerCase().includes(q) ||
+                   unitName.includes(q) ||
+                   String(g.id_unit_eco).toLowerCase().includes(q);
+        });
     }
     renderExpensesTable(filtered);
 }
