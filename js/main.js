@@ -1986,12 +1986,17 @@ async function loadTripsList() {
     try {
         await ensureGlobalMapsLoaded();
         allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
+        
+        const filterDateViajes = document.getElementById('filter-date-viajes');
+        if (filterDateViajes && !filterDateViajes.value) {
+            filterDateViajes.value = new Date().toISOString().split('T')[0];
+        }
     } catch (err) {
         console.error('Error loading trips:', err);
     }
 
     if (loader) loader.classList.add('hidden');
-    renderTripsTable(allTripsData);
+    filterTrips();
 }
 
 function renderTripsTable(data) {
@@ -2044,13 +2049,23 @@ function renderTripsTable(data) {
 }
 
 function filterTrips(query) {
-    const q = query.toLowerCase();
-    const filtered = allTripsData.filter(v =>
-        String(v.id_viaje).toLowerCase().includes(q) ||
-        String(v.cliente).toLowerCase().includes(q) ||
-        String(v.id_chofer).toLowerCase().includes(q) ||
-        String(v.id_unidad).toLowerCase().includes(q)
-    );
+    const q = (query || document.getElementById('search-viajes')?.value || '').toLowerCase();
+    const dateFilter = document.getElementById('filter-date-viajes')?.value;
+    
+    let filtered = allTripsData;
+    
+    if (dateFilter) {
+        filtered = filtered.filter(v => v.fecha && v.fecha.startsWith(dateFilter));
+    }
+    
+    if (q) {
+        filtered = filtered.filter(v =>
+            String(v.id_viaje).toLowerCase().includes(q) ||
+            String(v.cliente).toLowerCase().includes(q) ||
+            String(v.id_chofer).toLowerCase().includes(q) ||
+            String(v.id_unidad).toLowerCase().includes(q)
+        );
+    }
     renderTripsTable(filtered);
 }
 
@@ -2349,6 +2364,11 @@ async function loadExpensesList() {
     try {
         await ensureGlobalMapsLoaded();
         allExpensesData = await fetchSupabaseData(DB_CONFIG.tableGastos);
+        
+        const filterDateGastos = document.getElementById('filter-date-gastos');
+        if (filterDateGastos && !filterDateGastos.value) {
+            filterDateGastos.value = new Date().toISOString().split('T')[0];
+        }
     } catch (err) {
         console.error('Error loading expenses:', err);
     }
@@ -2362,7 +2382,7 @@ async function loadExpensesList() {
     }
 
     if (loader) loader.classList.add('hidden');
-    renderExpensesTable(allExpensesData);
+    filterExpenses();
 }
 
 function switchExpenseTab(tab) {
@@ -2378,7 +2398,7 @@ function switchExpenseTab(tab) {
         activeBtn.classList.remove('text-slate-500', 'hover:bg-white', 'hover:text-slate-800');
     }
 
-    renderExpensesTable(allExpensesData);
+    filterExpenses();
 }
 
 function renderExpensesTable(data) {
@@ -2461,14 +2481,24 @@ async function rejectExpense(id) {
 }
 
 function filterExpenses(query) {
-    const q = query.toLowerCase();
-    const filtered = allExpensesData.filter(g =>
-        String(g.id_viaje).toLowerCase().includes(q) ||
-        String(g.concepto).toLowerCase().includes(q) ||
-        String(g.id_chofer).toLowerCase().includes(q) ||
-        String(g.id_unidad).toLowerCase().includes(q) ||
-        String(g.id_unit_eco).toLowerCase().includes(q)
-    );
+    const q = (query || document.getElementById('search-gastos')?.value || '').toLowerCase();
+    const dateFilter = document.getElementById('filter-date-gastos')?.value;
+    
+    let filtered = allExpensesData;
+    
+    if (dateFilter) {
+        filtered = filtered.filter(g => g.fecha && g.fecha.startsWith(dateFilter));
+    }
+    
+    if (q) {
+        filtered = filtered.filter(g =>
+            String(g.id_viaje).toLowerCase().includes(q) ||
+            String(g.concepto).toLowerCase().includes(q) ||
+            String(g.id_chofer).toLowerCase().includes(q) ||
+            String(g.id_unidad).toLowerCase().includes(q) ||
+            String(g.id_unit_eco).toLowerCase().includes(q)
+        );
+    }
     renderExpensesTable(filtered);
 }
 
