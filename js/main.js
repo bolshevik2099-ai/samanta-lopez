@@ -1576,23 +1576,23 @@ async function handleExpenseSubmit(e) {
         // REGLA DE NEGOCIO: Validación Diferenciada (Chofer vs Admin)
         if (String(session.rol).toLowerCase() !== 'admin' && String(session.rol).toLowerCase() !== 'superadmin') {
             // Lógica para CHOFERES
-            if (!tripID) throw new Error('Es obligatorio indicar el ID de Viaje para registrar un gasto.');
+            if (tripID) {
+                // Validar existencia y estatus En Proceso
+                const { data: tripCheck, error: tripCheckErr } = await window.supabaseClient
+                    .from(DB_CONFIG.tableViajes)
+                    .select('estatus_viaje')
+                    .eq('id_viaje', tripID)
+                    .single();
 
-            // Validar existencia y estatus En Proceso
-            const { data: tripCheck, error: tripCheckErr } = await window.supabaseClient
-                .from(DB_CONFIG.tableViajes)
-                .select('estatus_viaje')
-                .eq('id_viaje', tripID)
-                .single();
+                if (tripCheckErr || !tripCheck) throw new Error('El ID de Viaje ingresado no existe.');
 
-            if (tripCheckErr || !tripCheck) throw new Error('El ID de Viaje ingresado no existe.');
-
-            // REGLA: Solo viajes en proceso
-            if (tripCheck.estatus_viaje !== 'En Proceso') {
-                throw new Error(`El viaje ${tripID} no está en curso (Estatus: ${tripCheck.estatus_viaje}). No se pueden registrar gastos.`);
+                // REGLA: Solo viajes en proceso
+                if (tripCheck.estatus_viaje !== 'En Proceso') {
+                    throw new Error(`El viaje ${tripID} no está en curso (Estatus: ${tripCheck.estatus_viaje}). No se pueden registrar gastos.`);
+                }
             }
         }
-        // Nota: Los admins pueden dejar tripID vacío para gastos generales.
+        // Nota: Los admins y choferes pueden dejar tripID vacío para gastos generales.
 
         const formaPago = document.getElementById('Exp_Forma_Pago')?.value || 'Contado';
 
