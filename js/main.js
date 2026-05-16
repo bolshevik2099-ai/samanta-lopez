@@ -1992,9 +1992,13 @@ async function loadTripsList() {
         await ensureGlobalMapsLoaded();
         allTripsData = await fetchSupabaseData(DB_CONFIG.tableViajes);
         
-        const filterDateViajes = document.getElementById('filter-date-viajes');
-        if (filterDateViajes && !filterDateViajes.value) {
-            filterDateViajes.value = getLocalISODate();
+        const filterDateStartViajes = document.getElementById('filter-date-start-viajes');
+        const filterDateEndViajes = document.getElementById('filter-date-end-viajes');
+        if (filterDateStartViajes && !filterDateStartViajes.value) {
+            filterDateStartViajes.value = getLocalISODate();
+        }
+        if (filterDateEndViajes && !filterDateEndViajes.value) {
+            filterDateEndViajes.value = getLocalISODate();
         }
     } catch (err) {
         console.error('Error loading trips:', err);
@@ -2055,12 +2059,19 @@ function renderTripsTable(data) {
 
 function filterTrips(query) {
     const q = (query || document.getElementById('search-viajes')?.value || '').toLowerCase();
-    const dateFilter = document.getElementById('filter-date-viajes')?.value;
+    const startDate = document.getElementById('filter-date-start-viajes')?.value;
+    const endDate = document.getElementById('filter-date-end-viajes')?.value;
     
     let filtered = allTripsData;
     
-    if (dateFilter) {
-        filtered = filtered.filter(v => v.fecha && v.fecha.startsWith(dateFilter));
+    if (startDate || endDate) {
+        filtered = filtered.filter(v => {
+            if (!v.fecha) return false;
+            const itemDate = v.fecha.split('T')[0];
+            if (startDate && itemDate < startDate) return false;
+            if (endDate && itemDate > endDate) return false;
+            return true;
+        });
     }
     
     if (q) {
@@ -2370,9 +2381,13 @@ async function loadExpensesList() {
         await ensureGlobalMapsLoaded();
         allExpensesData = await fetchSupabaseData(DB_CONFIG.tableGastos);
         
-        const filterDateGastos = document.getElementById('filter-date-gastos');
-        if (filterDateGastos && !filterDateGastos.value) {
-            filterDateGastos.value = getLocalISODate();
+        const filterDateStartGastos = document.getElementById('filter-date-start-gastos');
+        const filterDateEndGastos = document.getElementById('filter-date-end-gastos');
+        if (filterDateStartGastos && !filterDateStartGastos.value) {
+            filterDateStartGastos.value = getLocalISODate();
+        }
+        if (filterDateEndGastos && !filterDateEndGastos.value) {
+            filterDateEndGastos.value = getLocalISODate();
         }
     } catch (err) {
         console.error('Error loading expenses:', err);
@@ -2487,12 +2502,19 @@ async function rejectExpense(id) {
 
 function filterExpenses(query) {
     const q = (query || document.getElementById('search-gastos')?.value || '').toLowerCase();
-    const dateFilter = document.getElementById('filter-date-gastos')?.value;
+    const startDate = document.getElementById('filter-date-start-gastos')?.value;
+    const endDate = document.getElementById('filter-date-end-gastos')?.value;
     
     let filtered = allExpensesData;
     
-    if (dateFilter) {
-        filtered = filtered.filter(g => g.fecha && g.fecha.startsWith(dateFilter));
+    if (startDate || endDate) {
+        filtered = filtered.filter(g => {
+            if (!g.fecha) return false;
+            const itemDate = g.fecha.split('T')[0];
+            if (startDate && itemDate < startDate) return false;
+            if (endDate && itemDate > endDate) return false;
+            return true;
+        });
     }
     
     if (q) {
