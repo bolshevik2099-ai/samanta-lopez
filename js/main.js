@@ -8,6 +8,11 @@ let currentExpenseTab = 'todos';
 let globalDriverMap = {};
 let globalUnitMap = {};
 
+function getLocalISODate(date = new Date()) {
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - tzOffset).toISOString().split('T')[0];
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Verificar sesión al cargar
     const session = checkAuth();
@@ -790,8 +795,8 @@ function setupDateFilters() {
     const lastMonth = new Date();
     lastMonth.setDate(today.getDate() - 30);
 
-    startInput.value = lastMonth.toISOString().split('T')[0];
-    endInput.value = today.toISOString().split('T')[0];
+    startInput.value = getLocalISODate(lastMonth);
+    endInput.value = getLocalISODate(today);
 }
 
 async function updateDashboardByPeriod() {
@@ -1013,7 +1018,7 @@ function loadMovementsByPeriod() {
     const endInput = document.getElementById('mov-filter-end');
 
     if (startInput && !startInput.value) {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalISODate();
         startInput.value = today;
         endInput.value = today;
     }
@@ -1989,7 +1994,7 @@ async function loadTripsList() {
         
         const filterDateViajes = document.getElementById('filter-date-viajes');
         if (filterDateViajes && !filterDateViajes.value) {
-            filterDateViajes.value = new Date().toISOString().split('T')[0];
+            filterDateViajes.value = getLocalISODate();
         }
     } catch (err) {
         console.error('Error loading trips:', err);
@@ -2367,7 +2372,7 @@ async function loadExpensesList() {
         
         const filterDateGastos = document.getElementById('filter-date-gastos');
         if (filterDateGastos && !filterDateGastos.value) {
-            filterDateGastos.value = new Date().toISOString().split('T')[0];
+            filterDateGastos.value = getLocalISODate();
         }
     } catch (err) {
         console.error('Error loading expenses:', err);

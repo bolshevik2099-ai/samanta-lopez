@@ -1367,7 +1367,8 @@
 
 
         // Initialize Gasto Form
-        document.getElementById('Fecha').value = new Date().toISOString().split('T')[0];
+        const d = new Date();
+        document.getElementById('Fecha').value = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
         document.getElementById('ID_Gasto').value = 'G-' + Date.now().toString().slice(-6);
 
         // Calculation logic for Admin Gasto
