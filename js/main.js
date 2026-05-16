@@ -862,13 +862,15 @@ async function updateDashboardByPeriod() {
         // Agregaciones
         const totalVenta = viajes.reduce((acc, v) => acc + (parseFloat(v.monto_flete) || 0), 0);
         const totalGasto = gastos.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
-        const totalGanancia = totalVenta - totalGasto;
+        const totalComisiones = viajes.reduce((acc, v) => acc + (parseFloat(v.comision_chofer) || 0), 0);
+        const totalGanancia = totalVenta - totalGasto - totalComisiones;
 
         // Actualizar Tarjetas UI
         const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 
         safeSetText('period-venta', fmt(totalVenta));
         safeSetText('period-gasto', fmt(totalGasto));
+        safeSetText('period-comisiones', fmt(totalComisiones));
         safeSetText('period-ganancia', fmt(totalGanancia));
         safeSetText('period-viajes-count', viajes.length);
         safeSetText('period-label', `Periodo: ${start} al ${end}`);
