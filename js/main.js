@@ -1671,7 +1671,7 @@ async function handleExpenseSubmit(e) {
         if (error) throw error;
 
         // Auto-create CXP if payment is Crédito and it's a new expense
-        if (!isEditingExpense && expenseData.forma_pago.includes('rédito') || expenseData.forma_pago === 'Crédito') {
+        if (!isEditingExpense && (expenseData.forma_pago.includes('rédito') || expenseData.forma_pago === 'Crédito')) {
             await crearCXPAutomatica({
                 id_gasto: expenseData.id_gasto,
                 monto: expenseData.monto,
