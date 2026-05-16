@@ -59,11 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const conceptoSelect = document.getElementById('Concepto');
     const dieselBlock = document.getElementById('diesel-fields');
     // Inputs que se deben resetear/requerir
-    const dieselInputs = ['Litros_Rellenados', 'Kmts_Anteriores', 'Kmts_Actuales', 'Foto_tacometro'];
+    const dieselInputs = ['Litros_Rellenados', 'Kmts_Anteriores', 'Kmts_Actuales'];
 
     if (conceptoSelect && dieselBlock) {
         const toggleDieselInfo = () => {
-            const isDiesel = conceptoSelect.value === 'Diesel';
+            const isDiesel = conceptoSelect.value === 'Diesel' || conceptoSelect.value === 'Urea';
             if (isDiesel) {
                 dieselBlock.classList.remove('hidden');
                 dieselInputs.forEach(id => document.getElementById(id)?.setAttribute('required', 'true'));
