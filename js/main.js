@@ -2507,7 +2507,7 @@ function filterExpenses(query) {
     
     let filtered = allExpensesData;
     
-    if (startDate || endDate) {
+    if ((startDate || endDate) && currentExpenseTab !== 'pendientes') {
         filtered = filtered.filter(g => {
             if (!g.fecha) return false;
             const itemDate = g.fecha.split('T')[0];
