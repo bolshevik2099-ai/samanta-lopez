@@ -1941,6 +1941,7 @@ async function showSection(sectionId) {
                 break;
             case 'liquidaciones':
                 if (typeof loadSettlementTrips === 'function') loadSettlementTrips();
+                if (typeof updateLiquidacionesMetrics === 'function') updateLiquidacionesMetrics();
                 break;
             case 'catalogos':
                 if (typeof loadCatalog === 'function') loadCatalog('choferes');
@@ -3013,6 +3014,100 @@ let selectedDriverForSettlement = null;
 let currentExpenses = [];
 let currentDebts = [];
 let pendingTripsForDriver = [];
+
+// --- LIQUIDACIONES METRICS (KPIs) ---
+async function updateLiquidacionesMetrics() {
+    try {
+        const startInput = document.getElementById('filter-date-start-liq');
+        const endInput = document.getElementById('filter-date-end-liq');
+        
+        if (startInput && !startInput.value) startInput.value = getLocalISODate();
+        if (endInput && !endInput.value) endInput.value = getLocalISODate();
+
+        const startDate = startInput ? startInput.value : getLocalISODate();
+        const endDate = endInput ? endInput.value : getLocalISODate();
+
+        await ensureGlobalMapsLoaded();
+
+        // Obtener Viajes (para comisiones)
+        let trips = allTripsData && allTripsData.length ? allTripsData : await fetchSupabaseData(DB_CONFIG.tableViajes);
+        
+        // Obtener Cuentas (para Anticipos A Favor)
+        let accounts = await fetchSupabaseData(DB_CONFIG.tableCuentas);
+
+        // Filtrar Viajes por fecha
+        let filteredTrips = trips.filter(v => {
+            if (!v.fecha) return false;
+            const itemDate = v.fecha.split('T')[0];
+            return itemDate >= startDate && itemDate <= endDate;
+        });
+
+        // Filtrar Anticipos por fecha y tipo
+        let filteredAccounts = accounts.filter(c => {
+            if (c.tipo !== 'A Favor') return false;
+            if (!c.fecha) return false;
+            const itemDate = c.fecha.split('T')[0];
+            return itemDate >= startDate && itemDate <= endDate;
+        });
+
+        // Calcular Totales
+        const totalComisiones = filteredTrips.reduce((sum, v) => sum + (parseFloat(v.comision_chofer) || 0), 0);
+        const totalAdelantos = filteredAccounts.reduce((sum, c) => sum + (parseFloat(c.monto) || 0), 0);
+
+        // Actualizar UI Cards
+        const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+        const domCom = document.getElementById('liq-total-comisiones');
+        const domAde = document.getElementById('liq-total-adelantos');
+        
+        if (domCom) domCom.innerText = fmt(totalComisiones);
+        if (domAde) domAde.innerText = fmt(totalAdelantos);
+
+        // Renderizar Desglose
+        renderLiquidacionesBreakdown(filteredTrips, filteredAccounts);
+
+    } catch (err) {
+        console.error('Error actualizando metricas de liquidacion:', err);
+    }
+}
+
+function toggleLiquidacionesBreakdown() {
+    const container = document.getElementById('liq-breakdown-container');
+    if (container) {
+        container.classList.toggle('hidden');
+    }
+}
+
+function renderLiquidacionesBreakdown(trips, accounts) {
+    const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+    const tripsTbody = document.getElementById('liq-breakdown-comisiones');
+    const accTbody = document.getElementById('liq-breakdown-adelantos');
+
+    if (tripsTbody) {
+        tripsTbody.innerHTML = trips.filter(v => (parseFloat(v.comision_chofer) || 0) > 0).map(v => {
+            const choferNombre = globalDriverMap[v.id_chofer] || v.id_chofer || '---';
+            return `
+            <tr class="border-b border-white/5 hover:bg-white/5">
+                <td class="py-2 px-2 text-slate-400">${v.fecha}</td>
+                <td class="py-2 px-2 font-medium text-slate-300">${choferNombre} <span class="text-[9px] text-slate-500">(${v.id_viaje})</span></td>
+                <td class="py-2 px-2 text-right font-black text-amber-400">${fmt(parseFloat(v.comision_chofer))}</td>
+            </tr>
+            `;
+        }).join('') || '<tr><td colspan="3" class="text-center py-4 text-slate-500 italic">No hay comisiones en este rango</td></tr>';
+    }
+
+    if (accTbody) {
+        accTbody.innerHTML = accounts.map(c => {
+            const actorNombre = c.actor_nombre || '---';
+            return `
+            <tr class="border-b border-white/5 hover:bg-white/5">
+                <td class="py-2 px-2 text-slate-400">${c.fecha}</td>
+                <td class="py-2 px-2 font-medium text-slate-300">${actorNombre} <span class="text-[9px] text-slate-500">(${c.concepto})</span></td>
+                <td class="py-2 px-2 text-right font-black text-emerald-400">${fmt(parseFloat(c.monto))}</td>
+            </tr>
+            `;
+        }).join('') || '<tr><td colspan="3" class="text-center py-4 text-slate-500 italic">No hay anticipos en este rango</td></tr>';
+    }
+}
 
 async function loadSettlementTrips() {
     const list = document.getElementById('liquidation-driver-list');
