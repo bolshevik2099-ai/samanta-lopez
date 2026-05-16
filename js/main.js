@@ -3269,14 +3269,32 @@ function showSettlementFullDetail() {
     title.innerText = 'Detalle Completo de Liquidación';
 
     // Generar tabla de Viajes
-    const tripsHtml = pendingTripsForDriver.map(t => `
+    let totalFletes = 0;
+    let totalComisiones = 0;
+
+    const tripsHtmlRows = pendingTripsForDriver.map(t => {
+        const flete = parseFloat(t.monto_flete) || 0;
+        const comision = parseFloat(t.comision_chofer) || 0;
+        totalFletes += flete;
+        totalComisiones += comision;
+        
+        return `
         <tr class="border-b border-white/5 text-xs text-slate-300">
             <td class="p-2 font-mono">${t.id_viaje}</td>
             <td class="p-2">${t.origen} -> ${t.destino}</td>
-            <td class="p-2 text-right font-bold text-white">$${(parseFloat(t.monto_flete) || 0).toLocaleString()}</td>
-            <td class="p-2 text-right text-green-400 font-bold">$${(parseFloat(t.comision_chofer) || 0).toLocaleString()}</td>
+            <td class="p-2 text-right font-bold text-white">$${flete.toLocaleString()}</td>
+            <td class="p-2 text-right text-green-400 font-bold">$${comision.toLocaleString()}</td>
         </tr>
-    `).join('') || '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin viajes pendientes</td></tr>';
+    `}).join('');
+
+    const tripsHtml = pendingTripsForDriver.length > 0
+        ? tripsHtmlRows + `
+        <tr class="bg-blue-900/30 border-t-2 border-blue-500/50 text-xs">
+            <td colspan="2" class="p-2 text-right font-black text-blue-300 uppercase tracking-widest">Totales</td>
+            <td class="p-2 text-right font-black text-white">$${totalFletes.toLocaleString()}</td>
+            <td class="p-2 text-right font-black text-green-400">$${totalComisiones.toLocaleString()}</td>
+        </tr>`
+        : '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin viajes pendientes</td></tr>';
 
     // Generar tabla de Gastos (Aprobados)
     // Generar tabla de Gastos (Aprobados)
