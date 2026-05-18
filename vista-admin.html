@@ -115,7 +115,7 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-xl font-bold flex items-center gap-2">
                     <i class="fas fa-shield-alt text-blue-400"></i>
-                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.9</span>
+                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.10</span>
                 </h1>
                 <!-- Close Button Mobile -->
                 <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white">
@@ -622,8 +622,8 @@
                                 <label
                                     class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">ID
                                     Gasto</label>
-                                <input type="text" id="ID_Gasto" required placeholder="GAS-100"
-                                    class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none">
+                                <input type="text" id="ID_Gasto" readonly placeholder="Auto-generado"
+                                    class="w-full px-5 py-3.5 rounded-2xl bg-slate-900/50 border border-white/5 text-slate-400 outline-none cursor-not-allowed">
                             </div>
                             <div>
                                 <label
@@ -1460,11 +1460,11 @@
         </div>
     </div>
 
-    <script src="./js/config.js?v=15.9"></script>
+    <script src="./js/config.js?v=15.10"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=15.9"></script>
-    <script src="./js/auth.js?v=15.9"></script>
-    <script src="./js/main.js?v=15.9"></script>
+    <script src="./js/supabase-client.js?v=15.10"></script>
+    <script src="./js/auth.js?v=15.10"></script>
+    <script src="./js/main.js?v=15.10"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>
@@ -1480,7 +1480,6 @@
         // Initialize Gasto Form
         const d = new Date();
         document.getElementById('Fecha').value = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-        document.getElementById('ID_Gasto').value = 'G-' + Date.now().toString().slice(-6);
 
         // Calculation logic for Admin Gasto
         const calcKm = () => {
