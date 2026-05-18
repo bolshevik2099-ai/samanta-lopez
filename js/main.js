@@ -2849,6 +2849,9 @@ function prepareAdvance(viajeId, choferId) {
 
     // Pre-llenar datos
     document.getElementById('acc-tipo').value = 'A Favor';
+    const d = new Date();
+    document.getElementById('acc-fecha').value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    
     const viajeInput = document.getElementById('acc-id-viaje-cta');
     if (viajeInput) viajeInput.value = viajeId;
 
@@ -2886,7 +2889,12 @@ async function crearCXCAutomatica(idViaje, monto, cliente, noInterno) {
     await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
 }
 
-function showAccountForm() { toggleSectionView('treasury', 'form'); loadActorOptions(); }
+function showAccountForm() { 
+    toggleSectionView('treasury', 'form'); 
+    loadActorOptions(); 
+    const d = new Date();
+    document.getElementById('acc-fecha').value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
 function hideAccountForm() { toggleSectionView('treasury', 'list'); }
 
 async function enviarCuenta(e) {
@@ -2903,7 +2911,7 @@ async function enviarCuenta(e) {
         const actor = actorType === 'otro' ? getVal('acc-actor-manual') : getVal('acc-actor');
 
         const data = {
-            fecha: (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(),
+            fecha: getVal('acc-fecha') || (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(),
             tipo: getVal('acc-tipo'),
             actor_nombre: actor,
             concepto: getVal('acc-concepto'),

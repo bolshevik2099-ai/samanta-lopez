@@ -115,7 +115,7 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-xl font-bold flex items-center gap-2">
                     <i class="fas fa-shield-alt text-blue-400"></i>
-                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.13</span>
+                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.14</span>
                 </h1>
                 <!-- Close Button Mobile -->
                 <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white">
@@ -1179,6 +1179,10 @@
                     <h3 class="text-xl font-black text-white mb-8 tracking-tight">Registrar Nueva Cuenta</h3>
                     <form id="account-form" class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Fecha</label>
+                            <input type="date" id="acc-fecha" class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer" required>
+                        </div>
+                        <div>
                             <label
                                 class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Tipo
                                 de Cuenta</label>
@@ -1461,11 +1465,11 @@
         </div>
     </div>
 
-    <script src="./js/config.js?v=15.13"></script>
+    <script src="./js/config.js?v=15.14"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=15.13"></script>
-    <script src="./js/auth.js?v=15.13"></script>
-    <script src="./js/main.js?v=15.13"></script>
+    <script src="./js/supabase-client.js?v=15.14"></script>
+    <script src="./js/auth.js?v=15.14"></script>
+    <script src="./js/main.js?v=15.14"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>
