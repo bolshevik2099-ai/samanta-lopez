@@ -1732,17 +1732,35 @@ function registerExpenseFromTrip(tripId, unitId, driverId) {
     if (btn) btn.innerText = 'Registrar Gasto';
 }
 
-function editTrip(id) {
-    const trip = allTripsData.find(t => t.id_viaje === id);
+async function editTrip(id) {
+    let trip = allTripsData.find(t => t.id_viaje === id);
+    if (!trip) {
+        try {
+            const { data, error } = await window.supabaseClient
+                .from(DB_CONFIG.tableViajes)
+                .select('*')
+                .eq('id_viaje', id)
+                .single();
+            if (error) throw error;
+            trip = data;
+        } catch (e) {
+            console.error('Error al cargar viaje para edición:', e);
+            alert('Error cargando el viaje para editar.');
+            return;
+        }
+    }
     if (!trip) return;
 
     isEditingTrip = true;
     editingTripId = id;
 
-    // Switch view
+    // 1. Cambiar a la sección principal de viajes
+    showSection('viajes');
+
+    // 2. Cambiar la vista de viajes al formulario
     toggleSectionView('viajes', 'form');
 
-    // Fill form
+    // Llenar el formulario
     document.getElementById('V_ID_Viaje').value = trip.id_viaje;
     document.getElementById('V_Fecha').value = trip.fecha;
     document.getElementById('V_ID_Unidad').value = trip.id_unidad;
@@ -1755,7 +1773,7 @@ function editTrip(id) {
     document.getElementById('V_Comision_Chofer').value = trip.comision_chofer;
     document.getElementById('V_Estatus_Pago').value = trip.estatus_pago;
 
-    // Change Button Text
+    // Cambiar texto de botón
     const btn = document.querySelector('#viaje-form button[type="submit"]');
     if (btn) btn.innerText = 'Actualizar Viaje';
 }
