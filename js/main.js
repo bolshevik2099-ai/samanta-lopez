@@ -3452,7 +3452,6 @@ async function finalizeSettlement() {
             }
         }
 
-        // 4. Marcar gastos como pagados
         // 4. Marcar gastos como pagados (SOLO LOS REEMBOLSABLES: Contado o Efectivo)
         // OJO: Si pagamos todo lo 'Aprobado', podríamos pagar créditos por error si no filtramos.
         // La lógica visual solo muestra Contado/Efectivo, así que solo debemos liquidar esos.
@@ -3462,8 +3461,17 @@ async function finalizeSettlement() {
             String(g.es_deducible || 'Sí').trim() === 'Sí'
         );
 
-        if (approvedExpenses.length > 0) {
-            const ids = approvedExpenses.map(g => g.id_gasto);
+        // También marcar como pagados los gastos de Nómina No Deducibles que se usaron como retención
+        const nominaDeductions = currentExpenses.filter(g => 
+            (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
+            g.concepto === 'Nómina' &&
+            String(g.es_deducible || 'Sí').trim() === 'No'
+        );
+
+        const allExpensesToMarkPaid = [...approvedExpenses, ...nominaDeductions];
+
+        if (allExpensesToMarkPaid.length > 0) {
+            const ids = allExpensesToMarkPaid.map(g => g.id_gasto);
             await window.supabaseClient.from(DB_CONFIG.tableGastos).update({ estatus_pago: 'Pagado' }).in('id_gasto', ids);
         }
 
