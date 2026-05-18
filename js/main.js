@@ -3447,7 +3447,7 @@ async function finalizeSettlement() {
         // 3. Marcar viajes como operativamente 'Liquidado' y generar comisiones
         if (pendingTripsForDriver.length > 0) {
             const ids = pendingTripsForDriver.map(t => t.id_viaje);
-            await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_viaje: 'Liquidado', estatus_pago: 'Pagado' }).in('id_viaje', ids);
+            await window.supabaseClient.from(DB_CONFIG.tableViajes).update({ estatus_viaje: 'Liquidado' }).in('id_viaje', ids);
 
             // Generar gastos de comisión por cada viaje
             for (const t of pendingTripsForDriver) {
