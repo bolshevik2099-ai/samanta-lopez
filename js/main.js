@@ -3230,11 +3230,28 @@ async function loadDriverSettlementDetail(id_chofer) {
     // Anticipos/Deudas (Solo se restan los "A Favor" - Anticipos)
     const debtList = document.getElementById('set-debts-list');
     let sumDebtNeto = 0;
-    debtList.innerHTML = currentDebts.map(d => {
+    let debtItemsHtml = currentDebts.map(d => {
         const monto = parseFloat(d.monto) || 0;
         sumDebtNeto += monto;
         return `<div class="flex justify-between text-amber-500"><span>${d.concepto} (Anticipo)</span><span class="font-mono">-$${monto.toLocaleString()}</span></div> `;
-    }).join('') || '<span class="text-amber-400 italic">Sin anticipos pendientes</span>';
+    }).join('');
+
+    // Gastos de Nómina No Deducibles
+    const nominaDeductions = currentExpenses.filter(g => 
+        (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
+        g.concepto === 'Nómina' &&
+        String(g.es_deducible || 'Sí').trim() === 'No'
+    );
+    
+    if (nominaDeductions.length > 0) {
+        debtItemsHtml += nominaDeductions.map(g => {
+            const monto = parseFloat(g.monto) || 0;
+            sumDebtNeto += monto;
+            return `<div class="flex justify-between text-red-400"><span>Nómina (Retención)</span><span class="font-mono">-$${monto.toLocaleString()}</span></div> `;
+        }).join('');
+    }
+
+    debtList.innerHTML = debtItemsHtml || '<span class="text-amber-400 italic">Sin anticipos/retenciones</span>';
     document.getElementById('set-sum-debts').innerText = `- $${sumDebtNeto.toLocaleString()}`;
 
     // Totales finales
@@ -3315,14 +3332,32 @@ function showSettlementFullDetail() {
         </tr>
     `).join('') || '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin gastos reembolsables</td></tr>';
 
-    // Generar tabla de Deudas
-    const debtsHtml = currentDebts.map(d => `
+    // Generar tabla de Deudas y Retenciones (Nómina No Deducible)
+    let debtsHtmlContent = currentDebts.map(d => `
         <tr class="border-b border-slate-100 text-xs text-slate-600">
             <td class="p-2 font-mono">${d.id_cuenta}</td>
             <td class="p-2">${d.concepto}</td>
             <td class="p-2 text-right font-bold text-red-500">-$${(parseFloat(d.monto) || 0).toLocaleString()}</td>
         </tr>
-    `).join('') || '<tr><td colspan="3" class="p-4 text-center text-slate-400 italic">Sin deudas pendientes</td></tr>';
+    `).join('');
+
+    const nominaDeductionsDet = currentExpenses.filter(g => 
+        (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
+        g.concepto === 'Nómina' &&
+        String(g.es_deducible || 'Sí').trim() === 'No'
+    );
+    
+    if (nominaDeductionsDet.length > 0) {
+        debtsHtmlContent += nominaDeductionsDet.map(g => `
+            <tr class="border-b border-slate-100 text-xs text-slate-600 bg-red-50">
+                <td class="p-2 font-mono">${g.id_gasto}</td>
+                <td class="p-2 text-red-600 font-bold">Nómina (Retención)</td>
+                <td class="p-2 text-right font-bold text-red-500">-$${(parseFloat(g.monto) || 0).toLocaleString()}</td>
+            </tr>
+        `).join('');
+    }
+
+    const debtsHtml = debtsHtmlContent || '<tr><td colspan="3" class="p-4 text-center text-slate-400 italic">Sin deudas/retenciones pendientes</td></tr>';
 
     content.innerHTML = `
         <div class="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
@@ -3451,9 +3486,18 @@ function calculateCurrentSettlement() {
     const totalGastosAprobados = approvedReimbursable.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
 
     // totalDebts = Solo A Favor (Se recuperan de la liquidación)
-    const totalDebts = currentDebts.reduce((sum, d) => {
+    let totalDebts = currentDebts.reduce((sum, d) => {
         return d.tipo === 'A Favor' ? sum + (parseFloat(d.monto) || 0) : sum;
     }, 0);
+
+    // Añadir Nómina No Deducible como deuda a descontar
+    const nominaDeductionsCalc = currentExpenses.filter(g => 
+        (g.estatus_aprobacion || 'Pendiente') === 'Aprobado' &&
+        g.concepto === 'Nómina' &&
+        String(g.es_deducible || 'Sí').trim() === 'No'
+    ).reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+    
+    totalDebts += nominaDeductionsCalc;
 
     const comm = pendingTripsForDriver.reduce((sum, t) => sum + (parseFloat(t.comision_chofer) || 0), 0);
     const neto = comm + totalGastosAprobados - totalDebts;
