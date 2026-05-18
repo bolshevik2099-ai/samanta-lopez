@@ -2645,7 +2645,10 @@ async function loadTreasuryList() {
                             <span class="text-[10px] font-bold ${isPaid ? 'text-green-500' : 'text-amber-500'}">● ${item.estatus_pago || 'Pendiente'}</span>
                         </td>
                         <td class="px-6 py-4">
-                            ${!isPaid ? `<button onclick="markTripAsPaid('${item.id_viaje}')" class="text-xs text-blue-500 hover:underline">Marcar Pagado</button>` : '<span class="text-slate-500">-</span>'}
+                            ${!isPaid ? 
+                                `<button onclick="markTripAsPaid('${item.id_viaje}')" class="text-xs text-blue-500 hover:underline"><i class="fas fa-check mr-1"></i>Marcar Pagado</button>` : 
+                                `<button onclick="markTripAsUnpaid('${item.id_viaje}')" class="text-xs text-amber-500 hover:underline"><i class="fas fa-undo mr-1"></i>Marcar No Pagado</button>`
+                            }
                         </td>
                         <td class="px-6 py-4 text-right space-x-1">
                             <button onclick="editTrip('${item.id_viaje}')" class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all"><i class="fas fa-edit text-xs"></i></button>
@@ -2816,6 +2819,36 @@ async function markTripAsPaid(id_viaje) {
         alert('✅ Viaje marcado como pagado y movimiento registrado.');
         loadTreasuryList();
         if (typeof updateMovementsList === 'function') updateMovementsList(); 
+    } catch (err) {
+        alert('❌ Error: ' + err.message);
+    }
+}
+
+async function markTripAsUnpaid(id_viaje) {
+    if (!confirm('¿Desea marcar este viaje como NO pagado por el cliente? (Se eliminará el registro de cobro asociado)')) return;
+    try {
+        // 1. Actualizar estatus del viaje a Pendiente
+        const { error } = await window.supabaseClient
+            .from(DB_CONFIG.tableViajes)
+            .update({ estatus_pago: 'Pendiente' })
+            .eq('id_viaje', id_viaje);
+
+        if (error) throw error;
+
+        // 2. Eliminar el registro de cobro automático asociado
+        const { error: delError } = await window.supabaseClient
+            .from(DB_CONFIG.tableCuentas)
+            .delete()
+            .eq('id_viaje', id_viaje)
+            .like('id_cuenta', 'COB-%');
+
+        if (delError) {
+            console.error('Error eliminando cobro asociado:', delError);
+        }
+
+        alert('✅ Viaje marcado como NO pagado y registro de cobro eliminado.');
+        loadTreasuryList();
+        if (typeof updateMovementsList === 'function') updateMovementsList();
     } catch (err) {
         alert('❌ Error: ' + err.message);
     }
