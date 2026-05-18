@@ -115,7 +115,7 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-xl font-bold flex items-center gap-2">
                     <i class="fas fa-shield-alt text-blue-400"></i>
-                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.16</span>
+                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.17</span>
                 </h1>
                 <!-- Close Button Mobile -->
                 <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white">
@@ -1174,9 +1174,16 @@
                     </div>
                 </div>
 
-                <!-- Formulario de Cuenta/Deuda -->
                 <div id="treasury-form-view" class="hidden p-10 bg-white/[0.01]">
-                    <h3 class="text-xl font-black text-white mb-8 tracking-tight">Registrar Nueva Cuenta</h3>
+                    <div class="flex justify-between items-center mb-8">
+                        <h3 class="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                            <i class="fas fa-hand-holding-usd text-blue-500"></i>
+                            Registrar Nueva Cuenta
+                        </h3>
+                        <button onclick="hideAccountForm()" type="button" class="w-10 h-10 rounded-2xl bg-white/5 border border-white/5 text-slate-400 hover:bg-white/10 hover:text-white flex items-center justify-center transition-all">
+                            <i class="fas fa-arrow-left text-sm"></i>
+                        </button>
+                    </div>
                     <form id="account-form" class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
                             <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Fecha</label>
@@ -1465,11 +1472,11 @@
         </div>
     </div>
 
-    <script src="./js/config.js?v=15.16"></script>
+    <script src="./js/config.js?v=15.17"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=15.16"></script>
-    <script src="./js/auth.js?v=15.16"></script>
-    <script src="./js/main.js?v=15.16"></script>
+    <script src="./js/supabase-client.js?v=15.17"></script>
+    <script src="./js/auth.js?v=15.17"></script>
+    <script src="./js/main.js?v=15.17"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>
