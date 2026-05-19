@@ -115,7 +115,7 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-xl font-bold flex items-center gap-2">
                     <i class="fas fa-shield-alt text-blue-400"></i>
-                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.18</span>
+                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.19</span>
                 </h1>
                 <!-- Close Button Mobile -->
                 <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white">
@@ -363,9 +363,11 @@
                                 <!-- Filas dinámicas -->
                             </tbody>
                         </table>
-                        <div id="trips-loader" class="p-10 text-center text-slate-500">
-                            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-                            <p>Cargando viajes...</p>
+                        <div id="trips-loader" class="p-12 text-center text-slate-400">
+                            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 mb-3 animate-bounce">
+                                <i class="fas fa-route text-xl"></i>
+                            </div>
+                            <p class="text-xs font-semibold uppercase tracking-widest text-slate-500 animate-pulse">Obteniendo viajes...</p>
                         </div>
                     </div>
                 </div>
@@ -995,9 +997,11 @@
                         </tbody>
                     </table>
                     <div id="movements-loader"
-                        class="p-16 text-center text-slate-600 font-bold uppercase tracking-widest text-xs">
-                        <i class="fas fa-spinner fa-spin text-2xl text-indigo-500 mb-3 block mx-auto"></i>
-                        Cargando movimientos...
+                        class="p-16 text-center text-slate-500">
+                        <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-500/10 text-indigo-400 mb-4 animate-bounce">
+                            <i class="fas fa-history text-xl"></i>
+                        </div>
+                        <p class="text-xs font-semibold uppercase tracking-widest text-slate-500 animate-pulse">Cargando historial de movimientos...</p>
                     </div>
                 </div>
             </div>
@@ -1038,9 +1042,11 @@
                         <!-- Grouped by client dynamically -->
                     </div>
                     
-                    <div id="rates-loader" class="p-16 text-center text-slate-600 font-bold uppercase tracking-widest text-xs hidden">
-                        <i class="fas fa-spinner fa-spin text-2xl text-amber-500 mb-3 block mx-auto"></i>
-                        Cargando tarifas...
+                    <div id="rates-loader" class="p-16 text-center text-slate-500 hidden">
+                        <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/10 text-amber-400 mb-4 animate-bounce">
+                            <i class="fas fa-tags text-xl"></i>
+                        </div>
+                        <p class="text-xs font-semibold uppercase tracking-widest text-slate-500 animate-pulse">Cargando catálogo de tarifas...</p>
                     </div>
                 </div>
 
@@ -1337,8 +1343,10 @@
                     <div id="liquidation-driver-list"
                         class="space-y-3 max-h-[650px] overflow-y-auto pr-2 custom-scrollbar">
                         <!-- Drivers dynamic list -->
-                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center py-10">
-                            Cargando...</p>
+                        <div class="py-12 text-center text-slate-500">
+                            <i class="fas fa-spinner fa-spin text-lg text-blue-500 mb-2"></i>
+                            <p class="text-[10px] font-semibold uppercase tracking-widest text-slate-500 animate-pulse">Cargando operadores...</p>
+                        </div>
                     </div>
                 </div>
 
@@ -1472,11 +1480,11 @@
         </div>
     </div>
 
-    <script src="./js/config.js?v=15.18"></script>
+    <script src="./js/config.js?v=15.19"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=15.18"></script>
-    <script src="./js/auth.js?v=15.18"></script>
-    <script src="./js/main.js?v=15.18"></script>
+    <script src="./js/supabase-client.js?v=15.19"></script>
+    <script src="./js/auth.js?v=15.19"></script>
+    <script src="./js/main.js?v=15.19"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>

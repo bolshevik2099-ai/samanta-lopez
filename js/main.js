@@ -817,8 +817,8 @@ async function updateDashboardByPeriod() {
 
         // Fetch de datos maestros
         const [viajesRaw, gastosRaw, unidadesRaw] = await Promise.all([
-            fetchSupabaseData(DB_CONFIG.tableViajes),
-            fetchSupabaseData(DB_CONFIG.tableGastos),
+            fetchSupabaseData(DB_CONFIG.tableViajes, 'fecha', start, end),
+            fetchSupabaseData(DB_CONFIG.tableGastos, 'fecha', start, end),
             fetchSupabaseData(DB_CONFIG.tableUnidades)
         ]);
 
@@ -1039,10 +1039,10 @@ async function updateMovementsList() {
 
     try {
         const [viajesRaw, gastosRaw, cuentasRaw, liquidacionesRaw, choferesRaw, unidadesRaw] = await Promise.all([
-            fetchSupabaseData(DB_CONFIG.tableViajes),
-            fetchSupabaseData(DB_CONFIG.tableGastos),
-            fetchSupabaseData(DB_CONFIG.tableCuentas),
-            fetchSupabaseData(DB_CONFIG.tableLiquidaciones),
+            fetchSupabaseData(DB_CONFIG.tableViajes, 'fecha', start, end),
+            fetchSupabaseData(DB_CONFIG.tableGastos, 'fecha', start, end),
+            fetchSupabaseData(DB_CONFIG.tableCuentas, 'fecha', start, end),
+            fetchSupabaseData(DB_CONFIG.tableLiquidaciones, 'fecha_fin', start, end),
             fetchSupabaseData(DB_CONFIG.tableChoferes),
             fetchSupabaseData(DB_CONFIG.tableUnidades)
         ]);
@@ -1217,11 +1217,13 @@ async function updateMovementsList() {
     }
 }
 
-async function fetchSupabaseData(tableName) {
+async function fetchSupabaseData(tableName, dateCol = null, start = null, end = null) {
     try {
-        const { data, error } = await window.supabaseClient
-            .from(tableName)
-            .select('*');
+        let query = window.supabaseClient.from(tableName).select('*');
+        if (dateCol && start && end) {
+            query = query.gte(dateCol, start).lte(dateCol, end);
+        }
+        const { data, error } = await query;
 
         if (error) throw error;
         return data || [];
