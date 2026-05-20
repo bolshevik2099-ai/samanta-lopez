@@ -113,34 +113,101 @@
                 max-height: 220px !important;
             }
         }
+
+        /*
+         * SIDEBAR RESPONSIVO:
+         * - En desktop grande (≥1024px Y altura ≥600px): sidebar siempre visible, sin botón hamburguesa
+         * - En cualquier móvil (portrait o landscape): sidebar oculto, botón hamburguesa visible
+         * Usamos combinación de max-width y max-height para detectar mobile landscape.
+         */
+
+        /* Por defecto en pantallas grandes: sidebar estático, botón oculto */
+        @media (min-width: 1024px) and (min-height: 600px) {
+            .sidebar-responsive {
+                position: relative !important;
+                transform: translateX(0) !important;
+                flex-shrink: 0;
+            }
+            .sidebar-toggle-visible {
+                display: none !important;
+            }
+            .sidebar-close-btn {
+                display: none !important;
+            }
+            #sidebar-overlay {
+                display: none !important;
+            }
+        }
+
+        /* En móvil portrait (ancho < 1024px): sidebar oculto, botón visible */
+        @media (max-width: 1023px) {
+            .sidebar-responsive {
+                position: fixed !important;
+                transform: translateX(-100%) !important;
+            }
+            .sidebar-responsive.open {
+                transform: translateX(0) !important;
+            }
+            .sidebar-toggle-visible {
+                display: flex !important;
+            }
+            .sidebar-close-btn {
+                display: block !important;
+            }
+            main {
+                padding-left: 0.75rem !important;
+                padding-right: 0.75rem !important;
+            }
+        }
+
+        /* Móvil landscape: igual que portrait (sidebar oculto) */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .sidebar-responsive {
+                position: fixed !important;
+                transform: translateX(-100%) !important;
+            }
+            .sidebar-responsive.open {
+                transform: translateX(0) !important;
+            }
+            .sidebar-toggle-visible {
+                display: flex !important;
+            }
+            .sidebar-close-btn {
+                display: block !important;
+            }
+            main {
+                padding-top: 3.5rem !important;
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+            }
+        }
     </style>
 </head>
 
-<body class="bg-slate-950 min-h-screen flex flex-col md:flex-row text-slate-300">
+<body class="bg-slate-950 min-h-screen flex flex-row text-slate-300">
     <!-- Global Ambient Background (Optional, if we want consistency with landing page) -->
     <div class="fixed inset-0 z-0 pointer-events-none">
         <div
             class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/10 via-slate-950 to-slate-950">
         </div>
     </div>
-    <!-- Sidebar -->
-    <!-- Mobile Toggle Button -->
-    <button onclick="toggleSidebar()"
-        class="fixed top-4 right-8 z-[60] p-3 bg-slate-900 text-white rounded-xl shadow-lg md:hidden">
-        <i class="fas fa-bars text-xl"></i>
+    <!-- Mobile/Landscape Toggle Button: visible en móvil portrait Y landscape -->
+    <button onclick="toggleSidebar()" id="sidebar-toggle-btn"
+        class="fixed top-4 right-4 z-[60] p-3 bg-slate-900/90 backdrop-blur-sm text-white rounded-xl shadow-lg border border-white/10 sidebar-toggle-visible">
+        <i class="fas fa-bars text-lg"></i>
     </button>
 
     <!-- Sidebar -->
     <aside id="main-sidebar"
-        class="w-64 bg-slate-900 text-white flex-shrink-0 fixed inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition-transform duration-300 z-50">
+        class="w-64 bg-slate-900 text-white flex-shrink-0 fixed inset-y-0 left-0 transform -translate-x-full transition-transform duration-300 z-50 sidebar-responsive">
         <div class="p-6">
             <div class="flex justify-between items-center">
                 <h1 class="text-xl font-bold flex items-center gap-2">
                     <i class="fas fa-shield-alt text-blue-400"></i>
                     Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.21</span>
                 </h1>
-                <!-- Close Button Mobile -->
-                <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white">
+                <!-- Close Button: visible en portrait y landscape -->
+                <button onclick="toggleSidebar()" class="sidebar-close-btn text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-all">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -191,9 +258,9 @@
         </nav>
     </aside>
 
-    <!-- Overlay for mobile sidebar -->
+    <!-- Overlay for sidebar: visible en móvil Y landscape -->
     <div id="sidebar-overlay" onclick="toggleSidebar()"
-        class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass-card"></div>
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden"></div>
 
     <!-- Main Content -->
     <main class="flex-grow p-3 md:p-6 xl:p-8 relative z-10 overflow-x-hidden">
@@ -1709,18 +1776,25 @@
             const sidebar = document.getElementById('main-sidebar');
             const overlay = document.getElementById('sidebar-overlay');
 
-            if (sidebar.classList.contains('-translate-x-full')) {
-                sidebar.classList.remove('-translate-x-full');
-                overlay.classList.remove('hidden');
-            } else {
+            const isOpen = sidebar.classList.contains('open');
+
+            if (isOpen) {
+                // Cerrar
+                sidebar.classList.remove('open');
                 sidebar.classList.add('-translate-x-full');
                 overlay.classList.add('hidden');
+            } else {
+                // Abrir
+                sidebar.classList.add('open');
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
             }
         }
 
         function toggleSidebarMobile() {
-            // Only toggle if we are in mobile view (sidebar is controlled by transform classes)
-            if (window.innerWidth < 768) {
+            // Cerrar sidebar si está abierto en cualquier tamaño donde sea overlay
+            const sidebar = document.getElementById('main-sidebar');
+            if (sidebar.classList.contains('open')) {
                 toggleSidebar();
             }
         }
