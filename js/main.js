@@ -1969,6 +1969,9 @@ async function showSection(sectionId) {
             case 'movimientos':
                 if (typeof loadMovementsByPeriod === 'function') loadMovementsByPeriod();
                 break;
+            case 'mantenimientos':
+                if (typeof switchMaintTab === 'function') switchMaintTab('unidades');
+                break;
             case 'tarifas':
                 if (typeof loadRatesList === 'function') loadRatesList();
                 break;
@@ -4179,5 +4182,347 @@ async function handleRateSubmit(e) {
         btn.innerText = originalText;
         btn.disabled = false;
     }
+}
+
+// --- LÓGICA DE MANTENIMIENTO Y TERMOS ---
+let currentMaintTab = 'unidades';
+let listTermosCached = [];
+
+async function switchMaintTab(tab) {
+    currentMaintTab = tab;
+    document.querySelectorAll('.maint-tab').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-600/20');
+        btn.classList.add('text-slate-500', 'hover:text-white');
+    });
+
+    const activeBtn = document.getElementById(`tab-maint-${tab}`);
+    if (activeBtn) {
+        activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-600/20');
+        activeBtn.classList.remove('text-slate-500');
+    }
+
+    if (tab === 'unidades') {
+        document.getElementById('maint-unidades-view').classList.remove('hidden');
+        document.getElementById('maint-termos-view').classList.add('hidden');
+        await loadMaintUnidades();
+    } else {
+        document.getElementById('maint-unidades-view').classList.add('hidden');
+        document.getElementById('maint-termos-view').classList.remove('hidden');
+        await loadMaintTermos();
+    }
+}
+
+async function loadMaintUnidades() {
+    const loader = document.getElementById('maint-unidades-loader');
+    const tbody = document.getElementById('maint-unidades-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
+
+    try {
+        // Fetch all termos, units and drivers
+        const [termosRes, unitsRes, driversRes] = await Promise.all([
+            window.supabaseClient.from('cat_termos').select('*').order('id_termo'),
+            window.supabaseClient.from('cat_unidades').select('*').order('id_unidad'),
+            window.supabaseClient.from('cat_choferes').select('*')
+        ]);
+
+        if (unitsRes.error) throw unitsRes.error;
+
+        listTermosCached = termosRes.data || [];
+        const units = unitsRes.data || [];
+        const drivers = driversRes.data || [];
+
+        // Build driver map
+        const driverMap = {};
+        drivers.forEach(d => {
+            driverMap[d.id_chofer] = d.nombre;
+        });
+
+        if (loader) loader.classList.add('hidden');
+
+        if (units.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500 font-bold uppercase tracking-wider text-xs">No hay unidades registradas</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = units.map(u => {
+            const kmActual = u.kilometraje_actual || 0;
+            const kmUltimo = u.ultimo_cambio_aceite_km || 0;
+            const recorrido = kmActual - kmUltimo;
+            const isUrgent = recorrido >= 25000;
+
+            const driverName = driverMap[u.id_chofer] ? `${driverMap[u.id_chofer]} [${u.id_chofer}]` : (u.id_chofer || '<span class="text-slate-600">Sin Chofer</span>');
+
+            // Generate options for terms
+            const termoOptions = [`<option value="">-- Sin Termo --</option>`];
+            listTermosCached.forEach(t => {
+                const selected = t.id_termo === u.id_termo ? 'selected' : '';
+                termoOptions.push(`<option value="${t.id_termo}" ${selected}>${t.id_termo} (${t.marca || 'N/A'})</option>`);
+            });
+
+            const recorridoDisplay = isUrgent 
+                ? `<span class="px-2.5 py-1 text-[9px] font-black uppercase rounded bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1 animate-pulse"><i class="fas fa-exclamation-triangle"></i> Cambio Urgente (${recorrido.toLocaleString()} km)</span>`
+                : `<span class="px-2.5 py-1 text-[9px] font-black uppercase rounded bg-green-500/10 text-green-400 border border-green-500/20">${recorrido.toLocaleString()} km recorridos</span>`;
+
+            const unitRowClass = isUrgent ? 'bg-red-500/[0.03] hover:bg-red-500/[0.05]' : 'hover:bg-white/[0.01]';
+
+            return `
+                <tr class="transition-colors border-b border-white/5 last:border-0 ${unitRowClass}">
+                    <td class="px-6 py-4 font-black text-white text-xs tracking-tight">${u.id_unidad}</td>
+                    <td class="px-6 py-4 font-bold text-slate-200 text-xs">${u.nombre_unidad || 'Sin alias'} <span class="block text-[9px] text-slate-500 font-medium tracking-normal mt-0.5">${u.marca || ''} ${u.modelo || ''}</span></td>
+                    <td class="px-6 py-4 text-slate-400 text-xs font-semibold">${driverName}</td>
+                    
+                    <!-- Kilometraje Actual (Vivo) -->
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="km-live-${u.id_unidad}" value="${kmActual}" 
+                                class="w-24 px-2 py-1.5 rounded-lg bg-slate-950/60 border border-white/10 text-xs text-white text-center font-bold outline-none focus:border-blue-500/50">
+                            <button onclick="updateLiveKilometraje('${u.id_unidad}')" title="Actualizar Kilometraje Vivo" 
+                                class="w-7 h-7 rounded-lg bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400 hover:text-white flex items-center justify-center transition-all active:scale-90 border border-emerald-500/20">
+                                <i class="fas fa-check text-xs"></i>
+                            </button>
+                        </div>
+                    </td>
+
+                    <!-- Km Último Cambio de Aceite -->
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="oil-km-${u.id_unidad}" value="${kmUltimo}" 
+                                class="w-24 px-2 py-1.5 rounded-lg bg-slate-950/60 border border-white/10 text-xs text-white text-center font-bold outline-none focus:border-blue-500/50">
+                            <button onclick="updateOilChangeMileage('${u.id_unidad}')" title="Actualizar Kilometraje de Cambio" 
+                                class="w-7 h-7 rounded-lg bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white flex items-center justify-center transition-all active:scale-90 border border-blue-500/20">
+                                <i class="fas fa-check text-xs"></i>
+                            </button>
+                        </div>
+                    </td>
+
+                    <td class="px-6 py-4">${recorridoDisplay}</td>
+                    
+                    <!-- Termo Asignado -->
+                    <td class="px-6 py-4">
+                        <select onchange="updateUnitTermo('${u.id_unidad}', this.value)" 
+                            class="px-3 py-1.5 rounded-lg bg-slate-950/60 border border-white/10 text-xs text-slate-300 outline-none focus:border-blue-500/50">
+                            ${termoOptions.join('')}
+                        </select>
+                    </td>
+                    
+                    <td class="px-6 py-4 text-center">
+                        <button onclick="performOilChangeService('${u.id_unidad}')" 
+                            class="mx-auto px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1.5 shadow-lg shadow-emerald-600/20">
+                            <i class="fas fa-oil-can"></i> Servicio Hecho
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (err) {
+        console.error('Error al cargar mantenimiento de unidades:', err);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-red-500 font-bold uppercase tracking-wider text-xs">Error al cargar datos: ${err.message}</td></tr>`;
+    }
+}
+
+async function updateLiveKilometraje(id_unidad) {
+    const input = document.getElementById(`km-live-${id_unidad}`);
+    if (!input) return;
+    const value = parseInt(input.value) || 0;
+
+    try {
+        const { error } = await window.supabaseClient
+            .from('cat_unidades')
+            .update({ kilometraje_actual: value })
+            .eq('id_unidad', id_unidad);
+
+        if (error) throw error;
+        showToast('Kilometraje actualizado correctamente.');
+        await loadMaintUnidades();
+    } catch (err) {
+        alert('Error al actualizar kilometraje: ' + err.message);
+    }
+}
+
+async function updateOilChangeMileage(id_unidad) {
+    const input = document.getElementById(`oil-km-${id_unidad}`);
+    if (!input) return;
+    const value = parseInt(input.value) || 0;
+
+    try {
+        const { error } = await window.supabaseClient
+            .from('cat_unidades')
+            .update({ ultimo_cambio_aceite_km: value })
+            .eq('id_unidad', id_unidad);
+
+        if (error) throw error;
+        showToast('Kilometraje de cambio de aceite actualizado.');
+        await loadMaintUnidades();
+    } catch (err) {
+        alert('Error al actualizar kilometraje de cambio: ' + err.message);
+    }
+}
+
+async function updateUnitTermo(id_unidad, id_termo) {
+    try {
+        const val = id_termo === "" ? null : id_termo;
+        const { error } = await window.supabaseClient
+            .from('cat_unidades')
+            .update({ id_termo: val })
+            .eq('id_unidad', id_unidad);
+
+        if (error) throw error;
+        showToast('Termo asignado con éxito.');
+        await loadMaintUnidades();
+    } catch (err) {
+        alert('Error al asignar termo: ' + err.message);
+    }
+}
+
+async function performOilChangeService(id_unidad) {
+    if (!confirm('¿Confirmar que se realizó el cambio de aceite para esta unidad? Esto restablecerá el kilometraje recorrido.')) return;
+
+    try {
+        // 1. Obtener kilometraje actual vivo de la unidad
+        const { data: unit, error: fetchErr } = await window.supabaseClient
+            .from('cat_unidades')
+            .select('kilometraje_actual')
+            .eq('id_unidad', id_unidad)
+            .single();
+
+        if (fetchErr) throw fetchErr;
+
+        const currentKm = unit ? (unit.kilometraje_actual || 0) : 0;
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        // 2. Actualizar kilometraje de cambio al vivo y setear fecha de hoy
+        const { error } = await window.supabaseClient
+            .from('cat_unidades')
+            .update({ 
+                ultimo_cambio_aceite_km: currentKm,
+                ultimo_cambio_aceite_fecha: todayStr
+            })
+            .eq('id_unidad', id_unidad);
+
+        if (error) throw error;
+        showToast('¡Servicio de cambio de aceite registrado con éxito!');
+        await loadMaintUnidades();
+    } catch (err) {
+        alert('Error al registrar servicio: ' + err.message);
+    }
+}
+
+async function loadMaintTermos() {
+    const loader = document.getElementById('maint-termos-loader');
+    const tbody = document.getElementById('maint-termos-body');
+    if (loader) loader.classList.remove('hidden');
+    if (tbody) tbody.innerHTML = '';
+
+    try {
+        const { data: termos, error } = await window.supabaseClient
+            .from('cat_termos')
+            .select('*')
+            .order('id_termo');
+
+        if (error) throw error;
+
+        if (loader) loader.classList.add('hidden');
+
+        if (!termos || termos.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-500 font-bold uppercase tracking-wider text-xs">No hay termos registrados</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = termos.map(t => `
+            <tr class="hover:bg-white/[0.01] transition-colors border-b border-white/5 last:border-0">
+                <td class="px-6 py-4 font-black text-white text-xs tracking-tight">${t.id_termo}</td>
+                <td class="px-6 py-4 font-bold text-slate-200 text-xs">${t.marca || '-'}</td>
+                <td class="px-6 py-4 text-slate-400 text-xs font-semibold">${t.modelo || '-'}</td>
+                <td class="px-6 py-4">
+                    <span class="text-[10px] font-bold ${t.estatus === 'Activo' ? 'text-green-500' : 'text-slate-400'} uppercase">
+                        ● ${t.estatus || 'Activo'}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-right">
+                    <button onclick="eliminarTermo('${t.id_termo}')" title="Eliminar Termo" 
+                        class="text-red-500 hover:text-red-400 p-2 hover:bg-red-500/10 rounded-lg transition-all">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        console.error('Error al cargar termos:', err);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-500 font-bold uppercase tracking-wider text-xs">Error al cargar datos: ${err.message}</td></tr>`;
+    }
+}
+
+function showTermoForm() {
+    document.getElementById('termo-list-container').classList.add('hidden');
+    document.getElementById('termo-form-container').classList.remove('hidden');
+}
+
+function hideTermoForm() {
+    document.getElementById('termo-list-container').classList.remove('hidden');
+    document.getElementById('termo-form-container').classList.add('hidden');
+    document.getElementById('termo-form').reset();
+}
+
+async function registrarTermo(e) {
+    e.preventDefault();
+    const btn = document.getElementById('termo-submit-btn');
+    const originalText = btn.innerText;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+    btn.disabled = true;
+
+    const payload = {
+        id_termo: document.getElementById('termo-id').value.trim(),
+        marca: document.getElementById('termo-marca').value.trim(),
+        modelo: document.getElementById('termo-modelo').value.trim(),
+        estatus: 'Activo'
+    };
+
+    try {
+        const { error } = await window.supabaseClient
+            .from('cat_termos')
+            .insert([payload]);
+
+        if (error) throw error;
+
+        showToast('¡Termo registrado con éxito!');
+        hideTermoForm();
+        await loadMaintTermos();
+    } catch (err) {
+        alert('Error al registrar termo: ' + err.message);
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function eliminarTermo(id) {
+    if (!confirm(`¿Desea eliminar definitivamente el termo "${id}"?`)) return;
+
+    try {
+        const { error } = await window.supabaseClient
+            .from('cat_termos')
+            .delete()
+            .eq('id_termo', id);
+
+        if (error) throw error;
+
+        showToast('Termo eliminado.');
+        await loadMaintTermos();
+    } catch (err) {
+        alert('Error al eliminar termo: ' + err.message);
+    }
+}
+
+// Auxiliar para mostrar pequeñas notificaciones toast
+function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.className = "fixed bottom-5 left-5 bg-slate-900 border border-white/10 text-white px-5 py-3 rounded-2xl shadow-2xl z-[11000] text-xs font-bold uppercase tracking-wider animate-in slide-in-from-bottom duration-300";
+    toast.innerHTML = `<i class="fas fa-check-circle text-green-500 mr-2"></i> ${msg}`;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('animate-out', 'fade-out', 'slide-out-to-bottom');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
