@@ -2564,6 +2564,27 @@ function filterExpenses(query) {
 
 let currentTreasuryTab = 'favor';
 
+async function initTreasuryHistoryFilters() {
+    await ensureGlobalMapsLoaded();
+    
+    const choferSelect = document.getElementById('t-hist-chofer');
+    const unidadSelect = document.getElementById('t-hist-unidad');
+    
+    if (choferSelect && choferSelect.children.length <= 1) {
+        choferSelect.innerHTML = '<option value="" class="bg-slate-900">Todos los Choferes</option>' + 
+            Object.entries(globalDriverMap).map(([id, nombre]) => {
+                return `<option value="${id}" class="bg-slate-900">${nombre}</option>`;
+            }).join('');
+    }
+    
+    if (unidadSelect && unidadSelect.children.length <= 1) {
+        unidadSelect.innerHTML = '<option value="" class="bg-slate-900">Todas las Unidades</option>' + 
+            Object.entries(globalUnitMap).map(([id, nombre]) => {
+                return `<option value="${id}" class="bg-slate-900">${nombre}</option>`;
+            }).join('');
+    }
+}
+
 async function switchTreasuryTab(tab) {
     currentTreasuryTab = tab;
 
@@ -2576,6 +2597,16 @@ async function switchTreasuryTab(tab) {
     if (activeBtn) {
         activeBtn.classList.remove('text-slate-500');
         activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-sm');
+    }
+
+    const filtersDiv = document.getElementById('treasury-history-filters');
+    if (filtersDiv) {
+        if (tab === 'historial') {
+            filtersDiv.classList.remove('hidden');
+            await initTreasuryHistoryFilters();
+        } else {
+            filtersDiv.classList.add('hidden');
+        }
     }
 
     renderTreasuryHeader(tab);
@@ -2593,6 +2624,14 @@ function renderTreasuryHeader(tab) {
             <th class="px-6 py-4">Cliente / Viaje</th>
             <th class="px-6 py-4">Monto Flete</th>
             <th class="px-6 py-4">Estatus Pago</th>
+            <th class="px-6 py-4">Acción</th>
+        </tr>`;
+    } else if (tab === 'historial') {
+        html = `<tr>
+            <th class="px-6 py-4">Fecha / ID / Tipo</th>
+            <th class="px-6 py-4">Actor / Concepto / Unidad</th>
+            <th class="px-6 py-4">Monto</th>
+            <th class="px-6 py-4">Estatus</th>
             <th class="px-6 py-4">Acción</th>
         </tr>`;
     } else {
@@ -2616,11 +2655,69 @@ async function loadTreasuryList() {
     try {
         let data = [];
         if (currentTreasuryTab === 'viajes') {
-            data = await fetchSupabaseData(DB_CONFIG.tableViajes);
-        } else {
+            const allTrips = await fetchSupabaseData(DB_CONFIG.tableViajes);
+            data = allTrips.filter(v => v.estatus_pago !== 'Pagado');
+        } else if (currentTreasuryTab === 'favor' || currentTreasuryTab === 'contra') {
             const type = currentTreasuryTab === 'favor' ? 'A Favor' : 'En Contra';
             const allData = await fetchSupabaseData(DB_CONFIG.tableCuentas);
-            data = allData.filter(c => c.tipo === type);
+            data = allData.filter(c => c.tipo === type && c.estatus !== 'Liquidado');
+        } else if (currentTreasuryTab === 'historial') {
+            // Historial: Cuentas liquidadas + Viajes pagados
+            const [allCuentas, allTrips] = await Promise.all([
+                fetchSupabaseData(DB_CONFIG.tableCuentas),
+                fetchSupabaseData(DB_CONFIG.tableViajes)
+            ]);
+
+            const liquidatedCuentas = allCuentas.filter(c => c.estatus === 'Liquidado').map(c => ({
+                isAccount: true,
+                id: c.id_cuenta,
+                fecha: c.fecha,
+                actor: c.actor_nombre,
+                concepto: c.concepto,
+                tipo: c.tipo,
+                monto: parseFloat(c.monto) || 0,
+                estatus: c.estatus,
+                id_unidad: c.id_unidad,
+                id_chofer: globalDriverMap[c.actor_nombre] ? c.actor_nombre : null
+            }));
+
+            const paidTrips = allTrips.filter(v => v.estatus_pago === 'Pagado').map(v => ({
+                isAccount: false,
+                id: v.id_viaje,
+                fecha: v.fecha,
+                actor: v.id_chofer,
+                concepto: `Viaje: ${v.id_viaje} - Cliente: ${v.cliente}`,
+                tipo: 'Viaje (Cobro)',
+                monto: parseFloat(v.monto_flete) || 0,
+                estatus: v.estatus_pago,
+                id_unidad: v.id_unidad,
+                id_chofer: v.id_chofer
+            }));
+
+            let unified = [...liquidatedCuentas, ...paidTrips];
+
+            // Aplicar filtros de Historial
+            const startDate = document.getElementById('t-hist-start')?.value;
+            const endDate = document.getElementById('t-hist-end')?.value;
+            const filterChofer = document.getElementById('t-hist-chofer')?.value;
+            const filterUnidad = document.getElementById('t-hist-unidad')?.value;
+
+            if (startDate) {
+                unified = unified.filter(i => i.fecha && i.fecha.split('T')[0] >= startDate);
+            }
+            if (endDate) {
+                unified = unified.filter(i => i.fecha && i.fecha.split('T')[0] <= endDate);
+            }
+            if (filterChofer) {
+                unified = unified.filter(i => i.id_chofer === filterChofer);
+            }
+            if (filterUnidad) {
+                unified = unified.filter(i => i.id_unidad === filterUnidad);
+            }
+
+            // Ordenar por fecha descendente
+            unified.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            data = unified;
         }
 
         if (data.length === 0) {
@@ -2629,62 +2726,108 @@ async function loadTreasuryList() {
             return;
         }
 
-        tbody.innerHTML = data.map(item => {
-            if (currentTreasuryTab === 'viajes') {
-                const isPaid = item.estatus_pago === 'Pagado';
+        if (currentTreasuryTab === 'historial') {
+            tbody.innerHTML = data.map(item => {
+                const tipoColor = item.tipo === 'A Favor' ? 'text-green-400 bg-green-500/10 border-green-500/10' : 
+                                  item.tipo === 'En Contra' ? 'text-red-400 bg-red-500/10 border-red-500/10' : 
+                                  'text-blue-400 bg-blue-500/10 border-blue-500/10';
                 return `
                     <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0">
                         <td class="px-6 py-4">
-                            <div class="font-black text-white text-xs tracking-tight">${item.no_interno || 'S/N'}</div>
-                            <div class="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">${item.fecha || ''}</div>
+                            <div class="font-bold text-white text-xs">${item.id || '-'}</div>
+                            <div class="text-[9px] text-slate-500 font-mono mt-0.5">${item.fecha || ''}</div>
+                            <span class="inline-block mt-1 border px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${tipoColor}">${item.tipo}</span>
                         </td>
                         <td class="px-6 py-4">
-                            <div class="text-xs font-black text-slate-200 tracking-tight">${item.cliente || '-'}</div>
-                            <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 italic">${item.id_viaje || ''}</div>
+                            <div class="text-sm font-bold text-slate-200">
+                                ${globalDriverMap[item.actor] ? `${globalDriverMap[item.actor]} (${item.actor})` : (item.actor || '-')}
+                            </div>
+                            <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                                ${item.id_unidad ? `<span class="bg-blue-500/10 text-blue-400 border border-blue-500/10 text-[9px] px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-1"><i class="fas fa-truck text-[8px]"></i>${globalUnitMap[item.id_unidad] || item.id_unidad}</span>` : ''}
+                                <span class="text-[10px] text-slate-500 italic">${item.concepto || ''}</span>
+                            </div>
                         </td>
-                        <td class="px-6 py-4 font-bold text-white">$${(parseFloat(item.monto_flete) || 0).toLocaleString()}</td>
+                        <td class="px-6 py-4 font-bold text-white">$${item.monto.toLocaleString()}</td>
                         <td class="px-6 py-4">
-                            <span class="text-[10px] font-bold ${isPaid ? 'text-green-500' : 'text-amber-500'}">● ${item.estatus_pago || 'Pendiente'}</span>
+                            <span class="text-[10px] font-bold text-green-500">● ${item.estatus}</span>
                         </td>
                         <td class="px-6 py-4">
-                            ${!isPaid ? 
-                                `<button onclick="markTripAsPaid('${item.id_viaje}')" class="text-xs text-blue-500 hover:underline"><i class="fas fa-check mr-1"></i>Marcar Pagado</button>` : 
-                                `<button onclick="markTripAsUnpaid('${item.id_viaje}')" class="text-xs text-amber-500 hover:underline"><i class="fas fa-undo mr-1"></i>Marcar No Pagado</button>`
+                            ${item.isAccount ? 
+                              `<button onclick="revertAccountLiquidation('${item.id}')" class="text-xs text-amber-500 hover:underline"><i class="fas fa-undo mr-1"></i>Revertir</button>` :
+                              `<button onclick="markTripAsUnpaid('${item.id}')" class="text-xs text-amber-500 hover:underline"><i class="fas fa-undo mr-1"></i>Revertir</button>`
                             }
                         </td>
                         <td class="px-6 py-4 text-right space-x-1">
-                            <button onclick="editTrip('${item.id_viaje}')" class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all"><i class="fas fa-edit text-xs"></i></button>
-                            <button onclick="showDetailModal('viajes','${item.id_viaje}')" class="w-7 h-7 rounded-lg bg-white/5 text-slate-400 hover:bg-white/10 transition-all"><i class="fas fa-eye text-xs"></i></button>
-                            <button onclick="deleteItem('${DB_CONFIG.tableViajes}','${item.id_viaje}','id_viaje')" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"><i class="fas fa-trash text-xs"></i></button>
+                            ${item.isAccount ? 
+                              `<button onclick="deleteItem('${DB_CONFIG.tableCuentas}','${item.id}','id_cuenta')" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"><i class="fas fa-trash text-xs"></i></button>` :
+                              `<button onclick="deleteItem('${DB_CONFIG.tableViajes}','${item.id}','id_viaje')" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"><i class="fas fa-trash text-xs"></i></button>`
+                            }
                         </td>
                     </tr>`;
-            } else {
-                const monto = parseFloat(item.monto) || 0;
-                const isLiquidated = item.estatus === 'Liquidado';
-                return `
-                    <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0">
-                        <td class="px-6 py-4">
-                            <div class="font-bold text-white text-xs">${item.id_cuenta || '-'}</div>
-                            <div class="text-[10px] text-slate-500 font-mono">${item.fecha || ''}</div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="text-sm font-semibold text-slate-200">${item.actor_nombre || '-'}</div>
-                            <div class="text-[10px] text-slate-500 italic">${item.concepto || ''}</div>
-                        </td>
-                        <td class="px-6 py-4 font-bold text-white">$${monto.toLocaleString()}</td>
-                        <td class="px-6 py-4">
-                            <span class="text-[10px] font-bold ${isLiquidated ? 'text-green-500' : 'text-amber-500'}">● ${item.estatus || 'Pendiente'}</span>
-                        </td>
-                        <td class="px-6 py-4">
-                            ${!isLiquidated ? `<button onclick="markAccountLiquidated('${item.id_cuenta}')" class="text-xs text-green-500 hover:underline">Liquidar</button>` : '<span class="text-slate-500">-</span>'}
-                        </td>
-                        <td class="px-6 py-4 text-right space-x-1">
-                            ${(item.id_cuenta || '').startsWith('ACC-') ? `<button onclick="editAccount('${item.id_cuenta}')" class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all"><i class="fas fa-edit text-xs"></i></button>` : '<span class="w-7 h-7 inline-block"></span>'}
-                            <button onclick="deleteItem('${DB_CONFIG.tableCuentas}','${item.id_cuenta}','id_cuenta')" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"><i class="fas fa-trash text-xs"></i></button>
-                        </td>
-                    </tr>`;
-            }
-        }).join('');
+            }).join('');
+        } else {
+            tbody.innerHTML = data.map(item => {
+                if (currentTreasuryTab === 'viajes') {
+                    const isPaid = item.estatus_pago === 'Pagado';
+                    return `
+                        <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0">
+                            <td class="px-6 py-4">
+                                <div class="font-black text-white text-xs tracking-tight">${item.no_interno || 'S/N'}</div>
+                                <div class="text-[9px] text-slate-500 font-black uppercase tracking-widest mt-1">${item.fecha || ''}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-xs font-black text-slate-200 tracking-tight">${item.cliente || '-'}</div>
+                                <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5 italic">${item.id_viaje || ''}</div>
+                            </td>
+                            <td class="px-6 py-4 font-bold text-white">$${(parseFloat(item.monto_flete) || 0).toLocaleString()}</td>
+                            <td class="px-6 py-4">
+                                <span class="text-[10px] font-bold ${isPaid ? 'text-green-500' : 'text-amber-500'}">● ${item.estatus_pago || 'Pendiente'}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                ${!isPaid ? 
+                                    `<button onclick="markTripAsPaid('${item.id_viaje}')" class="text-xs text-blue-500 hover:underline"><i class="fas fa-check mr-1"></i>Marcar Pagado</button>` : 
+                                    `<button onclick="markTripAsUnpaid('${item.id_viaje}')" class="text-xs text-amber-500 hover:underline"><i class="fas fa-undo mr-1"></i>Marcar No Pagado</button>`
+                                }
+                            </td>
+                            <td class="px-6 py-4 text-right space-x-1">
+                                <button onclick="editTrip('${item.id_viaje}')" class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all"><i class="fas fa-edit text-xs"></i></button>
+                                <button onclick="showDetailModal('viajes','${item.id_viaje}')" class="w-7 h-7 rounded-lg bg-white/5 text-slate-400 hover:bg-white/10 transition-all"><i class="fas fa-eye text-xs"></i></button>
+                                <button onclick="deleteItem('${DB_CONFIG.tableViajes}','${item.id_viaje}','id_viaje')" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"><i class="fas fa-trash text-xs"></i></button>
+                            </td>
+                        </tr>`;
+                } else {
+                    const monto = parseFloat(item.monto) || 0;
+                    const isLiquidated = item.estatus === 'Liquidado';
+                    return `
+                        <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5 last:border-0">
+                            <td class="px-6 py-4">
+                                <div class="font-bold text-white text-xs">${item.id_cuenta || '-'}</div>
+                                <div class="text-[10px] text-slate-500 font-mono">${item.fecha || ''}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm font-bold text-slate-200">
+                                    ${globalDriverMap[item.actor_nombre] ? `${globalDriverMap[item.actor_nombre]} (${item.actor_nombre})` : (item.actor_nombre || '-')}
+                                </div>
+                                <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                                    ${item.id_unidad ? `<span class="bg-blue-500/10 text-blue-400 border border-blue-500/10 text-[9px] px-1.5 py-0.5 rounded font-black uppercase flex items-center gap-1"><i class="fas fa-truck text-[8px]"></i>${globalUnitMap[item.id_unidad] || item.id_unidad}</span>` : ''}
+                                    <span class="text-[10px] text-slate-500 italic">${item.concepto || ''}</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 font-bold text-white">$${monto.toLocaleString()}</td>
+                            <td class="px-6 py-4">
+                                <span class="text-[10px] font-bold ${isLiquidated ? 'text-green-500' : 'text-amber-500'}">● ${item.estatus || 'Pendiente'}</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                ${!isLiquidated ? `<button onclick="markAccountLiquidated('${item.id_cuenta}')" class="text-xs text-green-500 hover:underline">Liquidar</button>` : '<span class="text-slate-500">-</span>'}
+                            </td>
+                            <td class="px-6 py-4 text-right space-x-1">
+                                ${(item.id_cuenta || '').startsWith('ACC-') ? `<button onclick="editAccount('${item.id_cuenta}')" class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all"><i class="fas fa-edit text-xs"></i></button>` : '<span class="w-7 h-7 inline-block"></span>'}
+                                <button onclick="deleteItem('${DB_CONFIG.tableCuentas}','${item.id_cuenta}','id_cuenta')" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"><i class="fas fa-trash text-xs"></i></button>
+                            </td>
+                        </tr>`;
+                }
+            }).join('');
+        }
 
         updateTreasurySummary();
     } catch (err) {
@@ -2712,22 +2855,36 @@ async function editAccount(id) {
     isEditingAccount = true;
     editingAccountId = id;
 
-    showAccountForm();
+    await showAccountForm();
 
     // Llenar formulario
     document.getElementById('acc-tipo').value = account.tipo;
-    // Manejo de actor manual vs select
-    // Simplificación: Asumimos 'otro' para editar nombres libres, o intentamos match
-    document.getElementById('acc-actor-type').value = 'otro';
-    await loadActorOptions();
-    document.getElementById('acc-actor-manual').value = account.actor_nombre;
-    document.getElementById('acc-actor-manual').classList.remove('hidden');
-    document.getElementById('acc-actor').classList.add('hidden');
-
+    document.getElementById('acc-fecha').value = account.fecha;
     document.getElementById('acc-concepto').value = account.concepto;
     document.getElementById('acc-monto').value = account.monto;
     document.getElementById('acc-id-viaje-cta').value = account.id_viaje || '';
-    document.getElementById('acc-no-interno-cta').value = account.no_interno || '';
+
+    const choferSelect = document.getElementById('acc-chofer');
+    const unidadSelect = document.getElementById('acc-unidad');
+    const actorInput = document.getElementById('acc-actor');
+
+    if (choferSelect && globalDriverMap[account.actor_nombre]) {
+        choferSelect.value = account.actor_nombre;
+    } else if (choferSelect) {
+        choferSelect.value = '';
+    }
+
+    if (unidadSelect) {
+        unidadSelect.value = account.id_unidad || '';
+    }
+
+    if (actorInput) {
+        if (!globalDriverMap[account.actor_nombre]) {
+            actorInput.value = account.actor_nombre || '';
+        } else {
+            actorInput.value = '';
+        }
+    }
 
     // Cambiar texto botón
     const btn = document.querySelector('#account-form button[type="submit"]');
@@ -2856,45 +3013,12 @@ async function markTripAsUnpaid(id_viaje) {
     }
 }
 
-async function loadActorOptions() {
-    const typeEl = document.getElementById('acc-actor-type');
-    if (!typeEl) return; // Salir si no existe el selector de tipo (HTML simplificado)
+// La función obsoleta loadActorOptions ha sido removida y reemplazada por initTreasuryFormCatalogs.
 
-    const type = typeEl.value;
-    const select = document.getElementById('acc-actor');
-    const manualInput = document.getElementById('acc-actor-manual');
-
-    if (!select || !manualInput) return;
-
-    select.innerHTML = '<option value="">Cargando...</option>';
-    manualInput.classList.add('hidden');
-    select.classList.remove('hidden');
-
-    if (type === 'otro') {
-        select.classList.add('hidden');
-        manualInput.classList.remove('hidden');
-        return;
-    }
-
-    const tableMap = {
-        'chofer': DB_CONFIG.tableChoferes,
-        'proveedor': DB_CONFIG.tableProveedores,
-        'cliente': DB_CONFIG.tableClientes
-    };
-
-    const data = await fetchSupabaseData(tableMap[type]);
-    const active = data.filter(i => (i.estatus || 'Activo') === 'Activo');
-
-    select.innerHTML = '<option value="">Seleccione...</option>' + active.map(i => {
-        const name = i.nombre || i.nombre_cliente || i.nombre_proveedor;
-        return `<option value="${name}">${name}</option>`;
-    }).join('');
-}
-
-function prepareAdvance(viajeId, choferId) {
+async function prepareAdvance(viajeId, choferId) {
     showSection('tesoreria');
     switchTreasuryTab('favor');
-    showAccountForm();
+    await showAccountForm();
 
     // Resetear form primero
     const form = document.getElementById('account-form');
@@ -2908,19 +3032,10 @@ function prepareAdvance(viajeId, choferId) {
     const viajeInput = document.getElementById('acc-id-viaje-cta');
     if (viajeInput) viajeInput.value = viajeId;
 
-    // Configurar Actor (Chofer)
-    const actorSimple = document.getElementById('acc-actor');
-    // Intentar buscar el input de actor, ya sea simple o complejo
-    if (actorSimple) {
-        actorSimple.value = choferId;
-    } else {
-        // Fallback si la estructura cambia a select/manual
-        const actorManual = document.getElementById('acc-actor-manual');
-        if (actorManual) {
-            actorManual.value = choferId;
-            document.getElementById('acc-actor-type').value = 'otro';
-            loadActorOptions(); // Forzar actualización de UI si es necesario
-        }
+    // Configurar Chofer
+    const choferSelect = document.getElementById('acc-chofer');
+    if (choferSelect) {
+        choferSelect.value = choferId;
     }
 
     // Concepto
@@ -2942,9 +3057,30 @@ async function crearCXCAutomatica(idViaje, monto, cliente, noInterno) {
     await window.supabaseClient.from(DB_CONFIG.tableCuentas).insert([data]);
 }
 
-function showAccountForm() { 
+async function initTreasuryFormCatalogs() {
+    await ensureGlobalMapsLoaded();
+    
+    const choferSelect = document.getElementById('acc-chofer');
+    const unidadSelect = document.getElementById('acc-unidad');
+    
+    if (choferSelect) {
+        choferSelect.innerHTML = '<option value="" class="bg-slate-900">Ninguno (No ligar a liquidación)</option>' + 
+            Object.entries(globalDriverMap).map(([id, nombre]) => {
+                return `<option value="${id}" class="bg-slate-900">${nombre} (${id})</option>`;
+            }).join('');
+    }
+    
+    if (unidadSelect) {
+        unidadSelect.innerHTML = '<option value="" class="bg-slate-900">Ninguna</option>' + 
+            Object.entries(globalUnitMap).map(([id, nombre]) => {
+                return `<option value="${id}" class="bg-slate-900">${nombre} (${id})</option>`;
+            }).join('');
+    }
+}
+
+async function showAccountForm() { 
     toggleSectionView('treasury', 'form'); 
-    loadActorOptions(); 
+    await initTreasuryFormCatalogs(); 
     const d = new Date();
     document.getElementById('acc-fecha').value = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
@@ -2960,8 +3096,22 @@ async function enviarCuenta(e) {
         btn.innerText = 'Guardando...';
 
         const getVal = id => document.getElementById(id)?.value || '';
-        const actorType = getVal('acc-actor-type');
-        const actor = actorType === 'otro' ? getVal('acc-actor-manual') : getVal('acc-actor');
+        const choferId = getVal('acc-chofer');
+        const unidadId = getVal('acc-unidad');
+        const actorManual = getVal('acc-actor');
+
+        if (!choferId && !unidadId && !actorManual) {
+            throw new Error('Debe especificar al menos un chofer, una unidad o un actor manual.');
+        }
+
+        let actor = '';
+        if (choferId) {
+            actor = choferId;
+        } else if (actorManual) {
+            actor = actorManual;
+        } else if (unidadId) {
+            actor = unidadId;
+        }
 
         const data = {
             fecha: getVal('acc-fecha') || (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })(),
@@ -2970,6 +3120,7 @@ async function enviarCuenta(e) {
             concepto: getVal('acc-concepto'),
             monto: parseFloat(getVal('acc-monto')) || 0,
             id_viaje: getVal('acc-id-viaje-cta') || null,
+            id_unidad: unidadId || null,
             no_interno: getVal('acc-no-interno-cta') || null,
             estatus: 'No Liquidado'
         };
@@ -3033,6 +3184,35 @@ async function markAccountLiquidated(id) {
             await window.supabaseClient
                 .from(DB_CONFIG.tableGastos)
                 .update({ estatus_pago: 'Pagado' })
+                .eq('id_gasto', account.id_gasto_ref);
+        }
+        loadTreasuryList();
+    }
+}
+
+async function revertAccountLiquidation(id) {
+    if (!confirm('¿Desea revertir la liquidación de esta cuenta?')) return;
+
+    // 1. Obtener datos de la cuenta para ver si está ligada a un gasto
+    const { data: account } = await window.supabaseClient
+        .from(DB_CONFIG.tableCuentas)
+        .select('*')
+        .eq('id_cuenta', id)
+        .single();
+
+    const { error } = await window.supabaseClient
+        .from(DB_CONFIG.tableCuentas)
+        .update({ estatus: 'No Liquidado' })
+        .eq('id_cuenta', id);
+
+    if (error) {
+        alert('Error: ' + error.message);
+    } else {
+        // 2. Si la cuenta era un gasto a crédito, revertir también el gasto a Pendiente
+        if (account && account.id_gasto_ref) {
+            await window.supabaseClient
+                .from(DB_CONFIG.tableGastos)
+                .update({ estatus_pago: 'Pendiente' })
                 .eq('id_gasto', account.id_gasto_ref);
         }
         loadTreasuryList();
@@ -3106,6 +3286,7 @@ async function updateLiquidacionesMetrics() {
         // Filtrar Anticipos por fecha y tipo
         let filteredAccounts = accounts.filter(c => {
             if (c.tipo !== 'A Favor') return false;
+            if (c.id_unidad) return false; // Excluir cuentas ligadas a unidades
             if (!c.fecha) return false;
             const itemDate = c.fecha.split('T')[0];
             return itemDate >= startDate && itemDate <= endDate;
@@ -3230,7 +3411,7 @@ async function loadDriverSettlementDetail(id_chofer) {
 
     pendingTripsForDriver = activeTrips;
     currentExpenses = uniqueExp;
-    currentDebts = accounts.data || [];
+    currentDebts = (accounts.data || []).filter(acc => !acc.id_unidad);
 
     // Llenar UI
     document.getElementById('set-trip-id').innerText = `LIQUIDACIÓN: ${id_chofer}`;
