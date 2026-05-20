@@ -3390,6 +3390,13 @@ async function loadDriverSettlementDetail(id_chofer) {
     detail.classList.remove('hidden');
     empty.classList.add('hidden');
 
+    // En móvil: scroll automático al panel de detalle para ver la info
+    if (window.innerWidth < 768) {
+        setTimeout(() => {
+            detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    }
+
     // Cargar datos: Viajes Terminados/En Proceso no liquidados + Gastos (Por Chofer O Por Viaje) + Cuentas
     // 1. Fetch Trips first to get relevant Trip IDs
     const { data: trips } = await window.supabaseClient

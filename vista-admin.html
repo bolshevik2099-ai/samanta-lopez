@@ -85,10 +85,32 @@
             main {
                 width: 100% !important;
                 min-height: calc(100vh - 60px);
-                padding-top: 5rem !important; /* Spacing for the mobile menu button */
+                padding-top: 5rem !important;
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
             }
             .content-section:not(.hidden) {
                 display: block !important;
+            }
+            /* En liquidaciones móvil: al seleccionar chofer, el detalle baja visible */
+            #settlement-detail {
+                display: block;
+            }
+            /* Layout horizontal en móvil para liquidaciones */
+            @media (orientation: landscape) {
+                #section-liquidaciones .grid-cols-1 {
+                    grid-template-columns: 1fr 2fr !important;
+                }
+            }
+        }
+
+        /* Liquidaciones: en móvil siempre mostrar detalle debajo del chofer */
+        @media (max-width: 768px) {
+            #section-liquidaciones > .grid {
+                grid-template-columns: 1fr !important;
+            }
+            #liquidation-driver-list {
+                max-height: 220px !important;
             }
         }
     </style>
@@ -174,7 +196,7 @@
         class="fixed inset-0 bg-black/50 z-40 hidden md:hidden glass-card"></div>
 
     <!-- Main Content -->
-    <main class="flex-grow p-6 md:p-10 relative z-10">
+    <main class="flex-grow p-3 md:p-6 xl:p-8 relative z-10 overflow-x-hidden">
         <!-- Dashboard Section -->
         <section id="section-dashboard" class="content-section">
             <header class="mb-10 flex justify-between items-center">
@@ -379,7 +401,7 @@
         </section>
 
         <!-- Viajes Section -->
-        <section id="section-viajes" class="content-section hidden max-w-6xl">
+        <section id="section-viajes" class="content-section hidden w-full">
             <div class="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
                 <h2 class="text-2xl font-black text-white mb-8 flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
@@ -541,7 +563,7 @@
         </section>
 
         <!-- Gastos Section (Admin) -->
-        <section id="section-gastos" class="content-section hidden max-w-6xl">
+        <section id="section-gastos" class="content-section hidden w-full">
             <div
                 class="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/5 shadow-2xl font-sans">
                 <h2 class="text-2xl font-black text-white mb-8 flex items-center gap-3">
@@ -868,7 +890,7 @@
         </section>
 
         <!-- Catalogos Section -->
-        <section id="section-catalogos" class="content-section hidden max-w-6xl">
+        <section id="section-catalogos" class="content-section hidden w-full">
             <header class="mb-10">
                 <h2 class="text-2xl font-black text-white tracking-tight">Gestión de Catálogos</h2>
                 <p class="text-slate-500 text-sm font-medium mt-1">Administración de datos maestros del sistema</p>
@@ -950,7 +972,7 @@
         </section>
 
         <!-- Movimientos por Periodo Section -->
-        <section id="section-movimientos" class="content-section hidden max-w-6xl">
+        <section id="section-movimientos" class="content-section hidden w-full">
             <div class="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
                 <h2 class="text-2xl font-black text-white mb-8 flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
@@ -1012,7 +1034,7 @@
         </section>
 
         <!-- Mantenimientos Section -->
-        <section id="section-mantenimientos" class="content-section hidden max-w-6xl">
+        <section id="section-mantenimientos" class="content-section hidden w-full">
             <header class="mb-10">
                 <h2 class="text-2xl font-black text-white tracking-tight flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
@@ -1143,7 +1165,7 @@
         </section>
 
         <!-- Tarifas Section -->
-        <section id="section-tarifas" class="content-section hidden max-w-6xl">
+        <section id="section-tarifas" class="content-section hidden w-full">
             <div class="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/5 shadow-2xl">
                 <h2 class="text-2xl font-black text-white mb-8 flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
@@ -1505,10 +1527,10 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6" id="liq-main-grid">
                 <!-- Columna Izquierda: Selección de Chofer -->
                 <div
-                    class="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/5 shadow-2xl md:col-span-1 border-l-4 border-l-blue-500">
+                    class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-[2.5rem] border border-white/5 shadow-2xl md:col-span-1 border-l-4 border-l-blue-500">
                     <h3 class="font-black text-white text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
                         <i class="fas fa-users text-blue-500"></i> Operadores
                     </h3>
@@ -1522,7 +1544,7 @@
                     </div>
                 </div>
 
-                <!-- Columna Derecha: Corte de Caja -->
+                <!-- Columna Derecha: Corte de Caja - siempre visible en móvil si hay selección -->
                 <div class="md:col-span-3 space-y-8">
                     <div id="settlement-detail"
                         class="hidden bg-slate-900/40 backdrop-blur-xl p-10 rounded-[2.5rem] border border-white/5 shadow-2xl relative overflow-hidden group">
