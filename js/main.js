@@ -3549,6 +3549,7 @@ function showSettlementFullDetail() {
         
         return `
         <tr class="border-b border-white/5 text-xs text-slate-300">
+            <td class="p-2 text-slate-400">${t.fecha_viaje ? new Date(t.fecha_viaje + 'T00:00:00').toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit', year:'numeric'}) : '—'}</td>
             <td class="p-2 font-mono">${t.id_viaje}</td>
             <td class="p-2">${t.origen} -> ${t.destino}</td>
             <td class="p-2 text-right font-bold text-white">$${flete.toLocaleString()}</td>
@@ -3559,11 +3560,11 @@ function showSettlementFullDetail() {
     const tripsHtml = pendingTripsForDriver.length > 0
         ? tripsHtmlRows + `
         <tr class="bg-blue-900/30 border-t-2 border-blue-500/50 text-xs">
-            <td colspan="2" class="p-2 text-right font-black text-blue-300 uppercase tracking-widest">Totales</td>
+            <td colspan="3" class="p-2 text-right font-black text-blue-300 uppercase tracking-widest">Totales</td>
             <td class="p-2 text-right font-black text-white">$${totalFletes.toLocaleString()}</td>
             <td class="p-2 text-right font-black text-green-400">$${totalComisiones.toLocaleString()}</td>
         </tr>`
-        : '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin viajes pendientes</td></tr>';
+        : '<tr><td colspan="5" class="p-4 text-center text-slate-400 italic">Sin viajes pendientes</td></tr>';
 
     // Generar tabla de Gastos (Aprobados)
     // Generar tabla de Gastos (Aprobados)
@@ -3618,7 +3619,7 @@ function showSettlementFullDetail() {
                 <h4 class="font-bold text-blue-600 uppercase text-xs mb-2 border-b border-blue-100 pb-1">1. Viajes a Liquidar</h4>
                 <table class="w-full text-left">
                     <thead class="bg-blue-50 text-[10px] uppercase font-bold text-blue-400">
-                        <tr><th class="p-2">ID</th><th class="p-2">Ruta</th><th class="p-2 text-right">Flete</th><th class="p-2 text-right">Comisión</th></tr>
+                        <tr><th class="p-2">Fecha</th><th class="p-2">ID</th><th class="p-2">Ruta</th><th class="p-2 text-right">Flete</th><th class="p-2 text-right">Comisión</th></tr>
                     </thead>
                     <tbody>${tripsHtml}</tbody>
                 </table>
