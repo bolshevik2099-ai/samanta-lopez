@@ -3554,6 +3554,11 @@ function showSettlementFullDetail() {
             <td class="p-2">${t.origen} -> ${t.destino}</td>
             <td class="p-2 text-right font-bold text-white">$${flete.toLocaleString()}</td>
             <td class="p-2 text-right text-green-400 font-bold">$${comision.toLocaleString()}</td>
+            <td class="p-2 text-center">
+                <button onclick="liquidarViajeIndividual('${t.id_viaje}', ${comision}, '${t.id_chofer}', '${t.id_unidad}')" class="px-2 py-1 bg-blue-600/80 hover:bg-blue-500 text-white rounded-lg text-[9px] font-bold transition-all">
+                    <i class="fas fa-check-circle mr-1"></i> Liquidar
+                </button>
+            </td>
         </tr>
     `}).join('');
 
@@ -3563,34 +3568,43 @@ function showSettlementFullDetail() {
             <td colspan="3" class="p-2 text-right font-black text-blue-300 uppercase tracking-widest">Totales</td>
             <td class="p-2 text-right font-black text-white">$${totalFletes.toLocaleString()}</td>
             <td class="p-2 text-right font-black text-green-400">$${totalComisiones.toLocaleString()}</td>
+            <td class="p-2"></td>
         </tr>`
-        : '<tr><td colspan="5" class="p-4 text-center text-slate-400 italic">Sin viajes pendientes</td></tr>';
+        : '<tr><td colspan="6" class="p-4 text-center text-slate-400 italic">Sin viajes pendientes</td></tr>';
 
     // Generar tabla de Gastos (Aprobados)
-    // Generar tabla de Gastos (Aprobados)
-    // Generar tabla de Gastos (Aprobados) - Robust Check
     const activeExpenses = currentExpenses.filter(g => {
         const deducible = String(g.es_deducible || '').trim().toLowerCase();
         const isDeducible = deducible.startsWith('s') || deducible === 'true' || deducible === '1' || deducible === 'yes' || deducible.startsWith('b');
         return isDeducible;
     });
     const expensesHtml = activeExpenses.map(g => `
-        <tr class="border-b border-slate-100 text-xs text-slate-600">
+        <tr class="border-b border-white/5 text-xs text-slate-300">
             <td class="p-2 font-mono">${g.id_gasto}</td>
             <td class="p-2">${g.concepto}</td>
-            <td class="p-2 font-bold ${g.estatus_aprobacion === 'Aprobado' ? 'text-slate-700' : 'text-amber-500'}">
+            <td class="p-2 font-bold text-white">
                 $${(parseFloat(g.monto) || 0).toLocaleString()}
             </td>
             <td class="p-2 text-[10px]">${g.estatus_aprobacion || 'Pendiente'}</td>
+            <td class="p-2 text-center">
+                <button onclick="pagarGastoIndividual('${g.id_gasto}')" class="px-2 py-1 bg-green-600/80 hover:bg-green-500 text-white rounded-lg text-[9px] font-bold transition-all">
+                    <i class="fas fa-money-bill-wave mr-1"></i> Pagar
+                </button>
+            </td>
         </tr>
-    `).join('') || '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin gastos reembolsables</td></tr>';
+    `).join('') || '<tr><td colspan="5" class="p-4 text-center text-slate-400 italic">Sin gastos reembolsables</td></tr>';
 
     // Generar tabla de Deudas y Retenciones (Nómina No Deducible)
     let debtsHtmlContent = currentDebts.map(d => `
-        <tr class="border-b border-slate-100 text-xs text-slate-600">
+        <tr class="border-b border-white/5 text-xs text-slate-300">
             <td class="p-2 font-mono">${d.id_cuenta}</td>
             <td class="p-2">${d.concepto}</td>
-            <td class="p-2 text-right font-bold text-red-500">-$${(parseFloat(d.monto) || 0).toLocaleString()}</td>
+            <td class="p-2 text-right font-bold text-red-400">-$${(parseFloat(d.monto) || 0).toLocaleString()}</td>
+            <td class="p-2 text-center">
+                <button onclick="liquidarDeudaIndividual('${d.id_cuenta}')" class="px-2 py-1 bg-red-600/80 hover:bg-red-500 text-white rounded-lg text-[9px] font-bold transition-all">
+                    <i class="fas fa-check mr-1"></i> Liquidar
+                </button>
+            </td>
         </tr>
     `).join('');
 
@@ -3602,24 +3616,29 @@ function showSettlementFullDetail() {
     
     if (nominaDeductionsDet.length > 0) {
         debtsHtmlContent += nominaDeductionsDet.map(g => `
-            <tr class="border-b border-slate-100 text-xs text-slate-600 bg-red-50">
+            <tr class="border-b border-white/5 text-xs text-slate-300 bg-red-950/20">
                 <td class="p-2 font-mono">${g.id_gasto}</td>
-                <td class="p-2 text-red-600 font-bold">Nómina (Retención)</td>
-                <td class="p-2 text-right font-bold text-red-500">-$${(parseFloat(g.monto) || 0).toLocaleString()}</td>
+                <td class="p-2 text-red-400 font-bold">Nómina (Retención)</td>
+                <td class="p-2 text-right font-bold text-red-400">-$${(parseFloat(g.monto) || 0).toLocaleString()}</td>
+                <td class="p-2 text-center">
+                    <button onclick="pagarGastoIndividual('${g.id_gasto}')" class="px-2 py-1 bg-red-600/80 hover:bg-red-500 text-white rounded-lg text-[9px] font-bold transition-all">
+                        <i class="fas fa-check mr-1"></i> Liquidar
+                    </button>
+                </td>
             </tr>
         `).join('');
     }
 
-    const debtsHtml = debtsHtmlContent || '<tr><td colspan="3" class="p-4 text-center text-slate-400 italic">Sin deudas/retenciones pendientes</td></tr>';
+    const debtsHtml = debtsHtmlContent || '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Sin deudas/retenciones pendientes</td></tr>';
 
     content.innerHTML = `
         <div class="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
             <!-- Sección Viajes -->
             <div>
-                <h4 class="font-bold text-blue-600 uppercase text-xs mb-2 border-b border-blue-100 pb-1">1. Viajes a Liquidar</h4>
+                <h4 class="font-bold text-blue-400 uppercase text-xs mb-2 border-b border-blue-900/30 pb-1">1. Viajes a Liquidar</h4>
                 <table class="w-full text-left">
-                    <thead class="bg-blue-50 text-[10px] uppercase font-bold text-blue-400">
-                        <tr><th class="p-2">Fecha</th><th class="p-2">ID</th><th class="p-2">Ruta</th><th class="p-2 text-right">Flete</th><th class="p-2 text-right">Comisión</th></tr>
+                    <thead class="bg-blue-950/40 text-[10px] uppercase font-bold text-blue-400">
+                        <tr><th class="p-2">Fecha</th><th class="p-2">ID</th><th class="p-2">Ruta</th><th class="p-2 text-right">Flete</th><th class="p-2 text-right">Comisión</th><th class="p-2 text-center">Acción</th></tr>
                     </thead>
                     <tbody>${tripsHtml}</tbody>
                 </table>
@@ -3627,10 +3646,10 @@ function showSettlementFullDetail() {
 
             <!-- Sección Gastos -->
             <div>
-                <h4 class="font-bold text-slate-600 uppercase text-xs mb-2 border-b border-slate-100 pb-1">2. Reembolsos (Gastos Contado)</h4>
+                <h4 class="font-bold text-slate-400 uppercase text-xs mb-2 border-b border-slate-800/30 pb-1">2. Reembolsos (Gastos Contado)</h4>
                 <table class="w-full text-left">
-                    <thead class="bg-slate-50 text-[10px] uppercase font-bold text-slate-400">
-                        <tr><th class="p-2">ID</th><th class="p-2">Concepto</th><th class="p-2">Monto</th><th class="p-2">Estado</th></tr>
+                    <thead class="bg-slate-950/40 text-[10px] uppercase font-bold text-slate-400">
+                        <tr><th class="p-2">ID</th><th class="p-2">Concepto</th><th class="p-2">Monto</th><th class="p-2">Estado</th><th class="p-2 text-center">Acción</th></tr>
                     </thead>
                     <tbody>${expensesHtml}</tbody>
                 </table>
@@ -3638,19 +3657,91 @@ function showSettlementFullDetail() {
 
             <!-- Sección Deudas -->
             <div>
-                <h4 class="font-bold text-amber-600 uppercase text-xs mb-2 border-b border-amber-100 pb-1">3. Descuentos (Adelantos/Deudas)</h4>
+                <h4 class="font-bold text-amber-400 uppercase text-xs mb-2 border-b border-amber-900/30 pb-1">3. Descuentos (Adelantos/Deudas)</h4>
                 <table class="w-full text-left">
-                    <thead class="bg-amber-50 text-[10px] uppercase font-bold text-amber-400">
-                        <tr><th class="p-2">ID</th><th class="p-2">Concepto</th><th class="p-2 text-right">Monto</th></tr>
+                    <thead class="bg-amber-950/40 text-[10px] uppercase font-bold text-amber-400">
+                        <tr><th class="p-2">ID</th><th class="p-2">Concepto</th><th class="p-2 text-right">Monto</th><th class="p-2 text-center">Acción</th></tr>
                     </thead>
                     <tbody>${debtsHtml}</tbody>
                 </table>
             </div>
         </div>
-        <div class="mt-6 pt-4 border-t border-slate-100 text-right">
-             <button onclick="closeDetailModal()" class="px-6 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg text-sm">Cerrar Detalle</button>
+        <div class="mt-6 pt-4 border-t border-white/5 text-right">
+             <button onclick="closeDetailModal()" class="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-sm border border-white/5">Cerrar Detalle</button>
         </div>
     `;
+}
+
+// Funciones para liquidar/pagar registros de forma individual
+async function liquidarViajeIndividual(id_viaje, comision, id_chofer, id_unidad) {
+    if (!confirm(`¿Desea liquidar el viaje ${id_viaje} de forma individual?\n\nSe marcará como Liquidado y se generará el gasto de comisión de chofer ($${comision.toLocaleString()}).`)) {
+        return;
+    }
+    try {
+        // 1. Marcar el viaje como Liquidado
+        const { error: vErr } = await window.supabaseClient
+            .from(DB_CONFIG.tableViajes)
+            .update({ estatus_viaje: 'Liquidado' })
+            .eq('id_viaje', id_viaje);
+        if (vErr) throw vErr;
+
+        // 2. Generar comisión automática
+        await crearGastoComisionAutomatica({
+            id_viaje: id_viaje,
+            monto: parseFloat(comision) || 0,
+            id_chofer: id_chofer,
+            id_unidad: id_unidad
+        });
+
+        // 3. Recargar detalles del chofer
+        await loadDriverSettlementDetail(selectedDriverForSettlement);
+
+        // 4. Actualizar el modal de Detalle Maestro
+        showSettlementFullDetail();
+
+        // 5. Notificar
+        alert(`✅ El viaje ${id_viaje} se ha liquidado individualmente.`);
+    } catch (err) {
+        alert('Error al liquidar viaje individual: ' + err.message);
+    }
+}
+
+async function pagarGastoIndividual(id_gasto) {
+    if (!confirm(`¿Desea marcar el gasto ${id_gasto} como Pagado de forma individual?\n\nYa no se incluirá en esta liquidación.`)) {
+        return;
+    }
+    try {
+        const { error: gErr } = await window.supabaseClient
+            .from(DB_CONFIG.tableGastos)
+            .update({ estatus_pago: 'Pagado' })
+            .eq('id_gasto', id_gasto);
+        if (gErr) throw gErr;
+
+        await loadDriverSettlementDetail(selectedDriverForSettlement);
+        showSettlementFullDetail();
+        alert(`✅ El gasto ${id_gasto} se ha marcado como Pagado.`);
+    } catch (err) {
+        alert('Error al pagar gasto individual: ' + err.message);
+    }
+}
+
+async function liquidarDeudaIndividual(id_cuenta) {
+    if (!confirm(`¿Desea marcar esta cuenta/deuda (${id_cuenta}) como Liquidada de forma individual?\n\nYa no se restará en esta liquidación.`)) {
+        return;
+    }
+    try {
+        const { error: dErr } = await window.supabaseClient
+            .from(DB_CONFIG.tableCuentas)
+            .update({ estatus: 'Liquidado' })
+            .eq('id_cuenta', id_cuenta);
+        if (dErr) throw dErr;
+
+        await loadDriverSettlementDetail(selectedDriverForSettlement);
+        showSettlementFullDetail();
+        alert(`✅ La deuda ${id_cuenta} se ha marcado como Liquidada.`);
+    } catch (err) {
+        alert('Error al liquidar deuda individual: ' + err.message);
+    }
 }
 
 async function finalizeSettlement() {
