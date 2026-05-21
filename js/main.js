@@ -106,6 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDashboardByPeriod();
     }
 
+    // Inicializar filtros de fecha de ganancias
+    if (document.getElementById('ganancias-filter-start')) {
+        setupGananciasDateFilters();
+    }
+
     // Inicializar monitoreo de la conexión de Saúl Rivas
     if (document.getElementById('saul-conn-status')) {
         loadSaulConnectionStatus();
@@ -1968,6 +1973,9 @@ async function showSection(sectionId) {
             case 'liquidaciones':
                 if (typeof loadSettlementTrips === 'function') loadSettlementTrips();
                 if (typeof updateLiquidacionesMetrics === 'function') updateLiquidacionesMetrics();
+                break;
+            case 'ganancias':
+                if (typeof loadProfitDashboard === 'function') loadProfitDashboard();
                 break;
             case 'catalogos':
                 if (typeof loadCatalog === 'function') loadCatalog('choferes');
@@ -4679,4 +4687,465 @@ async function loadSaulConnectionStatus() {
         statusTime.innerHTML = 'Error';
     }
 }
+
+// --- TABLERO DE GANANCIAS Y RENTABILIDAD POR UNIDAD ---
+function setupGananciasDateFilters() {
+    const startInput = document.getElementById('ganancias-filter-start');
+    const endInput = document.getElementById('ganancias-filter-end');
+    if (!startInput || !endInput) return;
+
+    const today = new Date();
+    const lastMonth = new Date();
+    lastMonth.setDate(today.getDate() - 30);
+
+    startInput.value = getLocalISODate(lastMonth);
+    endInput.value = getLocalISODate(today);
+}
+
+let earningsChartInstance = null;
+
+async function loadProfitDashboard() {
+    const start = document.getElementById('ganancias-filter-start')?.value;
+    const end = document.getElementById('ganancias-filter-end')?.value;
+    const periodLabel = document.getElementById('ganancias-period-label');
+    const tableBody = document.getElementById('ganancias-table-body');
+    if (!start || !end) return;
+
+    if (periodLabel) periodLabel.innerText = `Periodo: ${start} al ${end}`;
+    if (tableBody) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="9" class="px-8 py-10 text-center text-slate-400">
+                    <div class="flex items-center justify-center gap-3">
+                        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500"></div>
+                        <span class="text-xs font-bold uppercase tracking-wider font-mono">Calculando rentabilidad de flota...</span>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+
+    try {
+        // Cargar datos en paralelo
+        const [viajesRaw, gastosRaw, unidadesRaw, choferesRaw] = await Promise.all([
+            fetchSupabaseData(DB_CONFIG.tableViajes, 'fecha', start, end),
+            fetchSupabaseData(DB_CONFIG.tableGastos, 'fecha', start, end),
+            fetchSupabaseData(DB_CONFIG.tableUnidades),
+            fetchSupabaseData(DB_CONFIG.tableChoferes)
+        ]);
+
+        // Almacenar en window para reutilizar en el modal de detalles
+        window.gananciasViajesRaw = viajesRaw;
+        window.gananciasGastosRaw = gastosRaw;
+        window.gananciasUnidadesRaw = unidadesRaw;
+        window.gananciasChoferesRaw = choferesRaw;
+        window.gananciasPeriodStart = start;
+        window.gananciasPeriodEnd = end;
+
+        // Mapeo de IDs de operadores a nombres para fácil acceso
+        const driverMap = {};
+        choferesRaw.forEach(c => {
+            driverMap[c.id_chofer] = c.nombre;
+        });
+
+        // Totales globales de consolidación
+        let totalIngresos = 0;
+        let totalGastosDirectos = 0;
+        let totalGastosGenerales = 0;
+        let totalComisiones = 0;
+
+        // Estructura para agrupar por ECO
+        const unitProfitMap = {};
+
+        // Inicializar el mapa con las unidades del catálogo para reflejar ECOs inactivas
+        unidadesRaw.forEach(unit => {
+            const driverName = driverMap[unit.id_chofer] || unit.id_chofer || 'Sin asignar';
+            unitProfitMap[unit.id_unidad] = {
+                id_unidad: unit.id_unidad,
+                alias: unit.nombre_unidad || 'Sin alias',
+                chofer: driverName,
+                viajes: 0,
+                ingresos: 0,
+                gastos: 0,
+                comisiones: 0,
+                ganancia: 0,
+                margen: 0
+            };
+        });
+
+        // Consolidar ingresos y comisiones desde viajes
+        viajesRaw.forEach(v => {
+            const flete = parseFloat(v.monto_flete) || 0;
+            const comision = parseFloat(v.comision_chofer) || 0;
+            totalIngresos += flete;
+            totalComisiones += comision;
+
+            const unitId = v.id_unidad;
+            if (unitId) {
+                if (!unitProfitMap[unitId]) {
+                    unitProfitMap[unitId] = {
+                        id_unidad: unitId,
+                        alias: 'Desconocida',
+                        chofer: 'Sin asignar',
+                        viajes: 0,
+                        ingresos: 0,
+                        gastos: 0,
+                        comisiones: 0,
+                        ganancia: 0,
+                        margen: 0
+                    };
+                }
+                unitProfitMap[unitId].viajes += 1;
+                unitProfitMap[unitId].ingresos += flete;
+                unitProfitMap[unitId].comisiones += comision;
+            }
+        });
+
+        // Consolidar gastos (Directos vs Generales/Indirectos)
+        gastosRaw.forEach(g => {
+            const monto = parseFloat(g.monto) || 0;
+            const unitId = g.id_unidad;
+
+            if (unitId) {
+                totalGastosDirectos += monto;
+                if (!unitProfitMap[unitId]) {
+                    unitProfitMap[unitId] = {
+                        id_unidad: unitId,
+                        alias: 'Desconocida',
+                        chofer: 'Sin asignar',
+                        viajes: 0,
+                        ingresos: 0,
+                        gastos: 0,
+                        comisiones: 0,
+                        ganancia: 0,
+                        margen: 0
+                    };
+                }
+                unitProfitMap[unitId].gastos += monto;
+            } else {
+                totalGastosGenerales += monto;
+            }
+        });
+
+        // Calcular ganancias netas y márgenes de rentabilidad individuales
+        const unitsArray = Object.values(unitProfitMap);
+        unitsArray.forEach(up => {
+            up.ganancia = up.ingresos - up.gastos - up.comisiones;
+            up.margen = up.ingresos > 0 ? (up.ganancia / up.ingresos) * 100 : 0;
+        });
+
+        // Calcular totales acumulados
+        const totalGastosTodos = totalGastosDirectos + totalGastosGenerales;
+        const gananciaNetaGlobal = totalIngresos - totalGastosTodos - totalComisiones;
+        const margenGlobal = totalIngresos > 0 ? (gananciaNetaGlobal / totalIngresos) * 100 : 0;
+
+        // Renderizar KPIs
+        const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+        
+        safeSetText('ganancias-kpi-ingresos', fmt(totalIngresos));
+        safeSetText('ganancias-kpi-gastos-directos', fmt(totalGastosDirectos));
+        safeSetText('ganancias-kpi-gastos-generales', fmt(totalGastosGenerales));
+        safeSetText('ganancias-kpi-comisiones', fmt(totalComisiones));
+        safeSetText('ganancias-kpi-neta', fmt(gananciaNetaGlobal));
+
+        const margenEl = document.getElementById('ganancias-kpi-margen');
+        if (margenEl) {
+            margenEl.innerText = `Margen: ${margenGlobal.toFixed(1)}%`;
+            if (gananciaNetaGlobal < 0) {
+                margenEl.className = 'text-[9px] text-red-400 block mt-1 font-bold';
+            } else {
+                margenEl.className = 'text-[9px] text-green-500 block mt-1 font-bold';
+            }
+        }
+
+        // Renderizar tabla
+        if (tableBody) {
+            if (unitsArray.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="px-8 py-10 text-center text-slate-500 italic">
+                            No hay unidades configuradas en el catálogo.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                // Ordenar por Ganancia Neta de manera descendente
+                unitsArray.sort((a, b) => b.ganancia - a.ganancia);
+
+                tableBody.innerHTML = unitsArray.map(up => {
+                    const gananciaClass = up.ganancia < 0 ? 'text-red-400 font-bold' : (up.ganancia > 0 ? 'text-green-400 font-bold' : 'text-slate-400');
+                    const margenClass = up.margen < 0 ? 'bg-red-500/10 text-red-400 border border-red-500/15' : (up.margen > 15 ? 'bg-green-500/10 text-green-400 border border-green-500/15' : 'bg-blue-500/10 text-blue-400 border border-blue-500/15');
+                    
+                    return `
+                        <tr class="hover:bg-white/[0.02] transition-colors">
+                            <td class="px-6 py-4">
+                                <div class="font-black text-white text-xs tracking-tight">${up.id_unidad}</div>
+                                <div class="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">${up.alias}</div>
+                            </td>
+                            <td class="px-6 py-4 font-bold text-slate-300 text-xs">${up.chofer}</td>
+                            <td class="px-6 py-4 text-center font-bold text-slate-400 text-xs">${up.viajes}</td>
+                            <td class="px-6 py-4 text-right font-semibold text-blue-400 font-mono text-xs">${fmt(up.ingresos)}</td>
+                            <td class="px-6 py-4 text-right font-semibold text-amber-500 font-mono text-xs">${fmt(up.gastos)}</td>
+                            <td class="px-6 py-4 text-right font-semibold text-purple-400 font-mono text-xs">${fmt(up.comisiones)}</td>
+                            <td class="px-6 py-4 text-right font-mono text-xs ${gananciaClass}">${fmt(up.ganancia)}</td>
+                            <td class="px-6 py-4 text-center">
+                                <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${margenClass}">
+                                    ${up.margen.toFixed(1)}%
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-center">
+                                <button onclick="showUnitProfitDetail('${up.id_unidad}')"
+                                    class="px-4 py-1.5 bg-white/5 hover:bg-white/10 text-white font-bold text-[10px] uppercase tracking-widest rounded-lg border border-white/5 transition-all active:scale-95">
+                                    Ver Detalle
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Renderizar o actualizar gráfico
+        renderProfitChart(unitsArray);
+
+    } catch (err) {
+        console.error('Error al calcular rentabilidad de flota:', err);
+        showToast('Error: ' + err.message);
+    }
+}
+
+function renderProfitChart(unitsArray) {
+    const canvas = document.getElementById('earningsChart');
+    if (!canvas) return;
+
+    // Solo graficar unidades con algún tipo de movimiento
+    const activeUnits = unitsArray.filter(u => u.viajes > 0 || u.ingresos > 0 || u.gastos > 0);
+    activeUnits.sort((a, b) => b.ganancia - a.ganancia);
+
+    const labels = activeUnits.map(u => u.id_unidad);
+    const ingresosData = activeUnits.map(u => u.ingresos);
+    const costosData = activeUnits.map(u => u.gastos + u.comisiones);
+    const gananciasData = activeUnits.map(u => u.ganancia);
+
+    if (earningsChartInstance) {
+        earningsChartInstance.destroy();
+    }
+
+    const ctx = canvas.getContext('2d');
+    earningsChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Ingresos (Fletes)',
+                    data: ingresosData,
+                    backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                    borderColor: 'rgb(59, 130, 246)',
+                    borderWidth: 1.5,
+                    borderRadius: 6
+                },
+                {
+                    label: 'Costos (Gastos + Comisiones)',
+                    data: costosData,
+                    backgroundColor: 'rgba(239, 68, 68, 0.5)',
+                    borderColor: 'rgb(239, 68, 68)',
+                    borderWidth: 1.5,
+                    borderRadius: 6
+                },
+                {
+                    label: 'Ganancia Neta',
+                    data: gananciasData,
+                    backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                    borderColor: 'rgb(34, 197, 94)',
+                    borderWidth: 1.5,
+                    borderRadius: 6
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: '#94a3b8',
+                        font: {
+                            family: 'Outfit, sans-serif',
+                            weight: 'bold',
+                            size: 11
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.parsed.y !== null) {
+                                label += new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(context.parsed.y);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: {
+                        color: '#94a3b8',
+                        font: { family: 'Outfit, sans-serif', weight: 'bold' }
+                    }
+                },
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: {
+                        color: '#94a3b8',
+                        font: { family: 'Outfit, sans-serif', weight: 'bold' },
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function showUnitProfitDetail(id_unidad) {
+    const modal = document.getElementById('detail-modal');
+    const content = document.getElementById('modal-content');
+    const title = document.getElementById('modal-title');
+
+    if (!modal || !content || !title) return;
+
+    // Filtrar viajes y gastos en memoria
+    const viajes = (window.gananciasViajesRaw || []).filter(v => v.id_unidad === id_unidad);
+    const gastos = (window.gananciasGastosRaw || []).filter(g => g.id_unidad === id_unidad);
+    const start = window.gananciasPeriodStart || '';
+    const end = window.gananciasPeriodEnd || '';
+
+    title.innerHTML = `<i class="fas fa-chart-line text-green-500"></i> Desglose Rentabilidad ECO: ${id_unidad}`;
+    modal.classList.remove('hidden');
+
+    const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+
+    // Sumatorias específicas
+    const totalVentas = viajes.reduce((acc, v) => acc + (parseFloat(v.monto_flete) || 0), 0);
+    const totalComis = viajes.reduce((acc, v) => acc + (parseFloat(v.comision_chofer) || 0), 0);
+    const totalGastos = gastos.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+    const gananciaNeta = totalVentas - totalGastos - totalComis;
+    const margen = totalVentas > 0 ? (gananciaNeta / totalVentas) * 100 : 0;
+
+    let html = `
+        <div class="space-y-8">
+            <!-- Periodo Info -->
+            <div class="flex flex-wrap items-center justify-between gap-4 bg-slate-950/40 p-5 rounded-2xl border border-white/5">
+                <div>
+                    <span class="text-[10px] text-slate-500 uppercase font-black tracking-widest font-mono">Periodo de Análisis</span>
+                    <div class="text-sm font-bold text-white mt-1">${start} al ${end}</div>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-right">
+                    <div>
+                        <span class="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Ingresos</span>
+                        <div class="text-xs font-black text-blue-400 font-mono mt-0.5">${fmt(totalVentas)}</div>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Gastos Directos</span>
+                        <div class="text-xs font-black text-amber-500 font-mono mt-0.5">${fmt(totalGastos)}</div>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Comisiones</span>
+                        <div class="text-xs font-black text-purple-400 font-mono mt-0.5">${fmt(totalComis)}</div>
+                    </div>
+                    <div>
+                        <span class="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Neto (${margen.toFixed(1)}%)</span>
+                        <div class="text-xs font-black font-mono mt-0.5 ${gananciaNeta < 0 ? 'text-red-400' : 'text-green-400'}">${fmt(gananciaNeta)}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de Viajes -->
+            <div class="bg-slate-950/20 rounded-2xl border border-white/5 overflow-hidden">
+                <div class="p-6 border-b border-white/5 bg-white/[0.01]">
+                    <h4 class="font-black text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-route text-blue-400"></i> Viajes Realizados (${viajes.length})
+                    </h4>
+                </div>
+                <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-white/[0.02] text-[9px] uppercase font-black text-slate-500 tracking-widest sticky top-0 bg-slate-900 z-10 border-b border-white/5">
+                            <tr>
+                                <th class="px-6 py-3">ID Viaje</th>
+                                <th class="px-6 py-3">Fecha</th>
+                                <th class="px-6 py-3">Cliente</th>
+                                <th class="px-6 py-3">Ruta (Origen / Destino)</th>
+                                <th class="px-6 py-3 text-right">Flete</th>
+                                <th class="px-6 py-3 text-right">Comisión</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            ${viajes.length === 0 ? `
+                                <tr>
+                                    <td colspan="6" class="p-6 text-center text-slate-500 italic">No se registraron viajes para esta unidad en el periodo.</td>
+                                </tr>
+                            ` : viajes.map(v => `
+                                <tr class="hover:bg-white/[0.01] transition-colors">
+                                    <td class="px-6 py-3 font-bold text-white">${v.id_viaje}</td>
+                                    <td class="px-6 py-3 font-mono">${v.fecha}</td>
+                                    <td class="px-6 py-3">${v.cliente || '-'}</td>
+                                    <td class="px-6 py-3 truncate max-w-[200px]">${v.origen || '-'} a ${v.destino || '-'}</td>
+                                    <td class="px-6 py-3 text-right text-blue-400 font-mono font-bold">${fmt(v.monto_flete)}</td>
+                                    <td class="px-6 py-3 text-right text-purple-400 font-mono">${fmt(v.comision_chofer)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tabla de Gastos -->
+            <div class="bg-slate-950/20 rounded-2xl border border-white/5 overflow-hidden">
+                <div class="p-6 border-b border-white/5 bg-white/[0.01]">
+                    <h4 class="font-black text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-file-invoice-dollar text-amber-500"></i> Gastos Directos (${gastos.length})
+                    </h4>
+                </div>
+                <div class="max-h-[300px] overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="bg-white/[0.02] text-[9px] uppercase font-black text-slate-500 tracking-widest sticky top-0 bg-slate-900 z-10 border-b border-white/5">
+                            <tr>
+                                <th class="px-6 py-3">Concepto</th>
+                                <th class="px-6 py-3">Fecha</th>
+                                <th class="px-6 py-3">Operador</th>
+                                <th class="px-6 py-3">Detalle / Notas</th>
+                                <th class="px-6 py-3 text-right">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            ${gastos.length === 0 ? `
+                                <tr>
+                                    <td colspan="5" class="p-6 text-center text-slate-500 italic">No se registraron gastos directos para esta unidad en el periodo.</td>
+                                </tr>
+                            ` : gastos.map(g => `
+                                <tr class="hover:bg-white/[0.01] transition-colors">
+                                    <td class="px-6 py-3 font-bold text-white">${g.concepto || 'Gasto'}</td>
+                                    <td class="px-6 py-3 font-mono">${g.fecha}</td>
+                                    <td class="px-6 py-3">${window.globalDriverMap[g.id_chofer] || g.id_chofer || '-'}</td>
+                                    <td class="px-6 py-3 truncate max-w-[200px]">${g.notas || '-'}</td>
+                                    <td class="px-6 py-3 text-right text-amber-500 font-mono font-bold">${fmt(g.monto)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+
+    content.innerHTML = html;
+}
+
 

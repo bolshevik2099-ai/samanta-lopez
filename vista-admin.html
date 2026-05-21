@@ -234,6 +234,10 @@
                 class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all">
                 <i class="fas fa-file-contract w-5"></i> Liquidaciones
             </button>
+            <button onclick="showSection('ganancias')" id="nav-ganancias"
+                class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all">
+                <i class="fas fa-hand-holding-usd w-5"></i> Ganancias
+            </button>
             <button onclick="showSection('catalogos')" id="nav-catalogos"
                 class="sidebar-link w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all">
                 <i class="fas fa-boxes w-5"></i> Catálogos
@@ -1237,6 +1241,118 @@
 
                 </div>
 
+            </div>
+        </section>
+
+        <!-- Ganancias Section -->
+        <section id="section-ganancias" class="content-section hidden w-full">
+            <!-- Header -->
+            <header class="mb-10">
+                <h2 class="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
+                        <i class="fas fa-hand-holding-usd text-green-500"></i>
+                    </div>
+                    Ganancias y Rentabilidad
+                </h2>
+                <p class="text-slate-500 text-sm font-medium mt-1">Análisis financiero detallado y rentabilidad operativa por unidad</p>
+            </header>
+
+            <!-- Filtros Locales -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 items-end">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1 font-mono">Desde</label>
+                    <input type="date" id="ganancias-filter-start"
+                        class="w-full px-5 py-3 rounded-xl bg-slate-900 border border-white/10 text-white outline-none focus:border-green-500/50 transition-all text-sm">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1 font-mono">Hasta</label>
+                    <input type="date" id="ganancias-filter-end"
+                        class="w-full px-5 py-3 rounded-xl bg-slate-900 border border-white/10 text-white outline-none focus:border-green-500/50 transition-all text-sm">
+                </div>
+                <div>
+                    <button onclick="loadProfitDashboard()"
+                        class="w-full bg-green-600 hover:bg-green-500 text-white font-black py-3.5 rounded-xl shadow-xl shadow-green-600/20 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm uppercase tracking-widest text-[10px]">
+                        <i class="fas fa-sync-alt animate-spin-slow"></i> Filtrar Ganancias
+                    </button>
+                </div>
+                <div class="text-right pb-2 text-xs text-slate-500 italic">
+                    <span id="ganancias-period-label">Mostrando: Este mes</span>
+                </div>
+            </div>
+
+            <!-- Resumen de KPIs Financieros -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+                <!-- Venta Card -->
+                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl border border-white/5 shadow-xl relative overflow-hidden group">
+                    <p class="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-2 font-mono">Ingresos Fletes</p>
+                    <p id="ganancias-kpi-ingresos" class="text-2xl font-black text-blue-400 font-mono">$0.00</p>
+                    <span class="text-[9px] text-slate-500 block mt-1">Suma fletes de viajes</span>
+                </div>
+                <!-- Gastos Directos Card -->
+                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl border border-white/5 shadow-xl relative overflow-hidden group">
+                    <p class="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-2 font-mono">Gastos Directos (ECO)</p>
+                    <p id="ganancias-kpi-gastos-directos" class="text-2xl font-black text-amber-500 font-mono">$0.00</p>
+                    <span class="text-[9px] text-slate-500 block mt-1">Gastos cargados a ECOs</span>
+                </div>
+                <!-- Gastos Indirectos Card -->
+                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl border border-white/5 shadow-xl relative overflow-hidden group">
+                    <p class="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-2 font-mono">Gastos Generales</p>
+                    <p id="ganancias-kpi-gastos-generales" class="text-2xl font-black text-red-400 font-mono">$0.00</p>
+                    <span class="text-[9px] text-slate-500 block mt-1">Gastos sin unidad</span>
+                </div>
+                <!-- Comisiones Card -->
+                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl border border-white/5 shadow-xl relative overflow-hidden group">
+                    <p class="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-2 font-mono">Comisiones Choferes</p>
+                    <p id="ganancias-kpi-comisiones" class="text-2xl font-black text-purple-400 font-mono">$0.00</p>
+                    <span class="text-[9px] text-slate-500 block mt-1">Comisiones de viajes</span>
+                </div>
+                <!-- Ganancia Neta Card -->
+                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl border border-white/5 shadow-xl relative overflow-hidden group bg-gradient-to-br from-green-500/5 to-transparent border-green-500/10">
+                    <p class="text-slate-500 text-[10px] uppercase font-black tracking-widest mb-2 font-mono">Ganancia Neta</p>
+                    <p id="ganancias-kpi-neta" class="text-2xl font-black text-green-400 font-mono">$0.00</p>
+                    <span id="ganancias-kpi-margen" class="text-[9px] text-green-500 block mt-1 font-bold">Margen: 0%</span>
+                </div>
+            </div>
+
+            <!-- Gráfico de Ventas vs Gastos vs Ganancias -->
+            <div class="bg-slate-900/40 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/5 shadow-2xl mb-8">
+                <h3 class="font-black text-white text-lg tracking-tight mb-6 flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                        <i class="fas fa-chart-bar text-green-500 text-sm"></i>
+                    </div>
+                    Comparativa de Rentabilidad por Unidad
+                </h3>
+                <div class="h-[350px] relative">
+                    <canvas id="earningsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Tabla de Ganancias por Unidad -->
+            <div class="bg-slate-900/40 backdrop-blur-xl rounded-[2.5rem] border border-white/5 shadow-2xl overflow-hidden mb-8">
+                <div class="p-8 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
+                    <h3 class="font-black text-white text-xl tracking-tight">Desglose de Unidades</h3>
+                    <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest font-mono">Rentabilidad Operativa</div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-white/[0.02] text-[10px] uppercase font-black text-slate-500 tracking-widest">
+                            <tr>
+                                <th class="px-6 py-4">ECO</th>
+                                <th class="px-6 py-4">Chofer Asignado</th>
+                                <th class="px-6 py-4 text-center">Viajes</th>
+                                <th class="px-6 py-4 text-right">Ingresos (Fletes)</th>
+                                <th class="px-6 py-4 text-right">Gastos Directos</th>
+                                <th class="px-6 py-4 text-right">Comisiones</th>
+                                <th class="px-6 py-4 text-right">Ganancia Neta</th>
+                                <th class="px-6 py-4 text-center">Margen</th>
+                                <th class="px-6 py-4 text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ganancias-table-body" class="divide-y divide-white/5">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
