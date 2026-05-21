@@ -13,11 +13,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    if (session) {
+        updateLastAccess(session.nombre);
+    }
+
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
         loginForm.addEventListener('submit', handleLogin);
     }
 });
+
+async function updateLastAccess(username) {
+    if (!username || !window.supabaseClient) return;
+    try {
+        await window.supabaseClient
+            .from(DB_CONFIG.tableUsuarios)
+            .update({ ultimo_acceso: new Date().toISOString() })
+            .eq('usuario', username);
+    } catch (e) {
+        console.error('Error al actualizar último acceso:', e);
+    }
+}
 
 async function handleLogin(e) {
     if (e) e.preventDefault();
@@ -87,6 +103,9 @@ async function handleLogin(e) {
                 timestamp: new Date().getTime()
             };
             localStorage.setItem('crm_session', JSON.stringify(sessionData));
+
+            // Actualizar último acceso en la base de datos de manera asíncrona
+            await updateLastAccess(foundUser.usuario);
 
             setTimeout(() => {
                 redirectByRol(foundUser.rol);

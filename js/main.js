@@ -106,6 +106,12 @@ document.addEventListener('DOMContentLoaded', () => {
         updateDashboardByPeriod();
     }
 
+    // Inicializar monitoreo de la conexión de Saúl Rivas
+    if (document.getElementById('saul-conn-status')) {
+        loadSaulConnectionStatus();
+        setInterval(loadSaulConnectionStatus, 30000); // Actualizar cada 30 segundos
+    }
+
     // Sidebar: Carga de Listados
     document.querySelectorAll('.sidebar-link').forEach(link => {
         link.addEventListener('click', (e) => {
@@ -4623,5 +4629,54 @@ function showToast(msg) {
         toast.classList.add('animate-out', 'fade-out', 'slide-out-to-bottom');
         setTimeout(() => toast.remove(), 300);
     }, 3000);
+}
+
+async function loadSaulConnectionStatus() {
+    const statusDot = document.getElementById('saul-conn-dot');
+    const statusTime = document.getElementById('saul-conn-time');
+    if (!statusTime) return;
+
+    try {
+        const { data, error } = await window.supabaseClient
+            .from(DB_CONFIG.tableUsuarios)
+            .select('ultimo_acceso')
+            .eq('usuario', 'saulrivas@gmail.com')
+            .single();
+
+        if (error) throw error;
+
+        if (data && data.ultimo_acceso) {
+            const lastAccess = new Date(data.ultimo_acceso);
+            const now = new Date();
+            const diffMs = now - lastAccess;
+            const diffMins = Math.floor(diffMs / 60000);
+
+            // Formatear hora y fecha
+            const timeStr = lastAccess.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateStr = lastAccess.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit' });
+
+            if (diffMins < 5) {
+                // Conectado hace menos de 5 minutos: Activo
+                if (statusDot) {
+                    statusDot.className = 'w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse';
+                }
+                statusTime.innerHTML = `Activo ahora (${timeStr})`;
+            } else {
+                // Inactivo
+                if (statusDot) {
+                    statusDot.className = 'w-2.5 h-2.5 bg-slate-500 rounded-full';
+                }
+                statusTime.innerHTML = `Visto hace ${diffMins} min (${dateStr} ${timeStr})`;
+            }
+        } else {
+            if (statusDot) {
+                statusDot.className = 'w-2.5 h-2.5 bg-slate-500 rounded-full';
+            }
+            statusTime.innerHTML = 'Nunca';
+        }
+    } catch (e) {
+        console.error('Error al cargar conexión de Saúl:', e);
+        statusTime.innerHTML = 'Error';
+    }
 }
 
