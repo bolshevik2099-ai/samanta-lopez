@@ -4928,7 +4928,7 @@ function renderProfitChart(unitsArray) {
     const activeUnits = unitsArray.filter(u => u.viajes > 0 || u.ingresos > 0 || u.gastos > 0);
     activeUnits.sort((a, b) => b.ganancia - a.ganancia);
 
-    const labels = activeUnits.map(u => u.id_unidad);
+    const labels = activeUnits.map(u => `${u.id_unidad} (${u.chofer})`);
     const ingresosData = activeUnits.map(u => u.ingresos);
     const costosData = activeUnits.map(u => u.gastos + u.comisiones);
     const gananciasData = activeUnits.map(u => u.ganancia);
