@@ -4803,6 +4803,12 @@ async function loadProfitDashboard() {
 
         // Consolidar gastos (Directos vs Generales/Indirectos)
         gastosRaw.forEach(g => {
+            // EXCLUSIÓN DE NÓMINA: No debe afectar las ganancias netas ya que se descuenta de comisiones
+            const concepto = g.concepto || '';
+            if (concepto.toLowerCase() === 'nómina' || concepto.toLowerCase() === 'nomina') {
+                return;
+            }
+
             const monto = parseFloat(g.monto) || 0;
             const unitId = g.id_unidad;
 
@@ -5023,7 +5029,11 @@ function showUnitProfitDetail(id_unidad) {
 
     // Filtrar viajes y gastos en memoria
     const viajes = (window.gananciasViajesRaw || []).filter(v => String(v.id_unidad) == String(id_unidad));
-    const gastos = (window.gananciasGastosRaw || []).filter(g => String(g.id_unidad) == String(id_unidad));
+    const gastos = (window.gananciasGastosRaw || []).filter(g => {
+        const concepto = g.concepto || '';
+        const isNomina = concepto.toLowerCase() === 'nómina' || concepto.toLowerCase() === 'nomina';
+        return String(g.id_unidad) == String(id_unidad) && !isNomina;
+    });
     const start = window.gananciasPeriodStart || '';
     const end = window.gananciasPeriodEnd || '';
 
