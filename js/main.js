@@ -5022,8 +5022,8 @@ function showUnitProfitDetail(id_unidad) {
     if (!modal || !content || !title) return;
 
     // Filtrar viajes y gastos en memoria
-    const viajes = (window.gananciasViajesRaw || []).filter(v => v.id_unidad === id_unidad);
-    const gastos = (window.gananciasGastosRaw || []).filter(g => g.id_unidad === id_unidad);
+    const viajes = (window.gananciasViajesRaw || []).filter(v => String(v.id_unidad) == String(id_unidad));
+    const gastos = (window.gananciasGastosRaw || []).filter(g => String(g.id_unidad) == String(id_unidad));
     const start = window.gananciasPeriodStart || '';
     const end = window.gananciasPeriodEnd || '';
 
@@ -5080,6 +5080,7 @@ function showUnitProfitDetail(id_unidad) {
                             <tr>
                                 <th class="px-6 py-3">ID Viaje</th>
                                 <th class="px-6 py-3">Fecha</th>
+                                <th class="px-6 py-3">Operador</th>
                                 <th class="px-6 py-3">Cliente</th>
                                 <th class="px-6 py-3">Ruta (Origen / Destino)</th>
                                 <th class="px-6 py-3 text-right">Flete</th>
@@ -5089,12 +5090,13 @@ function showUnitProfitDetail(id_unidad) {
                         <tbody class="divide-y divide-white/5">
                             ${viajes.length === 0 ? `
                                 <tr>
-                                    <td colspan="6" class="p-6 text-center text-slate-500 italic">No se registraron viajes para esta unidad en el periodo.</td>
+                                    <td colspan="7" class="p-6 text-center text-slate-500 italic">No se registraron viajes para esta unidad en el periodo.</td>
                                 </tr>
                             ` : viajes.map(v => `
                                 <tr class="hover:bg-white/[0.01] transition-colors">
                                     <td class="px-6 py-3 font-bold text-white">${v.id_viaje}</td>
                                     <td class="px-6 py-3 font-mono">${v.fecha}</td>
+                                    <td class="px-6 py-3">${globalDriverMap[v.id_chofer] || v.id_chofer || '-'}</td>
                                     <td class="px-6 py-3">${v.cliente || '-'}</td>
                                     <td class="px-6 py-3 truncate max-w-[200px]">${v.origen || '-'} a ${v.destino || '-'}</td>
                                     <td class="px-6 py-3 text-right text-blue-400 font-mono font-bold">${fmt(v.monto_flete)}</td>
@@ -5133,7 +5135,7 @@ function showUnitProfitDetail(id_unidad) {
                                 <tr class="hover:bg-white/[0.01] transition-colors">
                                     <td class="px-6 py-3 font-bold text-white">${g.concepto || 'Gasto'}</td>
                                     <td class="px-6 py-3 font-mono">${g.fecha}</td>
-                                    <td class="px-6 py-3">${window.globalDriverMap[g.id_chofer] || g.id_chofer || '-'}</td>
+                                    <td class="px-6 py-3">${globalDriverMap[g.id_chofer] || g.id_chofer || '-'}</td>
                                     <td class="px-6 py-3 truncate max-w-[200px]">${g.notas || '-'}</td>
                                     <td class="px-6 py-3 text-right text-amber-500 font-mono font-bold">${fmt(g.monto)}</td>
                                 </tr>
