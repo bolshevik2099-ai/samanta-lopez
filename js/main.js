@@ -4407,6 +4407,7 @@ async function loadMaintUnidades() {
                                 <i class="fas fa-check text-xs"></i>
                             </button>
                         </div>
+                        <div class="text-[9px] text-slate-500 mt-1 font-bold">Fecha: ${u.ultimo_cambio_aceite_fecha || 'Sin fecha'}</div>
                     </td>
 
                     <td class="px-6 py-4">${recorridoDisplay}</td>
@@ -4419,11 +4420,17 @@ async function loadMaintUnidades() {
                         </select>
                     </td>
                     
-                    <td class="px-6 py-4 text-center">
-                        <button onclick="performOilChangeService('${u.id_unidad}')" 
-                            class="mx-auto px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1.5 shadow-lg shadow-emerald-600/20">
-                            <i class="fas fa-oil-can"></i> Servicio Hecho
-                        </button>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="showUnitMaintDetail('${u.id_unidad}')" 
+                                class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 border border-white/5 flex items-center gap-1">
+                                <i class="fas fa-eye text-blue-400"></i> Detalle
+                            </button>
+                            <button onclick="performOilChangeService('${u.id_unidad}')" 
+                                class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1.5 shadow-lg shadow-emerald-600/20">
+                                <i class="fas fa-oil-can"></i> Servicio
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -4518,6 +4525,215 @@ async function performOilChangeService(id_unidad) {
         await loadMaintUnidades();
     } catch (err) {
         alert('Error al registrar servicio: ' + err.message);
+    }
+}
+
+async function showUnitMaintDetail(id_unidad) {
+    const modal = document.getElementById('detail-modal');
+    const content = document.getElementById('modal-content');
+    const title = document.getElementById('modal-title');
+
+    if (!modal || !content || !title) return;
+
+    title.innerHTML = `<i class="fas fa-oil-can text-blue-500"></i> Detalle de Kilometraje y Aceite - ECO: ${id_unidad}`;
+    modal.classList.remove('hidden');
+
+    content.innerHTML = `
+        <div class="flex items-center justify-center p-20">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <span class="ml-3 text-xs font-bold uppercase tracking-wider text-slate-400">Cargando historial de unidad...</span>
+        </div>
+    `;
+
+    try {
+        const [unitRes, tripsRes, expensesRes, driversRes] = await Promise.all([
+            window.supabaseClient.from('cat_unidades').select('*').eq('id_unidad', id_unidad).single(),
+            window.supabaseClient.from('reg_viajes').select('*').eq('id_unidad', id_unidad).order('fecha', { ascending: false }),
+            window.supabaseClient.from('reg_gastos').select('*').eq('id_unidad', id_unidad).order('fecha', { ascending: false }),
+            window.supabaseClient.from('cat_choferes').select('*')
+        ]);
+
+        if (unitRes.error) throw unitRes.error;
+        if (tripsRes.error) throw tripsRes.error;
+        if (expensesRes.error) throw expensesRes.error;
+
+        const u = unitRes.data;
+        const trips = tripsRes.data || [];
+        const expenses = expensesRes.data || [];
+        const drivers = driversRes.data || [];
+
+        const driverMap = {};
+        drivers.forEach(d => { driverMap[d.id_chofer] = d.nombre; });
+
+        const driverName = driverMap[u.id_chofer] || u.id_chofer || 'Sin chofer asignado';
+        const kmActual = u.kilometraje_actual || 0;
+        const kmUltimo = u.ultimo_cambio_aceite_km || 0;
+        const recorrido = kmActual - kmUltimo;
+        const limiteKm = 25000;
+        const restante = limiteKm - recorrido;
+        const isUrgent = recorrido >= limiteKm;
+
+        const lastChangeDate = u.ultimo_cambio_aceite_fecha || 'No registrada';
+
+        // Filtrar viajes realizados desde la fecha del último cambio de aceite
+        let tripsSinceLastChange = [];
+        if (u.ultimo_cambio_aceite_fecha) {
+            tripsSinceLastChange = trips.filter(v => v.fecha >= u.ultimo_cambio_aceite_fecha);
+        } else {
+            tripsSinceLastChange = trips;
+        }
+
+        // Filtrar gastos que tengan registros de odómetro
+        const odoExpenses = expenses.filter(g => g.kmts_actuales > 0 || g.kmts_anteriores > 0);
+
+        let html = `
+            <div class="space-y-8">
+                <!-- Resumen Mantenimiento Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <!-- Tarjeta Km Actual -->
+                    <div class="bg-slate-950/40 p-5 rounded-2xl border border-white/5 flex flex-col justify-between">
+                        <span class="text-[9px] text-slate-500 uppercase font-black tracking-widest font-mono">Kilometraje Vivo</span>
+                        <div class="text-xl font-bold text-white mt-1">${kmActual.toLocaleString()} km</div>
+                        <span class="text-[9px] text-slate-400 mt-1">Última lectura en base de datos</span>
+                    </div>
+
+                    <!-- Tarjeta Último Cambio -->
+                    <div class="bg-slate-950/40 p-5 rounded-2xl border border-white/5 flex flex-col justify-between">
+                        <span class="text-[9px] text-slate-500 uppercase font-black tracking-widest font-mono">Último Cambio</span>
+                        <div class="text-xl font-bold text-white mt-1">${kmUltimo.toLocaleString()} km</div>
+                        <span class="text-[9px] text-slate-400 mt-1">Fecha: ${lastChangeDate}</span>
+                    </div>
+
+                    <!-- Tarjeta Recorrido -->
+                    <div class="bg-slate-950/40 p-5 rounded-2xl border border-white/5 flex flex-col justify-between">
+                        <span class="text-[9px] text-slate-500 uppercase font-black tracking-widest font-mono">Distancia Recorrida</span>
+                        <div class="text-xl font-bold ${isUrgent ? 'text-red-400 animate-pulse' : 'text-green-400'} mt-1">${recorrido.toLocaleString()} km</div>
+                        <span class="text-[9px] text-slate-400 mt-1">Kilómetros acumulados</span>
+                    </div>
+
+                    <!-- Tarjeta Estatus / Restante -->
+                    <div class="bg-slate-950/40 p-5 rounded-2xl border border-white/5 flex flex-col justify-between">
+                        <span class="text-[9px] text-slate-500 uppercase font-black tracking-widest font-mono">Estatus Servicio</span>
+                        <div class="text-base font-black ${isUrgent ? 'text-red-400' : 'text-blue-400'} mt-1">
+                            ${isUrgent ? '¡CAMBIO URGENTE!' : restante > 0 ? `${restante.toLocaleString()} km restan` : 'Excedido'}
+                        </div>
+                        <span class="text-[9px] text-slate-400 mt-1">Límite: ${limiteKm.toLocaleString()} km</span>
+                    </div>
+                </div>
+
+                <!-- Info Chofer -->
+                <div class="bg-slate-950/20 p-4 rounded-xl border border-white/5 flex items-center justify-between text-xs">
+                    <div>
+                        <span class="text-slate-500 font-bold uppercase tracking-wider mr-2">Chofer Asignado:</span>
+                        <span class="text-white font-black">${driverName}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 font-bold uppercase tracking-wider mr-2">Placas:</span>
+                        <span class="text-slate-300 font-mono">${u.placas || 'N/A'}</span>
+                    </div>
+                </div>
+
+                <!-- Tablas de Detalle -->
+                <div class="space-y-6">
+                    <!-- Viajes desde el último cambio de aceite -->
+                    <div>
+                        <div class="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
+                            <h4 class="font-black text-white text-xs uppercase tracking-wider flex items-center gap-2">
+                                <i class="fas fa-route text-blue-500"></i> 
+                                Viajes Registrados desde Último Cambio (${tripsSinceLastChange.length})
+                            </h4>
+                            <span class="text-[9px] text-slate-500 font-bold">Desde: ${lastChangeDate}</span>
+                        </div>
+                        
+                        <div class="max-h-60 overflow-y-auto rounded-xl border border-white/5">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-white/[0.02] text-slate-500 text-[9px] uppercase font-black tracking-widest text-center">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left">Fecha</th>
+                                        <th class="px-4 py-3 text-left">ID Viaje</th>
+                                        <th class="px-4 py-3 text-left">Cliente</th>
+                                        <th class="px-4 py-3 text-left">Ruta</th>
+                                        <th class="px-4 py-3 text-left">Chofer</th>
+                                        <th class="px-4 py-3 text-right">Flete</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-white/5 text-slate-300">
+                                    ${tripsSinceLastChange.length === 0 ? `
+                                        <tr><td colspan="6" class="p-6 text-center italic text-slate-500">No hay viajes registrados desde el último cambio de aceite.</td></tr>
+                                    ` : tripsSinceLastChange.map(v => `
+                                        <tr class="hover:bg-white/[0.01]">
+                                            <td class="px-4 py-3 font-semibold">${v.fecha}</td>
+                                            <td class="px-4 py-3 font-mono font-bold text-white">${v.id_viaje}</td>
+                                            <td class="px-4 py-3">${v.cliente}</td>
+                                            <td class="px-4 py-3 text-slate-400">${v.origen} → ${v.destino}</td>
+                                            <td class="px-4 py-3">${driverMap[v.id_chofer] || v.id_chofer || '-'}</td>
+                                            <td class="px-4 py-3 text-right font-bold text-blue-400 font-mono">$${(parseFloat(v.monto_flete) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Lecturas de Odómetro en Cargas de Diésel / Gastos -->
+                    <div>
+                        <div class="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
+                            <h4 class="font-black text-white text-xs uppercase tracking-wider flex items-center gap-2">
+                                <i class="fas fa-tachometer-alt text-emerald-500"></i> 
+                                Lecturas de Odómetro y Combustible (${odoExpenses.length})
+                            </h4>
+                        </div>
+                        
+                        <div class="max-h-60 overflow-y-auto rounded-xl border border-white/5">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-white/[0.02] text-slate-500 text-[9px] uppercase font-black tracking-widest text-center">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left">Fecha</th>
+                                        <th class="px-4 py-3 text-left">Concepto</th>
+                                        <th class="px-4 py-3 text-center">Odómetro Ant.</th>
+                                        <th class="px-4 py-3 text-center">Odómetro Act.</th>
+                                        <th class="px-4 py-3 text-center">Km Recorridos</th>
+                                        <th class="px-4 py-3 text-center">Litros</th>
+                                        <th class="px-4 py-3 text-left">Acreedor / Chofer</th>
+                                        <th class="px-4 py-3 text-right">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-white/5 text-slate-300">
+                                    ${odoExpenses.length === 0 ? `
+                                        <tr><td colspan="8" class="p-6 text-center italic text-slate-500">No hay lecturas de odómetro registradas en gastos para esta unidad.</td></tr>
+                                    ` : odoExpenses.map(g => {
+                                        const isNewerThanService = lastChangeDate !== 'No registrada' && g.fecha >= lastChangeDate;
+                                        const rowHighlight = isNewerThanService ? 'bg-blue-500/[0.02] text-white' : 'text-slate-400';
+                                        return `
+                                            <tr class="hover:bg-white/[0.01] ${rowHighlight}">
+                                                <td class="px-4 py-3 font-semibold">${g.fecha} ${isNewerThanService ? '<span class="text-[7px] bg-blue-500/20 text-blue-400 px-1 py-0.5 rounded font-black uppercase ml-1">Nuevo</span>' : ''}</td>
+                                                <td class="px-4 py-3 font-bold">${g.concepto}</td>
+                                                <td class="px-4 py-3 text-center font-mono font-medium">${(g.kmts_anteriores || 0).toLocaleString()}</td>
+                                                <td class="px-4 py-3 text-center font-mono font-bold text-slate-200">${(g.kmts_actuales || 0).toLocaleString()}</td>
+                                                <td class="px-4 py-3 text-center font-mono font-bold text-emerald-400">+${(g.kmts_recorridos || 0).toLocaleString()}</td>
+                                                <td class="px-4 py-3 text-center font-mono">${(g.litros_rellenados || 0).toLocaleString()} L</td>
+                                                <td class="px-4 py-3">${g.acreedor_nombre || driverMap[g.id_chofer] || g.id_chofer || '-'}</td>
+                                                <td class="px-4 py-3 text-right font-bold font-mono text-amber-500">$${(parseFloat(g.monto) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        content.innerHTML = html;
+
+    } catch (err) {
+        console.error('Error al cargar detalle de mantenimiento:', err);
+        content.innerHTML = `
+            <div class="p-8 text-center text-red-500 font-bold uppercase tracking-wider text-xs">
+                <i class="fas fa-exclamation-circle text-2xl mb-2"></i><br>
+                Error al cargar datos del detalle: ${err.message}
+            </div>
+        `;
     }
 }
 
