@@ -3549,7 +3549,7 @@ function showSettlementFullDetail() {
         
         return `
         <tr class="border-b border-white/5 text-xs text-slate-300">
-            <td class="p-2 text-slate-400">${t.fecha_viaje ? new Date(t.fecha_viaje + 'T00:00:00').toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit', year:'numeric'}) : '—'}</td>
+            <td class="p-2 text-slate-400">${t.fecha ? new Date(t.fecha + 'T00:00:00').toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit', year:'numeric'}) : '—'}</td>
             <td class="p-2 font-mono">${t.id_viaje}</td>
             <td class="p-2">${t.origen} -> ${t.destino}</td>
             <td class="p-2 text-right font-bold text-white">$${flete.toLocaleString()}</td>
