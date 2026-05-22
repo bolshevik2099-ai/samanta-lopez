@@ -333,8 +333,22 @@ function calculateEntityFuelMetrics(expenses, entityId, entityType) {
 
     if (fuelExpenses.length === 0) return { last: 0, avg: 0, lastStr: 'N/A', avgStr: 'N/A' };
 
+    // Helper to parse dates robustly (handles DD/MM/YYYY and MM/DD/YYYY formats)
+    const parseDateHelper = (d) => {
+        if (!d) return new Date(0);
+        if (d.includes('/')) {
+            const parts = d.split('/');
+            if (parseInt(parts[0]) > 12) {
+                return new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+            } else {
+                return new Date(`${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`);
+            }
+        }
+        return new Date(d);
+    };
+
     // Sort Descending (Newest first)
-    fuelExpenses.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    fuelExpenses.sort((a, b) => parseDateHelper(b.fecha) - parseDateHelper(a.fecha));
 
     // 1. Last Yield (Most recent fill-up)
     const last = fuelExpenses[0];
@@ -1506,32 +1520,51 @@ function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
 }
 
 function calculateFleetEfficiency(expenses) {
-    const unitGroups = {};
-    expenses.forEach(e => {
-        const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
-        const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
-        if (effectiveVol > 0) {
-            if (!unitGroups[e.id_unidad]) unitGroups[e.id_unidad] = { km: 0, lts: 0 };
-            unitGroups[e.id_unidad].km += (parseFloat(e.kmts_recorridos) || 0);
-            unitGroups[e.id_unidad].lts += effectiveVol;
+    // Helper to parse dates robustly (handles DD/MM/YYYY and MM/DD/YYYY formats)
+    const parseDateHelper = (d) => {
+        if (!d) return new Date(0);
+        if (d.includes('/')) {
+            const parts = d.split('/');
+            if (parseInt(parts[0]) > 12) {
+                return new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+            } else {
+                return new Date(`${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`);
+            }
         }
+        return new Date(d);
+    };
+
+    // Sort expenses by date descending to get the most recent records first
+    const sortedExpenses = [...expenses].sort((a, b) => {
+        const dateA = parseDateHelper(a.fecha);
+        const dateB = parseDateHelper(b.fecha);
+        return dateB - dateA;
     });
 
     const unitYields = {};
+    const seenUnits = new Set();
     let totalKm = 0;
     let totalLts = 0;
 
-    for (const [unit, data] of Object.entries(unitGroups)) {
-        if (data.lts > 0) {
-            const yieldVal = data.km / data.lts;
+    sortedExpenses.forEach(e => {
+        if (!e.id_unidad) return;
+        if (seenUnits.has(e.id_unidad)) return;
+
+        const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
+        const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
+        const km = parseFloat(e.kmts_recorridos) || 0;
+
+        if (effectiveVol > 0 && km > 0) {
+            const yieldVal = km / effectiveVol;
             // Basic sanity check: 0.5 < yield < 15 km/l to avoid bad data outliers
             if (yieldVal > 0.5 && yieldVal < 15) {
-                unitYields[unit] = parseFloat(yieldVal.toFixed(2));
-                totalKm += data.km;
-                totalLts += data.lts;
+                unitYields[e.id_unidad] = parseFloat(yieldVal.toFixed(2));
+                seenUnits.add(e.id_unidad);
+                totalKm += km;
+                totalLts += effectiveVol;
             }
         }
-    }
+    });
 
     const fleetAvg = totalLts > 0 ? (totalKm / totalLts) : 0;
 
@@ -1542,33 +1575,47 @@ function calculateFleetEfficiency(expenses) {
 }
 
 function calculateDriverEfficiency(expenses) {
-    const driverGroups = {};
-    // Pre-fetch driver names if possible, or use ID. For now using ID or name from expense if available (usually just ID in expense table unless joined)
-    // The expense table has 'id_chofer' which might be the name if the select logic uses names.
-    // Based on previous code, 'id_chofer' in expenses seems to be the stored value (name or ID).
-
-    expenses.forEach(e => {
-        const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
-        const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
-        if (effectiveVol > 0) {
-            const id = e.id_chofer;
-            if (!driverGroups[id]) driverGroups[id] = { km: 0, lts: 0 };
-            driverGroups[id].km += (parseFloat(e.kmts_recorridos) || 0);
-            driverGroups[id].lts += effectiveVol;
+    // Helper to parse dates robustly (handles DD/MM/YYYY and MM/DD/YYYY formats)
+    const parseDateHelper = (d) => {
+        if (!d) return new Date(0);
+        if (d.includes('/')) {
+            const parts = d.split('/');
+            if (parseInt(parts[0]) > 12) {
+                return new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
+            } else {
+                return new Date(`${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`);
+            }
         }
+        return new Date(d);
+    };
+
+    // Sort expenses by date descending to get the most recent records first
+    const sortedExpenses = [...expenses].sort((a, b) => {
+        const dateA = parseDateHelper(a.fecha);
+        const dateB = parseDateHelper(b.fecha);
+        return dateB - dateA;
     });
 
     const driverYields = {};
+    const seenDrivers = new Set();
 
-    for (const [driver, data] of Object.entries(driverGroups)) {
-        if (data.lts > 0) {
-            const yieldVal = data.km / data.lts;
+    sortedExpenses.forEach(e => {
+        if (!e.id_chofer) return;
+        if (seenDrivers.has(e.id_chofer)) return;
+
+        const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
+        const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
+        const km = parseFloat(e.kmts_recorridos) || 0;
+
+        if (effectiveVol > 0 && km > 0) {
+            const yieldVal = km / effectiveVol;
             // Basic sanity check: 0.5 < yield < 15 km/l
             if (yieldVal > 0.5 && yieldVal < 15) {
-                driverYields[driver] = parseFloat(yieldVal.toFixed(2));
+                driverYields[e.id_chofer] = parseFloat(yieldVal.toFixed(2));
+                seenDrivers.add(e.id_chofer);
             }
         }
-    }
+    });
 
     return { driverYields };
 }
