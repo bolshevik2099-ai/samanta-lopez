@@ -1,9 +1,11 @@
 
 let mainChart = null; // Instancia global para el gráfico
 
-// Variables Globales de Datos (para bÃºsqueda)
+// Variables Globales de Datos (para búsqueda)
 let allTripsData = [];
 let allExpensesData = [];
+let currentUnitTrips = [];
+let currentUnitExpenses = [];
 let currentExpenseTab = 'todos';
 let globalDriverMap = {};
 let globalUnitMap = {};
@@ -1262,6 +1264,9 @@ async function updateUnitDashboard() {
         const viajes = filterByDate(tripsData, start, end);
         const gastos = filterByDate(expensesData, start, end);
         
+        currentUnitTrips = viajes;
+        currentUnitExpenses = gastos;
+        
         const totalTrips = viajes.length;
         const totalRevenue = viajes.reduce((acc, v) => acc + (parseFloat(v.monto_flete) || 0), 0);
         const totalExpenses = gastos.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
@@ -1318,7 +1323,7 @@ async function updateUnitDashboard() {
         const tripsTbody = document.getElementById('db-unit-trips-table-body');
         if (tripsTbody) {
             if (viajes.length === 0) {
-                tripsTbody.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-slate-500 italic">Sin viajes en este período</td></tr>';
+                tripsTbody.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500 italic">Sin viajes en este período</td></tr>';
             } else {
                 tripsTbody.innerHTML = viajes.sort((a,b) => new Date(parseDate(b.fecha)) - new Date(parseDate(a.fecha))).map(v => `
                     <tr class="hover:bg-slate-800/20 transition-colors">
@@ -1331,6 +1336,11 @@ async function updateUnitDashboard() {
                             <div class="text-slate-400 truncate max-w-[150px]">${v.origen} ➔ ${v.destino}</div>
                         </td>
                         <td class="px-4 py-3 text-right font-bold text-blue-400">${fmt(parseFloat(v.monto_flete) || 0)}</td>
+                        <td class="px-4 py-3 text-center">
+                            <button onclick="showDetailModal('viajes', '${v.id_viaje}')" class="text-slate-400 hover:text-blue-400 transition-all p-1 cursor-pointer" title="Ver Detalle">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
                     </tr>
                 `).join('');
             }
@@ -1339,7 +1349,7 @@ async function updateUnitDashboard() {
         const expensesTbody = document.getElementById('db-unit-expenses-table-body');
         if (expensesTbody) {
             if (gastos.length === 0) {
-                expensesTbody.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-slate-500 italic">Sin gastos en este período</td></tr>';
+                expensesTbody.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500 italic">Sin gastos en este período</td></tr>';
             } else {
                 expensesTbody.innerHTML = gastos.sort((a,b) => new Date(parseDate(b.fecha)) - new Date(parseDate(a.fecha))).map(g => `
                     <tr class="hover:bg-slate-800/20 transition-colors">
@@ -1349,6 +1359,11 @@ async function updateUnitDashboard() {
                             <div class="text-slate-400 text-[10px]">${g.id_viaje ? `Viaje: ${g.id_viaje}` : 'Gasto General'}</div>
                         </td>
                         <td class="px-4 py-3 text-right font-bold text-red-400">${fmt(parseFloat(g.monto) || 0)}</td>
+                        <td class="px-4 py-3 text-center">
+                            <button onclick="showDetailModal('gastos', '${g.id_gasto}')" class="text-slate-400 hover:text-red-400 transition-all p-1 cursor-pointer" title="Ver Detalle">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
                     </tr>
                 `).join('');
             }
@@ -1465,6 +1480,342 @@ async function updateUnitDashboard() {
     }
 }
 
+window.updateUnitDashboard = updateUnitDashboard;
+window.initUnitDashboard = initUnitDashboard;
+
+function showFullUnitTripsModal() {
+    const unitSelect = document.getElementById('db-unit-select');
+    if (!unitSelect || !unitSelect.value) {
+        alert('Por favor selecciona una unidad primero.');
+        return;
+    }
+    const unitEco = unitSelect.value;
+    const modal = document.getElementById('detail-modal');
+    const content = document.getElementById('modal-content');
+    const title = document.getElementById('modal-title');
+    
+    if (!modal || !content || !title) return;
+    
+    title.innerHTML = `<i class="fas fa-route text-blue-500 mr-2"></i> Listado Completo de Viajes - Unidad ${unitEco}`;
+    
+    const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+    
+    const parseDate = (d) => {
+        if (!d) return '';
+        if (d.includes('/')) {
+            const parts = d.split('/');
+            if (parseInt(parts[0]) > 12) {
+                return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            } else {
+                return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+            }
+        }
+        return d;
+    };
+    
+    // Sort descending by date
+    const sortedTrips = [...currentUnitTrips].sort((a,b) => {
+        const dateA = parseDate(a.fecha) || '';
+        const dateB = parseDate(b.fecha) || '';
+        return dateB.localeCompare(dateA);
+    });
+    
+    const totalFletes = sortedTrips.reduce((acc, t) => acc + (parseFloat(t.monto_flete) || 0), 0);
+    const totalComisiones = sortedTrips.reduce((acc, t) => acc + (parseFloat(t.comision_chofer) || 0), 0);
+    const avgFlete = sortedTrips.length > 0 ? totalFletes / sortedTrips.length : 0;
+    
+    let html = `
+        <!-- KPI Summary row inside modal -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-slate-800/40 p-4 rounded-xl border border-white/5">
+                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Viajes Registrados</span>
+                <div class="text-2xl font-extrabold text-white">${sortedTrips.length}</div>
+            </div>
+            <div class="bg-slate-800/40 p-4 rounded-xl border border-white/5">
+                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Flete Acumulado</span>
+                <div class="text-2xl font-extrabold text-green-400">${fmt(totalFletes)}</div>
+            </div>
+            <div class="bg-slate-800/40 p-4 rounded-xl border border-white/5">
+                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Comisiones Chofer</span>
+                <div class="text-2xl font-extrabold text-amber-400">${fmt(totalComisiones)}</div>
+            </div>
+            <div class="bg-slate-800/40 p-4 rounded-xl border border-white/5">
+                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Flete Promedio</span>
+                <div class="text-2xl font-extrabold text-blue-400">${fmt(avgFlete)}</div>
+            </div>
+        </div>
+        
+        <!-- Large Table -->
+        <div class="overflow-x-auto rounded-xl border border-white/5 bg-slate-950/40">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="bg-white/[0.02] text-slate-400 font-bold uppercase tracking-wider border-b border-white/5 text-[10px]">
+                        <th class="px-6 py-4">ID Viaje</th>
+                        <th class="px-6 py-4">Fecha</th>
+                        <th class="px-6 py-4">Chofer</th>
+                        <th class="px-6 py-4">Cliente</th>
+                        <th class="px-6 py-4">Ruta (Origen ➔ Destino)</th>
+                        <th class="px-6 py-4 text-right">Comisión Chofer</th>
+                        <th class="px-6 py-4 text-right">Monto Flete</th>
+                        <th class="px-6 py-4 text-center">Estatus Pago</th>
+                        <th class="px-6 py-4 text-center">Estatus Viaje</th>
+                        <th class="px-6 py-4 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/5 text-slate-300">
+    `;
+    
+    if (sortedTrips.length === 0) {
+        html += `
+            <tr>
+                <td colspan="10" class="px-6 py-12 text-center text-slate-500 italic">No hay viajes registrados en el rango de fechas seleccionado.</td>
+            </tr>
+        `;
+    } else {
+        sortedTrips.forEach(t => {
+            const choferName = globalDriverMap[t.id_chofer] || t.id_chofer || 'No asignado';
+            const payStatus = t.estatus_pago || 'Pendiente';
+            const payBadgeClass = payStatus === 'Pagado' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+            const tripStatus = t.estatus_viaje || 'Pendiente';
+            const tripBadgeClass = tripStatus === 'Liquidado' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+            
+            html += `
+                <tr class="hover:bg-white/[0.02] transition-colors">
+                    <td class="px-6 py-4 font-mono font-bold text-white">${t.id_viaje}</td>
+                    <td class="px-6 py-4 font-mono text-slate-400 text-[10px]">${t.fecha}</td>
+                    <td class="px-6 py-4">
+                        <div class="font-medium text-white">${choferName}</div>
+                        <div class="text-[9px] text-slate-500 font-mono">${t.id_chofer || ''}</div>
+                    </td>
+                    <td class="px-6 py-4 text-slate-200">${t.cliente || ''}</td>
+                    <td class="px-6 py-4 text-slate-200">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-slate-300 font-semibold">${t.origen || ''}</span>
+                            <span class="text-[10px] text-slate-500">➔</span>
+                            <span class="text-slate-300 font-semibold">${t.destino || ''}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 text-right font-semibold text-amber-400">${fmt(parseFloat(t.comision_chofer) || 0)}</td>
+                    <td class="px-6 py-4 text-right font-bold text-blue-400">${fmt(parseFloat(t.monto_flete) || 0)}</td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider ${payBadgeClass}">
+                            ${payStatus}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider ${tripBadgeClass}">
+                            ${tripStatus}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <button onclick="showDetailModal('viajes', '${t.id_viaje}')" class="w-7 h-7 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 flex items-center justify-center transition-all mx-auto cursor-pointer" title="Ver Detalle">
+                            <i class="fas fa-eye text-[11px]"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    modal.classList.remove('hidden');
+}
+
+function showFullUnitExpensesModal() {
+    const unitSelect = document.getElementById('db-unit-select');
+    if (!unitSelect || !unitSelect.value) {
+        alert('Por favor selecciona una unidad primero.');
+        return;
+    }
+    const unitEco = unitSelect.value;
+    const modal = document.getElementById('detail-modal');
+    const content = document.getElementById('modal-content');
+    const title = document.getElementById('modal-title');
+    
+    if (!modal || !content || !title) return;
+    
+    title.innerHTML = `<i class="fas fa-receipt text-red-500 mr-2"></i> Listado Completo de Gastos - Unidad ${unitEco}`;
+    
+    const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+    
+    const parseDate = (d) => {
+        if (!d) return '';
+        if (d.includes('/')) {
+            const parts = d.split('/');
+            if (parseInt(parts[0]) > 12) {
+                return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            } else {
+                return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+            }
+        }
+        return d;
+    };
+    
+    const sortedExpenses = [...currentUnitExpenses].sort((a,b) => {
+        const dateA = parseDate(a.fecha) || '';
+        const dateB = parseDate(b.fecha) || '';
+        return dateB.localeCompare(dateA);
+    });
+    
+    const totalExpenses = sortedExpenses.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+    const dieselExpenses = sortedExpenses.filter(g => g.concepto === 'Diesel');
+    const totalDiesel = dieselExpenses.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+    
+    let totalLiters = 0;
+    dieselExpenses.forEach(g => {
+        const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+        const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+        totalLiters += effectiveVol;
+    });
+    
+    let html = `
+        <!-- KPI Summary row inside modal -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-slate-800/40 p-4 rounded-xl border border-white/5">
+                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Gastos Registrados</span>
+                <div class="text-2xl font-extrabold text-white">${sortedExpenses.length}</div>
+            </div>
+            <div class="bg-slate-800/40 p-4 rounded-xl border border-white/5">
+                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Gasto Total Acumulado</span>
+                <div class="text-2xl font-extrabold text-red-400">${fmt(totalExpenses)}</div>
+            </div>
+            <div class="bg-slate-800/40 p-4 rounded-xl border border-white/5">
+                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Gasto Diésel</span>
+                <div class="text-2xl font-extrabold text-rose-400">${fmt(totalDiesel)}</div>
+            </div>
+            <div class="bg-slate-800/40 p-4 rounded-xl border border-white/5">
+                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Litros Totales Cargados</span>
+                <div class="text-2xl font-extrabold text-purple-400">${totalLiters.toFixed(1)} L</div>
+            </div>
+        </div>
+        
+        <!-- Large Table -->
+        <div class="overflow-x-auto rounded-xl border border-white/5 bg-slate-950/40">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="bg-white/[0.02] text-slate-400 font-bold uppercase tracking-wider border-b border-white/5 text-[10px]">
+                        <th class="px-6 py-4">ID Gasto / Viaje</th>
+                        <th class="px-6 py-4">Fecha</th>
+                        <th class="px-6 py-4">Concepto</th>
+                        <th class="px-6 py-4">Chofer / Acreedor</th>
+                        <th class="px-6 py-4">Tipo / Forma Pago</th>
+                        <th class="px-6 py-4 text-center">Deducible</th>
+                        <th class="px-6 py-4 text-center">Estatus Aprobación</th>
+                        <th class="px-6 py-4">Detalle Diésel (Litros | Kmts | Rnd)</th>
+                        <th class="px-6 py-4 text-right">Monto</th>
+                        <th class="px-6 py-4 text-center">Ticket</th>
+                        <th class="px-6 py-4 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/5 text-slate-300">
+    `;
+    
+    if (sortedExpenses.length === 0) {
+        html += `
+            <tr>
+                <td colspan="11" class="px-6 py-12 text-center text-slate-500 italic">No hay gastos registrados en el rango de fechas seleccionado.</td>
+            </tr>
+        `;
+    } else {
+        sortedExpenses.forEach(g => {
+            const choferName = globalDriverMap[g.id_chofer] || g.id_chofer || g.acreedor_nombre || 'No asignado';
+            const appStatus = g.estatus_aprobacion || 'Pendiente';
+            let appBadgeClass = 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+            if (appStatus === 'Aprobado') {
+                appBadgeClass = 'bg-green-500/10 text-green-400 border-green-500/20';
+            } else if (appStatus === 'Rechazado') {
+                appBadgeClass = 'bg-red-500/10 text-red-400 border-red-500/20';
+            }
+            
+            const deduc = g.es_deducible || 'No';
+            const deducBadgeClass = deduc === 'Sí' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+            
+            let dieselInfoHtml = '<span class="text-slate-500">-</span>';
+            if (g.concepto === 'Diesel') {
+                const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+                const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+                const km = parseFloat(g.kmts_recorridos) || 0;
+                const yieldVal = (effectiveVol > 0 && km > 0) ? (km / effectiveVol) : 0;
+                
+                dieselInfoHtml = `
+                    <div class="flex flex-col text-[10px]">
+                        <span class="text-slate-200 font-semibold">${effectiveVol.toFixed(1)} L | ${km} km</span>
+                        <span class="text-emerald-400 font-bold">${yieldVal > 0 ? `${yieldVal.toFixed(2)} km/L` : '--'}</span>
+                    </div>
+                `;
+            }
+            
+            let ticketIconHtml = '<span class="text-slate-600">-</span>';
+            if (g.ticket_foto || g.foto_tacometro) {
+                const urls = [];
+                if (g.ticket_foto) {
+                    const ticketUrl = window.supabaseClient.storage.from('tickets-gastos').getPublicUrl(g.ticket_foto).data.publicUrl;
+                    urls.push(`<a href="${ticketUrl}" target="_blank" class="w-7 h-7 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 flex items-center justify-center transition-all" title="Ver Ticket"><i class="fas fa-receipt text-[11px]"></i></a>`);
+                }
+                if (g.foto_tacometro) {
+                    const tacoUrl = window.supabaseClient.storage.from('tickets-gastos').getPublicUrl(g.foto_tacometro).data.publicUrl;
+                    urls.push(`<a href="${tacoUrl}" target="_blank" class="w-7 h-7 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 flex items-center justify-center transition-all" title="Ver Tacómetro"><i class="fas fa-tachometer-alt text-[11px]"></i></a>`);
+                }
+                ticketIconHtml = `<div class="flex items-center gap-1.5 justify-center">${urls.join('')}</div>`;
+            }
+            
+            html += `
+                <tr class="hover:bg-white/[0.02] transition-colors">
+                    <td class="px-6 py-4">
+                        <div class="font-mono font-bold text-white">${g.id_gasto}</div>
+                        <div class="text-[9px] text-slate-500 font-mono">${g.id_viaje ? `Viaje: ${g.id_viaje}` : 'Gasto General'}</div>
+                    </td>
+                    <td class="px-6 py-4 font-mono text-slate-400 text-[10px]">${g.fecha}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-medium border border-white/5">${g.concepto || ''}</span>
+                    </td>
+                    <td class="px-6 py-4 text-slate-200">
+                        <div class="font-medium text-white">${choferName}</div>
+                        <div class="text-[9px] text-slate-500 font-mono">${g.id_chofer || ''}</div>
+                    </td>
+                    <td class="px-6 py-4 text-slate-300">
+                        <div class="font-semibold text-slate-200">${g.tipo_pago || 'Efectivo'}</div>
+                        <div class="text-[9px] text-slate-400">${g.forma_pago || 'Contado'}</div>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-2 py-0.5 rounded border text-[9px] font-bold ${deducBadgeClass}">${deduc}</span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider ${appBadgeClass}">
+                            ${appStatus}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4">${dieselInfoHtml}</td>
+                    <td class="px-6 py-4 text-right font-bold text-red-400">${fmt(parseFloat(g.monto) || 0)}</td>
+                    <td class="px-6 py-4 text-center">${ticketIconHtml}</td>
+                    <td class="px-6 py-4 text-center">
+                        <button onclick="showDetailModal('gastos', '${g.id_gasto}')" class="w-7 h-7 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 flex items-center justify-center transition-all mx-auto cursor-pointer" title="Ver Detalle">
+                            <i class="fas fa-eye text-[11px]"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    modal.classList.remove('hidden');
+}
+
+window.showFullUnitTripsModal = showFullUnitTripsModal;
+window.showFullUnitExpensesModal = showFullUnitExpensesModal;
 window.updateUnitDashboard = updateUnitDashboard;
 window.initUnitDashboard = initUnitDashboard;
 
