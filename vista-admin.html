@@ -345,178 +345,378 @@
                 </div>
             </header>
 
-            <!-- Filtros de Período -->
-            <div
-                class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 items-end">
-                <div>
-                    <label
-                        class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Desde</label>
-                    <input type="date" id="filter-start"
-                        class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
-                </div>
-                <div>
-                    <label
-                        class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Hasta</label>
-                    <input type="date" id="filter-end"
-                        class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
-                </div>
-                <div>
-                    <button onclick="updateDashboardByPeriod()"
-                        class="w-full bg-blue-600 text-white font-bold py-2.5 rounded-xl hover:bg-blue-500 transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
-                        <i class="fas fa-sync-alt"></i> Actualizar
-                    </button>
-                </div>
-                <div class="text-right pb-2 text-xs text-slate-500 italic">
-                    <span id="period-label">Mostrando: Hoy</span>
-                </div>
+            <!-- Sub-secciones de Dashboard -->
+            <div class="flex gap-2 md:gap-4 mb-8 border-b border-white/5 pb-4">
+                <button onclick="switchDashboardTab('general')" id="tab-db-general"
+                    class="px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all">
+                    <i class="fas fa-chart-bar mr-2"></i>Vista General
+                </button>
+                <button onclick="switchDashboardTab('unit')" id="tab-db-unit"
+                    class="px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all">
+                    <i class="fas fa-truck mr-2"></i>Análisis por Unidad
+                </button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <!-- Venta Card -->
+            <!-- SUB-VIEW: General Dashboard -->
+            <div id="db-general-subview" class="space-y-8">
+                <!-- Filtros de Período -->
                 <div
-                    class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                        <i class="fas fa-truck-moving text-6xl text-blue-400"></i>
+                    class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 items-end">
+                    <div>
+                        <label
+                            class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Desde</label>
+                        <input type="date" id="filter-start"
+                            class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
                     </div>
-                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Venta Total</p>
-                    <h4 id="period-venta" class="text-3xl font-bold text-white">$0.00</h4>
-                    <p class="text-[10px] text-blue-400 font-bold mt-2"><i class="fas fa-info-circle mr-1"></i> Ingreso
-                        bruto acumulado</p>
-                </div>
-                <!-- Gasto Card -->
-                <div
-                    class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                        <i class="fas fa-receipt text-6xl text-red-400"></i>
+                    <div>
+                        <label
+                            class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Hasta</label>
+                        <input type="date" id="filter-end"
+                            class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
                     </div>
-                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Gasto Total</p>
-                    <h4 id="period-gasto" class="text-3xl font-bold text-red-400">$0.00</h4>
-                    <p class="text-[10px] text-red-400 font-bold mt-2"><i class="fas fa-arrow-down mr-1"></i> Egresos
-                        operativos</p>
-                </div>
-                <!-- Comisiones Card -->
-                <div
-                    class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
-                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                        <i class="fas fa-users-cog text-6xl text-amber-400"></i>
+                    <div>
+                        <button onclick="updateDashboardByPeriod()"
+                            class="w-full bg-blue-600 text-white font-bold py-2.5 rounded-xl hover:bg-blue-500 transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
                     </div>
-                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Comisión Choferes</p>
-                    <h4 id="period-comisiones" class="text-3xl font-bold text-amber-400">$0.00</h4>
-                    <p class="text-[10px] text-amber-400 font-bold mt-2"><i class="fas fa-hand-holding-usd mr-1"></i> Pago a operadores</p>
+                    <div class="text-right pb-2 text-xs text-slate-500 italic">
+                        <span id="period-label">Mostrando: Hoy</span>
+                    </div>
                 </div>
-                <!-- Ganancia Card -->
-                <div
-                    class="bg-blue-600/90 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/10 relative overflow-hidden group cursor-default">
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <!-- Venta Card -->
                     <div
-                        class="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform text-white">
-                        <i class="fas fa-wallet text-6xl"></i>
+                        class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-truck-moving text-6xl text-blue-400"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Venta Total</p>
+                        <h4 id="period-venta" class="text-3xl font-bold text-white">$0.00</h4>
+                        <p class="text-[10px] text-blue-400 font-bold mt-2"><i class="fas fa-info-circle mr-1"></i> Ingreso
+                            bruto acumulado</p>
                     </div>
-                    <p class="text-[10px] font-bold text-blue-100 uppercase tracking-widest mb-1">Ganancia Neta</p>
-                    <h4 id="period-ganancia" class="text-3xl font-bold text-white">$0.00</h4>
-                    <p class="text-[10px] text-blue-100/60 font-medium mt-2">Dif. Venta - Gasto - Comisiones</p>
-                </div>
-            </div>
-
-            <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Chart Section -->
-                <!-- Main Chart & Composition -->
-                <div
-                    class="lg:col-span-2 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="font-bold text-white"><i class="fas fa-chart-area mr-2 text-blue-400"></i>Flujo
-                            de Caja</h3>
-                        <div id="chart-loader" class="hidden"><i class="fas fa-spinner fa-spin text-blue-400"></i></div>
+                    <!-- Gasto Card -->
+                    <div
+                        class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-receipt text-6xl text-red-400"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Gasto Total</p>
+                        <h4 id="period-gasto" class="text-3xl font-bold text-red-400">$0.00</h4>
+                        <p class="text-[10px] text-red-400 font-bold mt-2"><i class="fas fa-arrow-down mr-1"></i> Egresos
+                            operativos</p>
                     </div>
-                    <div class="h-[300px]">
-                        <canvas id="mainChart"></canvas>
+                    <!-- Comisiones Card -->
+                    <div
+                        class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-users-cog text-6xl text-amber-400"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Comisión Choferes</p>
+                        <h4 id="period-comisiones" class="text-3xl font-bold text-amber-400">$0.00</h4>
+                        <p class="text-[10px] text-amber-400 font-bold mt-2"><i class="fas fa-hand-holding-usd mr-1"></i> Pago a operadores</p>
                     </div>
-                </div>
-
-                <!-- Expense Breakdown -->
-                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
-                    <h3 class="font-bold text-white mb-6"><i class="fas fa-chart-pie mr-2 text-red-400"></i>Desglose
-                        Gastos</h3>
-                    <div class="h-[250px] flex items-center justify-center">
-                        <canvas id="expensesChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Secondary Charts -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 mt-6">
-                <!-- Top Clients -->
-                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
-                    <h3 class="font-bold text-white mb-6"><i class="fas fa-briefcase mr-2 text-yellow-400"></i>Top 5
-                        Clientes</h3>
-                    <div class="h-[250px]">
-                        <canvas id="clientsChart"></canvas>
+                    <!-- Ganancia Card -->
+                    <div
+                        class="bg-blue-600/90 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/10 relative overflow-hidden group cursor-default">
+                        <div
+                            class="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform text-white">
+                            <i class="fas fa-wallet text-6xl"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-blue-100 uppercase tracking-widest mb-1">Ganancia Neta</p>
+                        <h4 id="period-ganancia" class="text-3xl font-bold text-white">$0.00</h4>
+                        <p class="text-[10px] text-blue-100/60 font-medium mt-2">Dif. Venta - Gasto - Comisiones</p>
                     </div>
                 </div>
 
-                <!-- Fuel Yield Chart (New) -->
-                <div
-                    class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 lg:col-span-2">
-                    <h3 class="font-bold text-white mb-6"><i
-                            class="fas fa-gas-pump mr-2 text-purple-400"></i>Rendimiento Combustible por Unidad (Km/L)
-                    </h3>
-                    <div class="h-[300px]">
-                        <canvas id="yieldChart"></canvas>
+                <div class="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Chart Section -->
+                    <!-- Main Chart & Composition -->
+                    <div
+                        class="lg:col-span-2 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-white"><i class="fas fa-chart-area mr-2 text-blue-400"></i>Flujo
+                                de Caja</h3>
+                            <div id="chart-loader" class="hidden"><i class="fas fa-spinner fa-spin text-blue-400"></i></div>
+                        </div>
+                        <div class="h-[300px]">
+                            <canvas id="mainChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Expense Breakdown -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                        <h3 class="font-bold text-white mb-6"><i class="fas fa-chart-pie mr-2 text-red-400"></i>Desglose
+                            Gastos</h3>
+                        <div class="h-[250px] flex items-center justify-center">
+                            <canvas id="expensesChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Trip Status -->
-                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
-                    <h3 class="font-bold text-white mb-6"><i class="fas fa-tasks mr-2 text-green-400"></i>Estatus
-                        Operativo</h3>
-                    <div class="h-[250px] flex items-center justify-center">
-                        <canvas id="statusChart"></canvas>
+                <!-- Secondary Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 mt-6">
+                    <!-- Top Clients -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                        <h3 class="font-bold text-white mb-6"><i class="fas fa-briefcase mr-2 text-yellow-400"></i>Top 5
+                            Clientes</h3>
+                        <div class="h-[250px]">
+                            <canvas id="clientsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Fuel Yield Chart (New) -->
+                    <div
+                        class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 lg:col-span-2">
+                        <h3 class="font-bold text-white mb-6"><i
+                                class="fas fa-gas-pump mr-2 text-purple-400"></i>Rendimiento Combustible por Unidad (Km/L)
+                        </h3>
+                        <div class="h-[300px]">
+                            <canvas id="yieldChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Trip Status -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                        <h3 class="font-bold text-white mb-6"><i class="fas fa-tasks mr-2 text-green-400"></i>Estatus
+                            Operativo</h3>
+                        <div class="h-[250px] flex items-center justify-center">
+                            <canvas id="statusChart"></canvas>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Driver Efficiency Section (New) -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                <!-- Best Drivers -->
-                <div
-                    class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 border-l-4 border-l-green-500">
-                    <h3 class="font-bold text-white mb-6 flex items-center gap-2">
-                        <i class="fas fa-trophy text-yellow-400"></i> Top 3 Mejores Choferes (Km/L)
-                    </h3>
-                    <div class="h-[250px]">
-                        <canvas id="bestDriversChart"></canvas>
+                <!-- Driver Efficiency Section (New) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <!-- Best Drivers -->
+                    <div
+                        class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 border-l-4 border-l-green-500">
+                        <h3 class="font-bold text-white mb-6 flex items-center gap-2">
+                            <i class="fas fa-trophy text-yellow-400"></i> Top 3 Mejores Choferes (Km/L)
+                        </h3>
+                        <div class="h-[250px]">
+                            <canvas id="bestDriversChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Worst Drivers -->
+                    <div
+                        class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 border-l-4 border-l-red-500">
+                        <h3 class="font-bold text-white mb-6 flex items-center gap-2">
+                            <i class="fas fa-exclamation-triangle text-red-500"></i> Top 3 Menor Rendimiento (Km/L)
+                        </h3>
+                        <div class="h-[250px]">
+                            <canvas id="worstDriversChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Worst Drivers -->
-                <div
-                    class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 border-l-4 border-l-red-500">
-                    <h3 class="font-bold text-white mb-6 flex items-center gap-2">
-                        <i class="fas fa-exclamation-triangle text-red-500"></i> Top 3 Menor Rendimiento (Km/L)
-                    </h3>
-                    <div class="h-[250px]">
-                        <canvas id="worstDriversChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-8">
-                <!-- Recent Mini Table -->
-                <div
-                    class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
-                    <div class="p-6 border-b border-white/5">
-                        <h3 class="font-bold text-white">Últimos Movimientos</h3>
-                    </div>
-                    <div class="max-h-[400px] overflow-y-auto">
-                        <table class="w-full text-left">
-                            <tbody id="period-table-body" class="divide-y divide-white/5">
-                                <!-- Filas dinámicas -->
-                            </tbody>
-                        </table>
-                        <div id="trips-loader" class="p-12 text-center text-slate-400">
-                            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 mb-3 animate-bounce">
-                                <i class="fas fa-route text-xl"></i>
+                <div class="grid grid-cols-1 gap-8">
+                    <!-- Recent Mini Table -->
+                    <div
+                        class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
+                        <div class="p-6 border-b border-white/5">
+                            <h3 class="font-bold text-white">Últimos Movimientos</h3>
+                        </div>
+                        <div class="max-h-[400px] overflow-y-auto">
+                            <table class="w-full text-left">
+                                <tbody id="period-table-body" class="divide-y divide-white/5">
+                                    <!-- Filas dinámicas -->
+                                </tbody>
+                            </table>
+                            <div id="trips-loader" class="p-12 text-center text-slate-400">
+                                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-500/10 text-blue-400 mb-3 animate-bounce">
+                                    <i class="fas fa-route text-xl"></i>
+                                </div>
+                                <p class="text-xs font-semibold uppercase tracking-widest text-slate-500 animate-pulse">Obteniendo viajes...</p>
                             </div>
-                            <p class="text-xs font-semibold uppercase tracking-widest text-slate-500 animate-pulse">Obteniendo viajes...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUB-VIEW: Unit Analysis Dashboard -->
+            <div id="db-unit-subview" class="space-y-8 hidden">
+                <!-- Filtros de Unidad y Período -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 items-end">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Unidad (ECO)</label>
+                        <select id="db-unit-select" class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white cursor-pointer">
+                            <option value="">-- Selecciona Unidad --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Desde</label>
+                        <input type="date" id="db-unit-start" class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Hasta</label>
+                        <input type="date" id="db-unit-end" class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
+                    </div>
+                    <div>
+                        <button id="btn-db-unit-update" onclick="updateUnitDashboard()" class="w-full bg-blue-600 text-white font-bold py-2.5 rounded-xl hover:bg-blue-500 transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Info Placeholder when no unit selected -->
+                <div id="db-unit-placeholder" class="bg-slate-900/40 backdrop-blur-xl p-12 rounded-2xl border border-white/5 text-center text-slate-400">
+                    <i class="fas fa-truck text-5xl text-blue-500/30 mb-4 block"></i>
+                    <p class="text-sm font-semibold uppercase tracking-wider">Selecciona una unidad para ver su desglose de datos</p>
+                </div>
+
+                <!-- Content container (hidden by default until unit selected) -->
+                <div id="db-unit-content" class="hidden space-y-8">
+                    <!-- Metrics Cards Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+                        <!-- Viajes Card -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-route text-6xl text-blue-400"></i>
+                            </div>
+                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Viajes Totales</p>
+                            <h4 id="db-unit-total-trips" class="text-3xl font-bold text-white">0</h4>
+                            <p class="text-[10px] text-blue-400 font-bold mt-2"><i class="fas fa-info-circle mr-1"></i> Viajes realizados</p>
+                        </div>
+                        <!-- Ingreso Card -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-dollar-sign text-6xl text-green-400"></i>
+                            </div>
+                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Ingreso Flete</p>
+                            <h4 id="db-unit-total-revenue" class="text-3xl font-bold text-green-400">$0.00</h4>
+                            <p class="text-[10px] text-green-400 font-bold mt-2"><i class="fas fa-info-circle mr-1"></i> Facturación total</p>
+                        </div>
+                        <!-- Gasto Card -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-receipt text-6xl text-red-400"></i>
+                            </div>
+                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Gasto Total</p>
+                            <h4 id="db-unit-total-expenses" class="text-3xl font-bold text-red-400">$0.00</h4>
+                            <p class="text-[10px] text-red-400 font-bold mt-2"><i class="fas fa-arrow-down mr-1"></i> Egresos de la unidad</p>
+                        </div>
+                        <!-- Ganancia Neta Card -->
+                        <div class="bg-blue-600/90 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/10 relative overflow-hidden group cursor-default">
+                            <div class="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform text-white">
+                                <i class="fas fa-wallet text-6xl"></i>
+                            </div>
+                            <p class="text-[10px] font-bold text-blue-100 uppercase tracking-widest mb-1">Ganancia Neta</p>
+                            <h4 id="db-unit-net-profit" class="text-3xl font-bold text-white">$0.00</h4>
+                            <p class="text-[10px] text-blue-100/60 font-medium mt-2">Diferencia Ingreso - Gasto</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+                        <!-- Km Recorridos Card -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-tachometer-alt text-6xl text-amber-400"></i>
+                            </div>
+                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Distancia Recorrida</p>
+                            <h4 id="db-unit-total-km" class="text-3xl font-bold text-white">0 km</h4>
+                            <p class="text-[10px] text-amber-400 font-bold mt-2"><i class="fas fa-info-circle mr-1"></i> Kilómetros acumulados</p>
+                        </div>
+                        <!-- Litros Combustible Card -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-gas-pump text-6xl text-purple-400"></i>
+                            </div>
+                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Litros Diésel</p>
+                            <h4 id="db-unit-total-liters" class="text-3xl font-bold text-white">0 L</h4>
+                            <p class="text-[10px] text-purple-400 font-bold mt-2"><i class="fas fa-info-circle mr-1"></i> Litros cargados</p>
+                        </div>
+                        <!-- Costo Diésel Card -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-dollar-sign text-6xl text-rose-400"></i>
+                            </div>
+                            <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Costo Diésel</p>
+                            <h4 id="db-unit-diesel-cost" class="text-3xl font-bold text-rose-400">$0.00</h4>
+                            <p class="text-[10px] text-rose-400 font-bold mt-2"><i class="fas fa-info-circle mr-1"></i> Gasto en combustible</p>
+                        </div>
+                        <!-- Último Rendimiento Card -->
+                        <div class="bg-emerald-600/90 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/10 relative overflow-hidden group cursor-default">
+                            <div class="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform text-white">
+                                <i class="fas fa-bolt text-6xl"></i>
+                            </div>
+                            <p class="text-[10px] font-bold text-emerald-100 uppercase tracking-widest mb-1">Último Rendimiento</p>
+                            <h4 id="db-unit-latest-yield" class="text-3xl font-bold text-white">-- km/L</h4>
+                            <p class="text-[10px] text-emerald-100/60 font-medium mt-2">Última carga registrada</p>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Historical Yield (Line Chart) -->
+                        <div class="lg:col-span-2 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                            <h3 class="font-bold text-white mb-6"><i class="fas fa-chart-line mr-2 text-purple-400"></i>Rendimiento Combustible Histórico (Km/L)</h3>
+                            <div class="h-[300px]">
+                                <canvas id="unitYieldHistoryChart"></canvas>
+                            </div>
+                        </div>
+                        <!-- Concept Expense Breakdown (Doughnut Chart) -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                            <h3 class="font-bold text-white mb-6"><i class="fas fa-chart-pie mr-2 text-red-400"></i>Desglose de Gastos</h3>
+                            <div class="h-[250px] flex items-center justify-center">
+                                <canvas id="unitExpensesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Income vs Expenses (Bar/Combo Chart) -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                        <h3 class="font-bold text-white mb-6"><i class="fas fa-balance-scale mr-2 text-blue-400"></i>Comparativa de Ingresos vs Gastos por Viaje</h3>
+                        <div class="h-[300px]">
+                            <canvas id="unitTripsIncomeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Lists Tables -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <!-- Trips List -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
+                            <div class="p-6 border-b border-white/5 flex justify-between items-center">
+                                <h3 class="font-bold text-white"><i class="fas fa-route mr-2 text-blue-400"></i>Viajes de la Unidad</h3>
+                            </div>
+                            <div class="max-h-[300px] overflow-y-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-white/[0.02] text-slate-400 font-bold uppercase tracking-wider">
+                                        <tr>
+                                            <th class="px-4 py-3">Fecha / ID</th>
+                                            <th class="px-4 py-3">Cliente / Ruta</th>
+                                            <th class="px-4 py-3 text-right">Flete</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="db-unit-trips-table-body" class="divide-y divide-white/5 text-slate-300">
+                                        <!-- Dynamic rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Expenses List -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
+                            <div class="p-6 border-b border-white/5 flex justify-between items-center">
+                                <h3 class="font-bold text-white"><i class="fas fa-receipt mr-2 text-red-400"></i>Gastos de la Unidad</h3>
+                            </div>
+                            <div class="max-h-[300px] overflow-y-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-white/[0.02] text-slate-400 font-bold uppercase tracking-wider">
+                                        <tr>
+                                            <th class="px-4 py-3">Fecha</th>
+                                            <th class="px-4 py-3">Concepto / Detalle</th>
+                                            <th class="px-4 py-3 text-right">Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="db-unit-expenses-table-body" class="divide-y divide-white/5 text-slate-300">
+                                        <!-- Dynamic rows -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>

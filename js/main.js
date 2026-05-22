@@ -164,7 +164,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const navId = e.currentTarget.id.replace('nav-', '');
             if (navId === 'viajes') loadTripsList();
             if (navId === 'gastos') loadExpensesList();
-            if (navId === 'dashboard') updateDashboardByPeriod();
+            if (navId === 'dashboard') {
+                if (currentDashboardTab === 'unit') {
+                    updateUnitDashboard();
+                } else {
+                    updateDashboardByPeriod();
+                }
+            }
             if (navId === 'movimientos') loadMovementsByPeriod();
             if (navId === 'tarifas') loadRatesList();
         });
@@ -1104,6 +1110,351 @@ function renderChart(viajes, gastos) {
         }
     });
 }
+
+// --- DASHBOARD SUB-SECTIONS (GENERAL vs UNIT) ---
+let currentDashboardTab = 'general';
+let unitDashboardInitialized = false;
+
+window.switchDashboardTab = function(tab) {
+    currentDashboardTab = tab;
+    
+    const tabGeneralBtn = document.getElementById('tab-db-general');
+    const tabUnitBtn = document.getElementById('tab-db-unit');
+    const generalSubview = document.getElementById('db-general-subview');
+    const unitSubview = document.getElementById('db-unit-subview');
+    
+    if (tab === 'general') {
+        if (tabGeneralBtn) {
+            tabGeneralBtn.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all";
+        }
+        if (tabUnitBtn) {
+            tabUnitBtn.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all";
+        }
+        if (generalSubview) generalSubview.classList.remove('hidden');
+        if (unitSubview) unitSubview.classList.add('hidden');
+        
+        // Refresh general dashboard
+        updateDashboardByPeriod();
+    } else {
+        if (tabGeneralBtn) {
+            tabGeneralBtn.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all";
+        }
+        if (tabUnitBtn) {
+            tabUnitBtn.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all";
+        }
+        if (generalSubview) generalSubview.classList.add('hidden');
+        if (unitSubview) unitSubview.classList.remove('hidden');
+        
+        // Initialize unit view
+        initUnitDashboard();
+    }
+};
+
+async function initUnitDashboard() {
+    const startInput = document.getElementById('db-unit-start');
+    const endInput = document.getElementById('db-unit-end');
+    const unitSelect = document.getElementById('db-unit-select');
+    
+    if (!startInput || !endInput || !unitSelect) return;
+    
+    if (!startInput.value || !endInput.value) {
+        const today = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        
+        startInput.value = getLocalISODate(thirtyDaysAgo);
+        endInput.value = getLocalISODate(today);
+    }
+    
+    if (!unitDashboardInitialized) {
+        unitDashboardInitialized = true;
+        
+        // Populate units select
+        try {
+            const units = await fetchSupabaseData(DB_CONFIG.tableUnidades);
+            const activeUnits = units.filter(u => (u.estatus || 'Activo') === 'Activo');
+            
+            unitSelect.innerHTML = '<option value="">-- Selecciona Unidad --</option>' + 
+                activeUnits.map(u => `<option value="${u.id_unidad}">${u.id_unidad} (${u.nombre_unidad || 'Sin nombre'})</option>`).join('');
+        } catch (e) {
+            console.error('Error populating dashboard unit select:', e);
+        }
+        
+        // Bind event listeners
+        unitSelect.addEventListener('change', () => updateUnitDashboard());
+        startInput.addEventListener('change', () => updateUnitDashboard());
+        endInput.addEventListener('change', () => updateUnitDashboard());
+    }
+    
+    updateUnitDashboard();
+}
+
+async function updateUnitDashboard() {
+    const unitSelect = document.getElementById('db-unit-select');
+    const startInput = document.getElementById('db-unit-start');
+    const endInput = document.getElementById('db-unit-end');
+    const placeholder = document.getElementById('db-unit-placeholder');
+    const content = document.getElementById('db-unit-content');
+    
+    if (!unitSelect || !startInput || !endInput) return;
+    
+    const unitId = unitSelect.value;
+    const start = startInput.value;
+    const end = endInput.value;
+    
+    if (!unitId) {
+        if (placeholder) placeholder.classList.remove('hidden');
+        if (content) content.classList.add('hidden');
+        return;
+    }
+    
+    if (placeholder) placeholder.classList.add('hidden');
+    if (content) content.classList.remove('hidden');
+    
+    const statusEl = document.getElementById('conn-status');
+    if (statusEl) {
+        statusEl.innerText = 'Consultando Unidad...';
+        statusEl.className = 'text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest animate-pulse';
+    }
+    
+    try {
+        const [tripsRaw, expensesRaw] = await Promise.all([
+            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_unidad', unitId),
+            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_unidad', unitId)
+        ]);
+        
+        if (tripsRaw.error) throw tripsRaw.error;
+        if (expensesRaw.error) throw expensesRaw.error;
+        
+        const tripsData = tripsRaw.data || [];
+        const expensesData = expensesRaw.data || [];
+        
+        const parseDate = (d) => {
+            if (!d) return null;
+            if (d.includes('/')) {
+                const parts = d.split('/');
+                if (parseInt(parts[0]) > 12) {
+                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                } else {
+                    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                }
+            }
+            return d;
+        };
+        
+        const filterByDate = (rows, s, e) => rows.filter(r => {
+            const rowDate = parseDate(r.fecha);
+            return rowDate && rowDate >= s && rowDate <= e;
+        });
+        
+        const viajes = filterByDate(tripsData, start, end);
+        const gastos = filterByDate(expensesData, start, end);
+        
+        const totalTrips = viajes.length;
+        const totalRevenue = viajes.reduce((acc, v) => acc + (parseFloat(v.monto_flete) || 0), 0);
+        const totalExpenses = gastos.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+        const totalComisiones = viajes.reduce((acc, v) => acc + (parseFloat(v.comision_chofer) || 0), 0);
+        const netProfit = totalRevenue - totalExpenses - totalComisiones;
+        
+        let dieselLiters = 0;
+        let dieselCost = 0;
+        let totalKm = 0;
+        
+        gastos.forEach(g => {
+            if (g.concepto === 'Diesel') {
+                const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+                const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+                dieselLiters += effectiveVol;
+                dieselCost += parseFloat(g.monto) || 0;
+                totalKm += parseFloat(g.kmts_recorridos) || 0;
+            }
+        });
+        
+        const sortedAllExpensesForYield = [...expensesData]
+            .filter(g => g.concepto === 'Diesel')
+            .sort((a, b) => {
+                const dateA = new Date(parseDate(a.fecha) || 0);
+                const dateB = new Date(parseDate(b.fecha) || 0);
+                return dateB - dateA;
+            });
+            
+        let latestYieldVal = '--';
+        for (const e of sortedAllExpensesForYield) {
+            const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
+            const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
+            const km = parseFloat(e.kmts_recorridos) || 0;
+            if (effectiveVol > 0 && km > 0) {
+                const yld = km / effectiveVol;
+                if (yld > 0.5 && yld < 15) {
+                    latestYieldVal = `${yld.toFixed(2)} km/L`;
+                    break;
+                }
+            }
+        }
+        
+        const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+        
+        safeSetText('db-unit-total-trips', totalTrips);
+        safeSetText('db-unit-total-revenue', fmt(totalRevenue));
+        safeSetText('db-unit-total-expenses', fmt(totalExpenses));
+        safeSetText('db-unit-net-profit', fmt(netProfit));
+        safeSetText('db-unit-total-km', `${totalKm.toLocaleString()} km`);
+        safeSetText('db-unit-total-liters', `${dieselLiters.toFixed(1)} L`);
+        safeSetText('db-unit-diesel-cost', fmt(dieselCost));
+        safeSetText('db-unit-latest-yield', latestYieldVal);
+        
+        const tripsTbody = document.getElementById('db-unit-trips-table-body');
+        if (tripsTbody) {
+            if (viajes.length === 0) {
+                tripsTbody.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-slate-500 italic">Sin viajes en este período</td></tr>';
+            } else {
+                tripsTbody.innerHTML = viajes.sort((a,b) => new Date(parseDate(b.fecha)) - new Date(parseDate(a.fecha))).map(v => `
+                    <tr class="hover:bg-slate-800/20 transition-colors">
+                        <td class="px-4 py-3">
+                            <div class="font-mono text-[10px] text-slate-400">${v.fecha}</div>
+                            <div class="font-semibold text-white">${v.id_viaje}</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="text-white truncate max-w-[150px]">${v.cliente}</div>
+                            <div class="text-slate-400 truncate max-w-[150px]">${v.origen} ➔ ${v.destino}</div>
+                        </td>
+                        <td class="px-4 py-3 text-right font-bold text-blue-400">${fmt(parseFloat(v.monto_flete) || 0)}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+        
+        const expensesTbody = document.getElementById('db-unit-expenses-table-body');
+        if (expensesTbody) {
+            if (gastos.length === 0) {
+                expensesTbody.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-slate-500 italic">Sin gastos en este período</td></tr>';
+            } else {
+                expensesTbody.innerHTML = gastos.sort((a,b) => new Date(parseDate(b.fecha)) - new Date(parseDate(a.fecha))).map(g => `
+                    <tr class="hover:bg-slate-800/20 transition-colors">
+                        <td class="px-4 py-3 font-mono text-[10px] text-slate-400">${g.fecha}</td>
+                        <td class="px-4 py-3">
+                            <div class="font-semibold text-white">${g.concepto}</div>
+                            <div class="text-slate-400 text-[10px]">${g.id_viaje ? `Viaje: ${g.id_viaje}` : 'Gasto General'}</div>
+                        </td>
+                        <td class="px-4 py-3 text-right font-bold text-red-400">${fmt(parseFloat(g.monto) || 0)}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+        
+        const dieselExpensesPeriod = gastos
+            .filter(g => g.concepto === 'Diesel')
+            .map(e => {
+                const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
+                const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
+                const km = parseFloat(e.kmts_recorridos) || 0;
+                let yieldVal = 0;
+                if (effectiveVol > 0 && km > 0) {
+                    yieldVal = km / effectiveVol;
+                }
+                return {
+                    fecha: e.fecha,
+                    yieldVal: yieldVal > 0.5 && yieldVal < 15 ? parseFloat(yieldVal.toFixed(2)) : 0
+                };
+            })
+            .filter(item => item.yieldVal > 0)
+            .sort((a, b) => new Date(parseDate(a.fecha)) - new Date(parseDate(b.fecha)));
+            
+        renderChartInstance('unitYieldHistoryChart', 'line', {
+            labels: dieselExpensesPeriod.map(d => d.fecha),
+            datasets: [{
+                label: 'Km/L',
+                data: dieselExpensesPeriod.map(d => d.yieldVal),
+                borderColor: '#c084fc',
+                backgroundColor: 'rgba(192, 132, 252, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 5,
+                pointBackgroundColor: '#c084fc'
+            }]
+        });
+        
+        const unitExpensesGrouped = {};
+        gastos.forEach(g => {
+            const concept = g.concepto || 'Varios';
+            unitExpensesGrouped[concept] = (unitExpensesGrouped[concept] || 0) + (parseFloat(g.monto) || 0);
+        });
+        
+        const topUnitExpenses = Object.entries(unitExpensesGrouped)
+            .sort((a, b) => b[1] - a[1]);
+            
+        renderChartInstance('unitExpensesChart', 'doughnut', {
+            labels: topUnitExpenses.map(e => e[0]),
+            datasets: [{
+                data: topUnitExpenses.map(e => e[1]),
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.7)',
+                    'rgba(59, 130, 246, 0.7)',
+                    'rgba(16, 185, 129, 0.7)',
+                    'rgba(245, 158, 11, 0.7)',
+                    'rgba(139, 92, 246, 0.7)',
+                    'rgba(107, 114, 128, 0.7)',
+                    'rgba(236, 72, 153, 0.7)',
+                    'rgba(20, 184, 166, 0.7)'
+                ],
+                borderWidth: 0
+            }]
+        });
+        
+        const tripExpensesMap = {};
+        expensesData.forEach(g => {
+            if (g.id_viaje) {
+                tripExpensesMap[g.id_viaje] = (tripExpensesMap[g.id_viaje] || 0) + (parseFloat(g.monto) || 0);
+            }
+        });
+        
+        const tripsCompareData = viajes.map(v => {
+            const income = parseFloat(v.monto_flete) || 0;
+            const expense = tripExpensesMap[v.id_viaje] || 0;
+            return {
+                id_viaje: v.id_viaje,
+                fecha: v.fecha,
+                income: income,
+                expense: expense
+            };
+        }).sort((a,b) => new Date(parseDate(a.fecha)) - new Date(parseDate(b.fecha)));
+        
+        renderChartInstance('unitTripsIncomeChart', 'bar', {
+            labels: tripsCompareData.map(t => `${t.fecha} (${t.id_viaje})`),
+            datasets: [
+                {
+                    label: 'Ingreso Flete',
+                    data: tripsCompareData.map(t => t.income),
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Gastos Asociados',
+                    data: tripsCompareData.map(t => t.expense),
+                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                    borderColor: 'rgba(239, 68, 68, 1)',
+                    borderWidth: 1
+                }
+            ]
+        });
+        
+        if (statusEl) {
+            statusEl.innerText = 'Conectado';
+            statusEl.className = 'text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+        
+    } catch (e) {
+        console.error('Error updating unit dashboard:', e);
+        if (statusEl) {
+            statusEl.innerText = 'Error: ' + e.message;
+            statusEl.className = 'text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+    }
+}
+
+window.updateUnitDashboard = updateUnitDashboard;
+window.initUnitDashboard = initUnitDashboard;
 
 // --- MOVIMIENTOS POR PERIODO ---
 
@@ -2098,7 +2449,11 @@ async function showSection(sectionId) {
     try {
         switch (sectionId) {
             case 'dashboard':
-                if (typeof renderDashboard === 'function') renderDashboard();
+                if (currentDashboardTab === 'unit') {
+                    updateUnitDashboard();
+                } else {
+                    updateDashboardByPeriod();
+                }
                 break;
             case 'viajes':
                 if (typeof loadTripsList === 'function') loadTripsList();
