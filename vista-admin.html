@@ -346,14 +346,26 @@
             </header>
 
             <!-- Sub-secciones de Dashboard -->
-            <div class="flex gap-2 md:gap-4 mb-8 border-b border-white/5 pb-4">
+            <div class="flex flex-wrap gap-2 md:gap-4 mb-8 border-b border-white/5 pb-4">
                 <button onclick="switchDashboardTab('general')" id="tab-db-general"
                     class="px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all">
                     <i class="fas fa-chart-bar mr-2"></i>Vista General
                 </button>
                 <button onclick="switchDashboardTab('unit')" id="tab-db-unit"
                     class="px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all">
-                    <i class="fas fa-truck mr-2"></i>Análisis por Unidad
+                    <i class="fas fa-truck mr-2"></i>Unidades
+                </button>
+                <button onclick="switchDashboardTab('driver')" id="tab-db-driver"
+                    class="px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all">
+                    <i class="fas fa-user-tie mr-2"></i>Choferes
+                </button>
+                <button onclick="switchDashboardTab('expenses')" id="tab-db-expenses"
+                    class="px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all">
+                    <i class="fas fa-receipt mr-2"></i>Gastos
+                </button>
+                <button onclick="switchDashboardTab('debts')" id="tab-db-debts"
+                    class="px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all">
+                    <i class="fas fa-balance-scale mr-2"></i>Deudas
                 </button>
             </div>
 
@@ -428,6 +440,50 @@
                         <p class="text-[10px] font-bold text-blue-100 uppercase tracking-widest mb-1">Ganancia Neta</p>
                         <h4 id="period-ganancia" class="text-3xl font-bold text-white">$0.00</h4>
                         <p class="text-[10px] text-blue-100/60 font-medium mt-2">Dif. Venta - Gasto - Comisiones</p>
+                    </div>
+                </div>
+
+                <!-- Segunda Fila de Métricas Secundarias -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6">
+                    <!-- Viajes Card -->
+                    <div
+                        class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-route text-6xl text-emerald-400"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Viajes Realizados</p>
+                        <h4 id="period-viajes-count" class="text-3xl font-bold text-white">0</h4>
+                        <p class="text-[10px] text-emerald-400 font-bold mt-2"><i class="fas fa-road mr-1"></i> Servicios de flete realizados</p>
+                    </div>
+                    <!-- Margen Card -->
+                    <div
+                        class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-percentage text-6xl text-cyan-400"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Margen de Ganancia</p>
+                        <h4 id="period-margen" class="text-3xl font-bold text-cyan-400">0.00%</h4>
+                        <p class="text-[10px] text-cyan-400 font-bold mt-2"><i class="fas fa-chart-line mr-1"></i> Rentabilidad neta sobre venta</p>
+                    </div>
+                    <!-- Flete Promedio Card -->
+                    <div
+                        class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-calculator text-6xl text-indigo-400"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Flete Promedio</p>
+                        <h4 id="period-flete-promedio" class="text-3xl font-bold text-indigo-400">$0.00</h4>
+                        <p class="text-[10px] text-indigo-400 font-bold mt-2"><i class="fas fa-coins mr-1"></i> Ingreso flete por viaje</p>
+                    </div>
+                    <!-- Rendimiento Card -->
+                    <div
+                        class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-gas-pump text-6xl text-purple-400"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Rendimiento Flota</p>
+                        <h4 id="period-rendimiento" class="text-3xl font-bold text-purple-400">-- km/l</h4>
+                        <p class="text-[10px] text-purple-400 font-bold mt-2"><i class="fas fa-tachometer-alt mr-1"></i> Eficiencia general diésel</p>
                     </div>
                 </div>
 
@@ -717,6 +773,411 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUB-VIEW: Driver Analysis Dashboard -->
+            <div id="db-driver-subview" class="space-y-8 hidden">
+                <!-- Filtros de Chofer y Período -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 items-end">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Chofer</label>
+                        <select id="db-driver-select" class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white cursor-pointer">
+                            <option value="">-- Selecciona Chofer --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Desde</label>
+                        <input type="date" id="db-driver-start" class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Hasta</label>
+                        <input type="date" id="db-driver-end" class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
+                    </div>
+                    <div>
+                        <button id="btn-db-driver-update" onclick="updateDriverDashboard()" class="w-full bg-blue-600 text-white font-bold py-2.5 rounded-xl hover:bg-blue-500 transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Info Placeholder when no driver selected -->
+                <div id="db-driver-placeholder" class="bg-slate-900/40 backdrop-blur-xl p-12 rounded-2xl border border-white/5 text-center text-slate-400">
+                    <i class="fas fa-user-tie text-5xl text-blue-500/30 mb-4 block"></i>
+                    <p class="text-sm font-semibold uppercase tracking-wider">Selecciona un chofer para ver su desglose de datos</p>
+                </div>
+
+                <!-- Content container (hidden by default until driver selected) -->
+                <div id="db-driver-content" class="hidden space-y-8">
+                    <!-- Metrics Cards Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                        <!-- Viajes Card -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-route text-5xl text-blue-400"></i>
+                            </div>
+                            <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Viajes Realizados</p>
+                            <h4 id="db-driver-total-trips" class="text-2xl font-bold text-white">0</h4>
+                        </div>
+                        <!-- Flete Card -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-dollar-sign text-5xl text-green-400"></i>
+                            </div>
+                            <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Flete Generado</p>
+                            <h4 id="db-driver-total-revenue" class="text-2xl font-bold text-green-400">$0.00</h4>
+                        </div>
+                        <!-- Comisión Card -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-hand-holding-usd text-5xl text-amber-400"></i>
+                            </div>
+                            <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Comisión Chofer</p>
+                            <h4 id="db-driver-total-comision" class="text-2xl font-bold text-amber-400">$0.00</h4>
+                        </div>
+                        <!-- Gastos Card -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                                <i class="fas fa-receipt text-5xl text-red-400"></i>
+                            </div>
+                            <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Gastos Reportados</p>
+                            <h4 id="db-driver-total-expenses" class="text-2xl font-bold text-red-400">$0.00</h4>
+                        </div>
+                        <!-- Rendimiento Card -->
+                        <div class="bg-emerald-600/90 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/10 relative overflow-hidden group cursor-default">
+                            <div class="absolute top-0 right-0 p-3 opacity-20 group-hover:scale-110 transition-transform text-white">
+                                <i class="fas fa-bolt text-5xl"></i>
+                            </div>
+                            <p class="text-[9px] font-bold text-emerald-100 uppercase tracking-widest mb-1">Último Rendimiento</p>
+                            <h4 id="db-driver-latest-yield" class="text-2xl font-bold text-white">-- km/L</h4>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Yield History -->
+                        <div class="lg:col-span-2 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                            <h3 class="font-bold text-white mb-6"><i class="fas fa-chart-line mr-2 text-purple-400"></i>Rendimiento Combustible Histórico (Km/L)</h3>
+                            <div class="h-[300px]">
+                                <canvas id="driverYieldHistoryChart"></canvas>
+                            </div>
+                        </div>
+                        <!-- Expense Breakdown -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                            <h3 class="font-bold text-white mb-6"><i class="fas fa-chart-pie mr-2 text-red-400"></i>Desglose de Gastos</h3>
+                            <div class="h-[250px] flex items-center justify-center">
+                                <canvas id="driverExpensesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Flete vs Comisión Chart -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                        <h3 class="font-bold text-white mb-6"><i class="fas fa-balance-scale mr-2 text-amber-400"></i>Comparativa de Flete vs Comisión por Viaje</h3>
+                        <div class="h-[300px]">
+                            <canvas id="driverTripsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Tables -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <!-- Trips List -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
+                            <div class="p-6 border-b border-white/5 flex justify-between items-center">
+                                <h3 class="font-bold text-white"><i class="fas fa-route mr-2 text-blue-400"></i>Viajes del Chofer</h3>
+                            </div>
+                            <div class="max-h-[300px] overflow-y-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-white/[0.02] text-slate-400 font-bold uppercase tracking-wider">
+                                        <tr>
+                                            <th class="px-4 py-3">Fecha / ID</th>
+                                            <th class="px-4 py-3">Cliente / Ruta</th>
+                                            <th class="px-4 py-3 text-right">Flete</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="db-driver-trips-table-body" class="divide-y divide-white/5 text-slate-300">
+                                        <!-- rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- Expenses List -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
+                            <div class="p-6 border-b border-white/5 flex justify-between items-center">
+                                <h3 class="font-bold text-white"><i class="fas fa-receipt mr-2 text-red-400"></i>Gastos Reportados</h3>
+                            </div>
+                            <div class="max-h-[300px] overflow-y-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead class="bg-white/[0.02] text-slate-400 font-bold uppercase tracking-wider">
+                                        <tr>
+                                            <th class="px-4 py-3">Fecha</th>
+                                            <th class="px-4 py-3">Concepto / Detalle</th>
+                                            <th class="px-4 py-3 text-right">Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="db-driver-expenses-table-body" class="divide-y divide-white/5 text-slate-300">
+                                        <!-- rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUB-VIEW: Expense Analysis Dashboard -->
+            <div id="db-expenses-subview" class="space-y-8 hidden">
+                <!-- Filtros de Período -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 items-end">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Desde</label>
+                        <input type="date" id="db-expenses-start" class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Hasta</label>
+                        <input type="date" id="db-expenses-end" class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
+                    </div>
+                    <div>
+                        <button onclick="updateExpensesDashboard()" class="w-full bg-blue-600 text-white font-bold py-2.5 rounded-xl hover:bg-blue-500 transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Metrics Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
+                    <!-- Gasto Total -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-money-bill-wave text-5xl text-red-400"></i>
+                        </div>
+                        <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Gasto Total</p>
+                        <h4 id="db-expenses-total" class="text-2xl font-bold text-red-400">$0.00</h4>
+                    </div>
+                    <!-- Gasto Diesel -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-gas-pump text-5xl text-purple-400"></i>
+                        </div>
+                        <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Gasto Diésel</p>
+                        <h4 id="db-expenses-diesel" class="text-2xl font-bold text-purple-400">$0.00</h4>
+                    </div>
+                    <!-- Aprobado -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-check-circle text-5xl text-green-400"></i>
+                        </div>
+                        <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Gastos Aprobados</p>
+                        <h4 id="db-expenses-approved" class="text-2xl font-bold text-green-400">$0.00</h4>
+                    </div>
+                    <!-- Pendiente -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-clock text-5xl text-amber-400"></i>
+                        </div>
+                        <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Gastos Pendientes</p>
+                        <h4 id="db-expenses-pending" class="text-2xl font-bold text-amber-400">$0.00</h4>
+                    </div>
+                    <!-- Promedio por Viaje -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-4 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-route text-5xl text-blue-400"></i>
+                        </div>
+                        <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">Promedio por Viaje</p>
+                        <h4 id="db-expenses-avg-trip" class="text-2xl font-bold text-blue-400">$0.00</h4>
+                    </div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Concept Breakdown Doughnut -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                        <h3 class="font-bold text-white mb-6"><i class="fas fa-chart-pie mr-2 text-red-400"></i>Desglose por Concepto</h3>
+                        <div class="h-[250px] flex items-center justify-center">
+                            <canvas id="expensesConceptChart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Trend Chart -->
+                    <div class="lg:col-span-2 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                        <h3 class="font-bold text-white mb-6"><i class="fas fa-chart-area mr-2 text-blue-400"></i>Tendencia Temporal de Gastos</h3>
+                        <div class="h-[250px]">
+                            <canvas id="expensesTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Expenses per Unit/ECO Chart -->
+                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                    <h3 class="font-bold text-white mb-6"><i class="fas fa-truck mr-2 text-purple-400"></i>Comparativa de Gastos por Unidad / ECO</h3>
+                    <div class="h-[300px]">
+                        <canvas id="expensesUnitChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Top Expenses List -->
+                <div class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
+                    <div class="p-6 border-b border-white/5">
+                        <h3 class="font-bold text-white"><i class="fas fa-list-ol mr-2 text-red-400"></i>Top Gastos Destacados</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-white/[0.02] text-slate-400 font-bold uppercase tracking-wider">
+                                <tr>
+                                    <th class="px-6 py-3">Fecha</th>
+                                    <th class="px-6 py-3">Chofer</th>
+                                    <th class="px-6 py-3">Unidad</th>
+                                    <th class="px-6 py-3">Concepto / Detalle</th>
+                                    <th class="px-6 py-3">Estatus</th>
+                                    <th class="px-6 py-3 text-right">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody id="db-expenses-top-table-body" class="divide-y divide-white/5 text-slate-300">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUB-VIEW: Debt Analysis Dashboard -->
+            <div id="db-debts-subview" class="space-y-8 hidden">
+                <!-- Filtros de Período -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 items-end">
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Desde</label>
+                        <input type="date" id="db-debts-start" class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Hasta</label>
+                        <input type="date" id="db-debts-end" class="w-full px-4 py-2 bg-slate-800/50 border border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 text-sm text-white">
+                    </div>
+                    <div>
+                        <button onclick="updateDebtsDashboard()" class="w-full bg-blue-600 text-white font-bold py-2.5 rounded-xl hover:bg-blue-500 transition-all text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20">
+                            <i class="fas fa-sync-alt"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Metrics Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+                    <!-- Fletes por Cobrar -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-file-invoice-dollar text-6xl text-blue-400"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Fletes por Cobrar</p>
+                        <h4 id="db-debts-fletes" class="text-3xl font-bold text-blue-400">$0.00</h4>
+                        <p class="text-[10px] text-blue-400 font-bold mt-2"><i class="fas fa-info-circle mr-1"></i> Fletes pendientes de pago</p>
+                    </div>
+                    <!-- Anticipos por Recuperar -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-hand-holding-usd text-6xl text-purple-400"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Anticipos por Recuperar</p>
+                        <h4 id="db-debts-advances" class="text-3xl font-bold text-purple-400">$0.00</h4>
+                        <p class="text-[10px] text-purple-400 font-bold mt-2"><i class="fas fa-info-circle mr-1"></i> Saldos a favor de choferes</p>
+                    </div>
+                    <!-- Cuentas por Pagar -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i class="fas fa-receipt text-6xl text-rose-400"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Cuentas por Pagar</p>
+                        <h4 id="db-debts-payable" class="text-3xl font-bold text-rose-400">$0.00</h4>
+                        <p class="text-[10px] text-rose-400 font-bold mt-2"><i class="fas fa-info-circle mr-1"></i> Deudas con proveedores/choferes</p>
+                    </div>
+                    <!-- Balance General -->
+                    <div class="bg-emerald-600/90 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/10 relative overflow-hidden group cursor-default">
+                        <div class="absolute top-0 right-0 p-4 opacity-20 group-hover:scale-110 transition-transform text-white">
+                            <i class="fas fa-wallet text-6xl"></i>
+                        </div>
+                        <p class="text-[10px] font-bold text-emerald-100 uppercase tracking-widest mb-1">Balance de Cartera</p>
+                        <h4 id="db-debts-net" class="text-3xl font-bold text-white">$0.00</h4>
+                        <p class="text-[10px] text-emerald-100/60 font-medium mt-2">Por Cobrar - Por Pagar</p>
+                    </div>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Debt Proportion Doughnut -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                        <h3 class="font-bold text-white mb-6"><i class="fas fa-chart-pie mr-2 text-purple-400"></i>Distribución de Saldos</h3>
+                        <div class="h-[250px] flex items-center justify-center">
+                            <canvas id="debtsTypeChart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Debts by Actor Bar -->
+                    <div class="lg:col-span-2 bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                        <h3 class="font-bold text-white mb-6"><i class="fas fa-user-friends mr-2 text-blue-400"></i>Saldos Destacados por Chofer / Cliente / Proveedor</h3>
+                        <div class="h-[250px]">
+                            <canvas id="debtsActorChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lists Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Pending Fletes -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
+                        <div class="p-6 border-b border-white/5">
+                            <h3 class="font-bold text-white"><i class="fas fa-file-invoice-dollar mr-2 text-blue-400"></i>Fletes Pendientes</h3>
+                        </div>
+                        <div class="max-h-[300px] overflow-y-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-white/[0.02] text-slate-400 font-bold uppercase tracking-wider">
+                                    <tr>
+                                        <th class="px-4 py-3">Cliente / ID</th>
+                                        <th class="px-4 py-3 text-right">Pendiente</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="db-debts-fletes-table-body" class="divide-y divide-white/5 text-slate-300">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Pending Advances -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
+                        <div class="p-6 border-b border-white/5">
+                            <h3 class="font-bold text-white"><i class="fas fa-hand-holding-usd mr-2 text-purple-400"></i>Saldos a Favor (Choferes)</h3>
+                        </div>
+                        <div class="max-h-[300px] overflow-y-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-white/[0.02] text-slate-400 font-bold uppercase tracking-wider">
+                                    <tr>
+                                        <th class="px-4 py-3">Chofer / Concepto</th>
+                                        <th class="px-4 py-3 text-right">Saldo</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="db-debts-advances-table-body" class="divide-y divide-white/5 text-slate-300">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Accounts Payable -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
+                        <div class="p-6 border-b border-white/5">
+                            <h3 class="font-bold text-white"><i class="fas fa-receipt mr-2 text-rose-400"></i>Cuentas por Pagar</h3>
+                        </div>
+                        <div class="max-h-[300px] overflow-y-auto">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-white/[0.02] text-slate-400 font-bold uppercase tracking-wider">
+                                    <tr>
+                                        <th class="px-4 py-3">Acreedor / Concepto</th>
+                                        <th class="px-4 py-3 text-right">Deuda</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="db-debts-payable-table-body" class="divide-y divide-white/5 text-slate-300">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -2124,11 +2585,11 @@
         </div>
     </div>
 
-    <script src="./js/config.js?v=15.22"></script>
+    <script src="./js/config.js?v=15.24"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=15.22"></script>
-    <script src="./js/auth.js?v=15.22"></script>
-    <script src="./js/main.js?v=15.22"></script>
+    <script src="./js/supabase-client.js?v=15.24"></script>
+    <script src="./js/auth.js?v=15.24"></script>
+    <script src="./js/main.js?v=15.24"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>

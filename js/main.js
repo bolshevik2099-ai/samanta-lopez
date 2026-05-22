@@ -957,6 +957,10 @@ async function updateDashboardByPeriod() {
         const totalComisiones = viajes.reduce((acc, v) => acc + (parseFloat(v.comision_chofer) || 0), 0);
         const totalGanancia = totalVenta - totalGasto - totalComisiones;
 
+        const totalViajes = viajes.length;
+        const margenGanancia = totalVenta > 0 ? (totalGanancia / totalVenta) * 100 : 0;
+        const fletePromedio = totalViajes > 0 ? totalVenta / totalViajes : 0;
+
         // Actualizar Tarjetas UI
         const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
 
@@ -964,7 +968,9 @@ async function updateDashboardByPeriod() {
         safeSetText('period-gasto', fmt(totalGasto));
         safeSetText('period-comisiones', fmt(totalComisiones));
         safeSetText('period-ganancia', fmt(totalGanancia));
-        safeSetText('period-viajes-count', viajes.length);
+        safeSetText('period-viajes-count', totalViajes);
+        safeSetText('period-margen', margenGanancia.toFixed(2) + '%');
+        safeSetText('period-flete-promedio', fmt(fletePromedio));
         safeSetText('period-label', `Periodo: ${start} al ${end}`);
 
         // Rendimiento de la flota del periodo
@@ -974,10 +980,9 @@ async function updateDashboardByPeriod() {
             return effectiveVol > 0 && g.id_unidad && g.concepto === 'Diesel';
         });
         const { fleetAvg } = calculateFleetEfficiency(fleetFuelExpenses);
-        const rendText = fleetAvg > 0 ? `${fleetAvg.toFixed(2)}` : '--';
         const rendEl = document.getElementById('period-rendimiento');
         if (rendEl) {
-            rendEl.innerHTML = `${rendText} <span class="text-sm font-bold text-slate-600">km/l</span>`;
+            rendEl.innerHTML = fleetAvg > 0 ? `${fleetAvg.toFixed(2)} <span class="text-sm font-bold text-slate-400">km/l</span>` : '-- km/l';
         }
 
         // Renderizar Tabla y Gráfico Principal
@@ -1111,42 +1116,49 @@ function renderChart(viajes, gastos) {
     });
 }
 
-// --- DASHBOARD SUB-SECTIONS (GENERAL vs UNIT) ---
+// --- DASHBOARD SUB-SECTIONS (GENERAL vs UNIT vs DRIVER vs EXPENSES vs DEBTS) ---
 let currentDashboardTab = 'general';
 let unitDashboardInitialized = false;
+let driverDashboardInitialized = false;
+let expensesDashboardInitialized = false;
+let debtsDashboardInitialized = false;
 
 window.switchDashboardTab = function(tab) {
     currentDashboardTab = tab;
     
-    const tabGeneralBtn = document.getElementById('tab-db-general');
-    const tabUnitBtn = document.getElementById('tab-db-unit');
-    const generalSubview = document.getElementById('db-general-subview');
-    const unitSubview = document.getElementById('db-unit-subview');
+    const tabs = ['general', 'unit', 'driver', 'expenses', 'debts'];
+    
+    tabs.forEach(t => {
+        const btn = document.getElementById('tab-db-' + t);
+        const subview = document.getElementById('db-' + t + '-subview');
+        
+        if (btn) {
+            if (t === tab) {
+                btn.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all";
+            } else {
+                btn.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all";
+            }
+        }
+        
+        if (subview) {
+            if (t === tab) {
+                subview.classList.remove('hidden');
+            } else {
+                subview.classList.add('hidden');
+            }
+        }
+    });
     
     if (tab === 'general') {
-        if (tabGeneralBtn) {
-            tabGeneralBtn.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all";
-        }
-        if (tabUnitBtn) {
-            tabUnitBtn.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all";
-        }
-        if (generalSubview) generalSubview.classList.remove('hidden');
-        if (unitSubview) unitSubview.classList.add('hidden');
-        
-        // Refresh general dashboard
         updateDashboardByPeriod();
-    } else {
-        if (tabGeneralBtn) {
-            tabGeneralBtn.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all";
-        }
-        if (tabUnitBtn) {
-            tabUnitBtn.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-blue-600 text-white shadow-lg shadow-blue-600/20 hover:bg-blue-500 transition-all";
-        }
-        if (generalSubview) generalSubview.classList.add('hidden');
-        if (unitSubview) unitSubview.classList.remove('hidden');
-        
-        // Initialize unit view
+    } else if (tab === 'unit') {
         initUnitDashboard();
+    } else if (tab === 'driver') {
+        initDriverDashboard();
+    } else if (tab === 'expenses') {
+        initExpensesDashboard();
+    } else if (tab === 'debts') {
+        initDebtsDashboard();
     }
 };
 
@@ -1455,6 +1467,735 @@ async function updateUnitDashboard() {
 
 window.updateUnitDashboard = updateUnitDashboard;
 window.initUnitDashboard = initUnitDashboard;
+
+// --- DRIVER DASHBOARD ---
+async function initDriverDashboard() {
+    const startInput = document.getElementById('db-driver-start');
+    const endInput = document.getElementById('db-driver-end');
+    const driverSelect = document.getElementById('db-driver-select');
+    
+    if (!startInput || !endInput || !driverSelect) return;
+    
+    if (!startInput.value || !endInput.value) {
+        const today = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        
+        startInput.value = getLocalISODate(thirtyDaysAgo);
+        endInput.value = getLocalISODate(today);
+    }
+    
+    if (!driverDashboardInitialized) {
+        driverDashboardInitialized = true;
+        
+        // Populate drivers select
+        try {
+            const drivers = await fetchSupabaseData(DB_CONFIG.tableChoferes);
+            const activeDrivers = drivers.filter(d => (d.estatus || 'Activo') === 'Activo');
+            
+            driverSelect.innerHTML = '<option value="">-- Selecciona Chofer --</option>' + 
+                activeDrivers.map(d => `<option value="${d.id_chofer}">${d.nombre || 'Sin nombre'} (${d.id_chofer})</option>`).join('');
+        } catch (e) {
+            console.error('Error populating dashboard driver select:', e);
+        }
+        
+        // Bind event listeners
+        driverSelect.addEventListener('change', () => updateDriverDashboard());
+        startInput.addEventListener('change', () => updateDriverDashboard());
+        endInput.addEventListener('change', () => updateDriverDashboard());
+    }
+    
+    updateDriverDashboard();
+}
+
+async function updateDriverDashboard() {
+    const driverSelect = document.getElementById('db-driver-select');
+    const startInput = document.getElementById('db-driver-start');
+    const endInput = document.getElementById('db-driver-end');
+    const placeholder = document.getElementById('db-driver-placeholder');
+    const content = document.getElementById('db-driver-content');
+    
+    if (!driverSelect || !startInput || !endInput) return;
+    
+    const driverId = driverSelect.value;
+    const start = startInput.value;
+    const end = endInput.value;
+    
+    if (!driverId) {
+        if (placeholder) placeholder.classList.remove('hidden');
+        if (content) content.classList.add('hidden');
+        return;
+    }
+    
+    if (placeholder) placeholder.classList.add('hidden');
+    if (content) content.classList.remove('hidden');
+    
+    const statusEl = document.getElementById('conn-status');
+    if (statusEl) {
+        statusEl.innerText = 'Consultando Chofer...';
+        statusEl.className = 'text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest animate-pulse';
+    }
+    
+    try {
+        const [tripsRaw, expensesRaw] = await Promise.all([
+            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_chofer', driverId),
+            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_chofer', driverId)
+        ]);
+        
+        if (tripsRaw.error) throw tripsRaw.error;
+        if (expensesRaw.error) throw expensesRaw.error;
+        
+        const tripsData = tripsRaw.data || [];
+        const expensesData = expensesRaw.data || [];
+        
+        const parseDate = (d) => {
+            if (!d) return null;
+            if (d.includes('/')) {
+                const parts = d.split('/');
+                if (parseInt(parts[0]) > 12) {
+                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                } else {
+                    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                }
+            }
+            return d;
+        };
+        
+        const filterByDate = (rows, s, e) => rows.filter(r => {
+            const rowDate = parseDate(r.fecha);
+            return rowDate && rowDate >= s && rowDate <= e;
+        });
+        
+        const viajes = filterByDate(tripsData, start, end);
+        const gastos = filterByDate(expensesData, start, end);
+        
+        const totalTrips = viajes.length;
+        const totalRevenue = viajes.reduce((acc, v) => acc + (parseFloat(v.monto_flete) || 0), 0);
+        const totalComision = viajes.reduce((acc, v) => acc + (parseFloat(v.comision_chofer) || 0), 0);
+        const totalExpenses = gastos.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+        
+        // Calcular Último Rendimiento
+        const sortedAllExpensesForYield = [...expensesData]
+            .filter(g => g.concepto === 'Diesel')
+            .sort((a, b) => {
+                const dateA = new Date(parseDate(a.fecha) || 0);
+                const dateB = new Date(parseDate(b.fecha) || 0);
+                return dateB - dateA;
+            });
+            
+        let latestYieldVal = '--';
+        for (const e of sortedAllExpensesForYield) {
+            const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
+            const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
+            const km = parseFloat(e.kmts_recorridos) || 0;
+            if (effectiveVol > 0 && km > 0) {
+                const yld = km / effectiveVol;
+                if (yld > 0.5 && yld < 15) {
+                    latestYieldVal = `${yld.toFixed(2)} km/L`;
+                    break;
+                }
+            }
+        }
+        
+        const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+        
+        safeSetText('db-driver-total-trips', totalTrips);
+        safeSetText('db-driver-total-revenue', fmt(totalRevenue));
+        safeSetText('db-driver-total-comision', fmt(totalComision));
+        safeSetText('db-driver-total-expenses', fmt(totalExpenses));
+        safeSetText('db-driver-latest-yield', latestYieldVal);
+        
+        // Trips Table
+        const tripsTbody = document.getElementById('db-driver-trips-table-body');
+        if (tripsTbody) {
+            if (viajes.length === 0) {
+                tripsTbody.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-slate-500 italic">Sin viajes en este período</td></tr>';
+            } else {
+                tripsTbody.innerHTML = viajes.sort((a,b) => new Date(parseDate(b.fecha)) - new Date(parseDate(a.fecha))).map(v => `
+                    <tr class="hover:bg-slate-800/20 transition-colors">
+                        <td class="px-4 py-3">
+                            <div class="font-mono text-[10px] text-slate-400">${v.fecha}</div>
+                            <div class="font-semibold text-white">${v.id_viaje}</div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="text-white truncate max-w-[150px]">${v.cliente}</div>
+                            <div class="text-slate-400 truncate max-w-[150px]">${v.origen} ➔ ${v.destino}</div>
+                        </td>
+                        <td class="px-4 py-3 text-right font-bold text-blue-400">${fmt(parseFloat(v.monto_flete) || 0)}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+        
+        // Expenses Table
+        const expensesTbody = document.getElementById('db-driver-expenses-table-body');
+        if (expensesTbody) {
+            if (gastos.length === 0) {
+                expensesTbody.innerHTML = '<tr><td colspan="3" class="px-4 py-6 text-center text-slate-500 italic">Sin gastos en este período</td></tr>';
+            } else {
+                expensesTbody.innerHTML = gastos.sort((a,b) => new Date(parseDate(b.fecha)) - new Date(parseDate(a.fecha))).map(g => `
+                    <tr class="hover:bg-slate-800/20 transition-colors">
+                        <td class="px-4 py-3 font-mono text-[10px] text-slate-400">${g.fecha}</td>
+                        <td class="px-4 py-3">
+                            <div class="font-semibold text-white">${g.concepto}</div>
+                            <div class="text-slate-400 text-[10px]">${g.id_viaje ? `Viaje: ${g.id_viaje}` : 'Gasto General'}</div>
+                        </td>
+                        <td class="px-4 py-3 text-right font-bold text-red-400">${fmt(parseFloat(g.monto) || 0)}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+        
+        // Historical Yield Chart
+        const dieselExpensesPeriod = gastos
+            .filter(g => g.concepto === 'Diesel')
+            .map(e => {
+                const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
+                const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
+                const km = parseFloat(e.kmts_recorridos) || 0;
+                let yieldVal = 0;
+                if (effectiveVol > 0 && km > 0) {
+                    yieldVal = km / effectiveVol;
+                }
+                return {
+                    fecha: e.fecha,
+                    yieldVal: yieldVal > 0.5 && yieldVal < 15 ? parseFloat(yieldVal.toFixed(2)) : 0
+                };
+            })
+            .filter(item => item.yieldVal > 0)
+            .sort((a, b) => new Date(parseDate(a.fecha)) - new Date(parseDate(b.fecha)));
+            
+        renderChartInstance('driverYieldHistoryChart', 'line', {
+            labels: dieselExpensesPeriod.map(d => d.fecha),
+            datasets: [{
+                label: 'Km/L',
+                data: dieselExpensesPeriod.map(d => d.yieldVal),
+                borderColor: '#c084fc',
+                backgroundColor: 'rgba(192, 132, 252, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 5,
+                pointBackgroundColor: '#c084fc'
+            }]
+        });
+        
+        // Expenses Doughnut Chart
+        const driverExpensesGrouped = {};
+        gastos.forEach(g => {
+            const concept = g.concepto || 'Varios';
+            driverExpensesGrouped[concept] = (driverExpensesGrouped[concept] || 0) + (parseFloat(g.monto) || 0);
+        });
+        
+        const topDriverExpenses = Object.entries(driverExpensesGrouped)
+            .sort((a, b) => b[1] - a[1]);
+            
+        renderChartInstance('driverExpensesChart', 'doughnut', {
+            labels: topDriverExpenses.map(e => e[0]),
+            datasets: [{
+                data: topDriverExpenses.map(e => e[1]),
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.7)',
+                    'rgba(59, 130, 246, 0.7)',
+                    'rgba(16, 185, 129, 0.7)',
+                    'rgba(245, 158, 11, 0.7)',
+                    'rgba(139, 92, 246, 0.7)',
+                    'rgba(107, 114, 128, 0.7)',
+                    'rgba(236, 72, 153, 0.7)',
+                    'rgba(20, 184, 166, 0.7)'
+                ],
+                borderWidth: 0
+            }]
+        });
+        
+        // Flete vs Comisión por Viaje
+        const tripsCompareData = viajes.map(v => {
+            const flete = parseFloat(v.monto_flete) || 0;
+            const comision = parseFloat(v.comision_chofer) || 0;
+            return {
+                id_viaje: v.id_viaje,
+                fecha: v.fecha,
+                flete: flete,
+                comision: comision
+            };
+        }).sort((a,b) => new Date(parseDate(a.fecha)) - new Date(parseDate(b.fecha)));
+        
+        renderChartInstance('driverTripsChart', 'bar', {
+            labels: tripsCompareData.map(t => `${t.fecha} (${t.id_viaje})`),
+            datasets: [
+                {
+                    label: 'Ingreso Flete',
+                    data: tripsCompareData.map(t => t.flete),
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Comisión Chofer',
+                    data: tripsCompareData.map(t => t.comision),
+                    backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                    borderColor: 'rgba(245, 158, 11, 1)',
+                    borderWidth: 1
+                }
+            ]
+        });
+        
+        if (statusEl) {
+            statusEl.innerText = 'Conectado';
+            statusEl.className = 'text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+        
+    } catch (e) {
+        console.error('Error updating driver dashboard:', e);
+        if (statusEl) {
+            statusEl.innerText = 'Error: ' + e.message;
+            statusEl.className = 'text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+    }
+}
+
+// --- EXPENSES DASHBOARD ---
+async function initExpensesDashboard() {
+    const startInput = document.getElementById('db-expenses-start');
+    const endInput = document.getElementById('db-expenses-end');
+    
+    if (!startInput || !endInput) return;
+    
+    if (!startInput.value || !endInput.value) {
+        const today = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        
+        startInput.value = getLocalISODate(thirtyDaysAgo);
+        endInput.value = getLocalISODate(today);
+    }
+    
+    if (!expensesDashboardInitialized) {
+        expensesDashboardInitialized = true;
+        
+        // Bind event listeners
+        startInput.addEventListener('change', () => updateExpensesDashboard());
+        endInput.addEventListener('change', () => updateExpensesDashboard());
+    }
+    
+    updateExpensesDashboard();
+}
+
+async function updateExpensesDashboard() {
+    const startInput = document.getElementById('db-expenses-start');
+    const endInput = document.getElementById('db-expenses-end');
+    
+    if (!startInput || !endInput) return;
+    
+    const start = startInput.value;
+    const end = endInput.value;
+    
+    const statusEl = document.getElementById('conn-status');
+    if (statusEl) {
+        statusEl.innerText = 'Consultando Gastos...';
+        statusEl.className = 'text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest animate-pulse';
+    }
+    
+    try {
+        const [expensesRaw, tripsRaw, driversRaw] = await Promise.all([
+            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*'),
+            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*'),
+            window.supabaseClient.from(DB_CONFIG.tableChoferes).select('id_chofer, nombre')
+        ]);
+        
+        if (expensesRaw.error) throw expensesRaw.error;
+        if (tripsRaw.error) throw tripsRaw.error;
+        if (driversRaw.error) throw driversRaw.error;
+        
+        const expensesData = expensesRaw.data || [];
+        const tripsData = tripsRaw.data || [];
+        const driversData = driversRaw.data || [];
+        
+        const driverMap = {};
+        driversData.forEach(d => {
+            driverMap[d.id_chofer] = d.nombre;
+        });
+        
+        const parseDate = (d) => {
+            if (!d) return null;
+            if (d.includes('/')) {
+                const parts = d.split('/');
+                if (parseInt(parts[0]) > 12) {
+                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                } else {
+                    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                }
+            }
+            return d;
+        };
+        
+        const filterByDate = (rows, s, e) => rows.filter(r => {
+            const rowDate = parseDate(r.fecha);
+            return rowDate && rowDate >= s && rowDate <= e;
+        });
+        
+        const gastos = filterByDate(expensesData, start, end);
+        const viajes = filterByDate(tripsData, start, end);
+        
+        const totalExpenses = gastos.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+        const dieselExpenses = gastos.filter(g => g.concepto === 'Diesel').reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+        const approvedExpenses = gastos.filter(g => (g.estatus_aprobacion || '').toLowerCase() === 'aprobado').reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+        const pendingExpenses = gastos.filter(g => (g.estatus_aprobacion || '').toLowerCase() === 'pendiente' || !g.estatus_aprobacion).reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+        
+        const totalTripsCount = viajes.length;
+        const avgExpensePerTrip = totalTripsCount > 0 ? (totalExpenses / totalTripsCount) : 0;
+        
+        const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+        
+        safeSetText('db-expenses-total', fmt(totalExpenses));
+        safeSetText('db-expenses-diesel', fmt(dieselExpenses));
+        safeSetText('db-expenses-approved', fmt(approvedExpenses));
+        safeSetText('db-expenses-pending', fmt(pendingExpenses));
+        safeSetText('db-expenses-avg-trip', fmt(avgExpensePerTrip));
+        
+        // Top 10 Expenses Table
+        const topExpensesTbody = document.getElementById('db-expenses-top-table-body');
+        if (topExpensesTbody) {
+            const sortedTopGastos = [...gastos].sort((a, b) => (parseFloat(b.monto) || 0) - (parseFloat(a.monto) || 0)).slice(0, 10);
+            if (sortedTopGastos.length === 0) {
+                topExpensesTbody.innerHTML = '<tr><td colspan="6" class="px-6 py-6 text-center text-slate-500 italic">Sin gastos registrados</td></tr>';
+            } else {
+                topExpensesTbody.innerHTML = sortedTopGastos.map(g => {
+                    const statusClass = (g.estatus_aprobacion || '').toLowerCase() === 'aprobado' ? 'bg-green-500/10 text-green-400 border border-green-500/10' :
+                                      ((g.estatus_aprobacion || '').toLowerCase() === 'rechazado' ? 'bg-red-500/10 text-red-400 border border-red-500/10' : 'bg-amber-500/10 text-amber-400 border border-amber-500/10');
+                    const driverName = driverMap[g.id_chofer] || g.id_chofer || '---';
+                    return `
+                        <tr class="hover:bg-slate-800/20 transition-colors">
+                            <td class="px-6 py-4 font-mono text-slate-400">${g.fecha || '---'}</td>
+                            <td class="px-6 py-4 text-white font-semibold">${driverName}</td>
+                            <td class="px-6 py-4 text-slate-300 font-mono">${g.id_unidad || '---'}</td>
+                            <td class="px-6 py-4">
+                                <div class="text-white font-semibold">${g.concepto}</div>
+                                <div class="text-[10px] text-slate-500 truncate max-w-[180px]">${g.observaciones || g.id_viaje || ''}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${statusClass}">${g.estatus_aprobacion || 'Pendiente'}</span>
+                            </td>
+                            <td class="px-6 py-4 text-right font-bold text-red-400">${fmt(parseFloat(g.monto) || 0)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+        
+        // Chart 1: Expenses Concept Doughnut
+        const conceptGrouped = {};
+        gastos.forEach(g => {
+            const concept = g.concepto || 'Varios';
+            conceptGrouped[concept] = (conceptGrouped[concept] || 0) + (parseFloat(g.monto) || 0);
+        });
+        const sortedConcepts = Object.entries(conceptGrouped).sort((a,b) => b[1] - a[1]);
+        
+        renderChartInstance('expensesConceptChart', 'doughnut', {
+            labels: sortedConcepts.map(c => c[0]),
+            datasets: [{
+                data: sortedConcepts.map(c => c[1]),
+                backgroundColor: [
+                    'rgba(239, 68, 68, 0.7)',
+                    'rgba(59, 130, 246, 0.7)',
+                    'rgba(16, 185, 129, 0.7)',
+                    'rgba(245, 158, 11, 0.7)',
+                    'rgba(139, 92, 246, 0.7)',
+                    'rgba(107, 114, 128, 0.7)',
+                    'rgba(236, 72, 153, 0.7)',
+                    'rgba(20, 184, 166, 0.7)'
+                ],
+                borderWidth: 0
+            }]
+        });
+        
+        // Chart 2: Expenses Trend Line
+        const trendGrouped = {};
+        gastos.forEach(g => {
+            const d = parseDate(g.fecha);
+            if (d) {
+                trendGrouped[d] = (trendGrouped[d] || 0) + (parseFloat(g.monto) || 0);
+            }
+        });
+        const sortedTrend = Object.entries(trendGrouped).sort((a,b) => new Date(a[0]) - new Date(b[0]));
+        
+        renderChartInstance('expensesTrendChart', 'line', {
+            labels: sortedTrend.map(t => t[0]),
+            datasets: [{
+                label: 'Gastos Diarios',
+                data: sortedTrend.map(t => t[1]),
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 4,
+                pointBackgroundColor: '#ef4444'
+            }]
+        });
+        
+        // Chart 3: Expenses comparison by ECO
+        const ecoGrouped = {};
+        gastos.forEach(g => {
+            const eco = g.id_unidad || 'Sin Unidad';
+            ecoGrouped[eco] = (ecoGrouped[eco] || 0) + (parseFloat(g.monto) || 0);
+        });
+        const sortedEco = Object.entries(ecoGrouped).sort((a,b) => b[1] - a[1]);
+        
+        renderChartInstance('expensesUnitChart', 'bar', {
+            labels: sortedEco.map(u => u[0]),
+            datasets: [{
+                label: 'Total Gastado',
+                data: sortedEco.map(u => u[1]),
+                backgroundColor: 'rgba(168, 85, 247, 0.7)',
+                borderColor: 'rgba(168, 85, 247, 1)',
+                borderWidth: 1
+            }]
+        });
+        
+        if (statusEl) {
+            statusEl.innerText = 'Conectado';
+            statusEl.className = 'text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+        
+    } catch (e) {
+        console.error('Error updating expenses dashboard:', e);
+        if (statusEl) {
+            statusEl.innerText = 'Error: ' + e.message;
+            statusEl.className = 'text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+    }
+}
+
+// --- DEBTS DASHBOARD ---
+async function initDebtsDashboard() {
+    const startInput = document.getElementById('db-debts-start');
+    const endInput = document.getElementById('db-debts-end');
+    
+    if (!startInput || !endInput) return;
+    
+    if (!startInput.value || !endInput.value) {
+        const today = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        
+        startInput.value = getLocalISODate(thirtyDaysAgo);
+        endInput.value = getLocalISODate(today);
+    }
+    
+    if (!debtsDashboardInitialized) {
+        debtsDashboardInitialized = true;
+        
+        // Bind event listeners
+        startInput.addEventListener('change', () => updateDebtsDashboard());
+        endInput.addEventListener('change', () => updateDebtsDashboard());
+    }
+    
+    updateDebtsDashboard();
+}
+
+async function updateDebtsDashboard() {
+    const startInput = document.getElementById('db-debts-start');
+    const endInput = document.getElementById('db-debts-end');
+    
+    if (!startInput || !endInput) return;
+    
+    const start = startInput.value;
+    const end = endInput.value;
+    
+    const statusEl = document.getElementById('conn-status');
+    if (statusEl) {
+        statusEl.innerText = 'Consultando Deudas...';
+        statusEl.className = 'text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest animate-pulse';
+    }
+    
+    try {
+        const [tripsRaw, accountsRaw, driversRaw] = await Promise.all([
+            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').neq('estatus_pago', 'Pagado'),
+            window.supabaseClient.from(DB_CONFIG.tableCuentas).select('*').neq('estatus', 'Liquidado'),
+            window.supabaseClient.from(DB_CONFIG.tableChoferes).select('id_chofer, nombre')
+        ]);
+        
+        if (tripsRaw.error) throw tripsRaw.error;
+        if (accountsRaw.error) throw accountsRaw.error;
+        if (driversRaw.error) throw driversRaw.error;
+        
+        const tripsData = tripsRaw.data || [];
+        const accountsData = accountsRaw.data || [];
+        const driversData = driversRaw.data || [];
+        
+        const driverMap = {};
+        driversData.forEach(d => {
+            driverMap[d.id_chofer] = d.nombre;
+        });
+        
+        const parseDate = (d) => {
+            if (!d) return null;
+            if (d.includes('/')) {
+                const parts = d.split('/');
+                if (parseInt(parts[0]) > 12) {
+                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                } else {
+                    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                }
+            }
+            return d;
+        };
+        
+        const filterByDate = (rows, s, e) => rows.filter(r => {
+            const rowDate = parseDate(r.fecha);
+            return rowDate && rowDate >= s && rowDate <= e;
+        });
+        
+        const fletesPendientes = filterByDate(tripsData, start, end);
+        const cuentasPendientes = filterByDate(accountsData, start, end);
+        
+        // Saldos
+        const fletesCobrar = fletesPendientes.reduce((acc, v) => acc + (parseFloat(v.monto_flete) || 0), 0);
+        const anticiposRecuperar = cuentasPendientes.filter(c => c.tipo === 'A Favor').reduce((acc, c) => acc + (parseFloat(c.monto) || 0), 0);
+        const cuentasPagar = cuentasPendientes.filter(c => c.tipo === 'En Contra').reduce((acc, c) => acc + (parseFloat(c.monto) || 0), 0);
+        const balanceNeto = fletesCobrar + anticiposRecuperar - cuentasPagar;
+        
+        const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+        
+        safeSetText('db-debts-fletes', fmt(fletesCobrar));
+        safeSetText('db-debts-advances', fmt(anticiposRecuperar));
+        safeSetText('db-debts-payable', fmt(cuentasPagar));
+        safeSetText('db-debts-net', fmt(balanceNeto));
+        
+        // Table 1: Fletes Pendientes
+        const fletesTbody = document.getElementById('db-debts-fletes-table-body');
+        if (fletesTbody) {
+            if (fletesPendientes.length === 0) {
+                fletesTbody.innerHTML = '<tr><td colspan="2" class="px-4 py-6 text-center text-slate-500 italic">Sin fletes pendientes</td></tr>';
+            } else {
+                fletesTbody.innerHTML = fletesPendientes.sort((a,b) => (parseFloat(b.monto_flete) || 0) - (parseFloat(a.monto_flete) || 0)).map(v => `
+                    <tr class="hover:bg-slate-800/20 transition-colors">
+                        <td class="px-4 py-3">
+                            <div class="font-semibold text-white">${v.cliente || '---'}</div>
+                            <div class="text-[10px] text-slate-500 font-mono">${v.id_viaje} (${v.fecha})</div>
+                        </td>
+                        <td class="px-4 py-3 text-right font-bold text-blue-400">${fmt(parseFloat(v.monto_flete) || 0)}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+        
+        // Table 2: Anticipos Pendientes (A Favor)
+        const advancesTbody = document.getElementById('db-debts-advances-table-body');
+        if (advancesTbody) {
+            const anticiposList = cuentasPendientes.filter(c => c.tipo === 'A Favor');
+            if (anticiposList.length === 0) {
+                advancesTbody.innerHTML = '<tr><td colspan="2" class="px-4 py-6 text-center text-slate-500 italic">Sin anticipos pendientes</td></tr>';
+            } else {
+                advancesTbody.innerHTML = anticiposList.sort((a,b) => (parseFloat(b.monto) || 0) - (parseFloat(a.monto) || 0)).map(c => {
+                    const actorName = driverMap[c.actor_nombre] || c.actor_nombre || '---';
+                    return `
+                        <tr class="hover:bg-slate-800/20 transition-colors">
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-white">${actorName}</div>
+                                <div class="text-[10px] text-slate-500">${c.concepto || 'Anticipo'} (${c.fecha})</div>
+                            </td>
+                            <td class="px-4 py-3 text-right font-bold text-purple-400">${fmt(parseFloat(c.monto) || 0)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+        
+        // Table 3: Cuentas por Pagar (En Contra)
+        const payableTbody = document.getElementById('db-debts-payable-table-body');
+        if (payableTbody) {
+            const pagarList = cuentasPendientes.filter(c => c.tipo === 'En Contra');
+            if (pagarList.length === 0) {
+                payableTbody.innerHTML = '<tr><td colspan="2" class="px-4 py-6 text-center text-slate-500 italic">Sin cuentas por pagar</td></tr>';
+            } else {
+                payableTbody.innerHTML = pagarList.sort((a,b) => (parseFloat(b.monto) || 0) - (parseFloat(a.monto) || 0)).map(c => {
+                    const actorName = driverMap[c.actor_nombre] || c.actor_nombre || '---';
+                    return `
+                        <tr class="hover:bg-slate-800/20 transition-colors">
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-white">${actorName}</div>
+                                <div class="text-[10px] text-slate-500">${c.concepto || 'Proveedor/Gasto'} (${c.fecha})</div>
+                            </td>
+                            <td class="px-4 py-3 text-right font-bold text-rose-400">${fmt(parseFloat(c.monto) || 0)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+        
+        // Chart 1: Debts Proportion Doughnut
+        renderChartInstance('debtsTypeChart', 'doughnut', {
+            labels: ['Fletes por Cobrar', 'Anticipos por Recuperar', 'Cuentas por Pagar'],
+            datasets: [{
+                data: [fletesCobrar, anticiposRecuperar, cuentasPagar],
+                backgroundColor: [
+                    'rgba(59, 130, 246, 0.7)',
+                    'rgba(168, 85, 247, 0.7)',
+                    'rgba(244, 63, 94, 0.7)'
+                ],
+                borderWidth: 0
+            }]
+        });
+        
+        // Chart 2: Top Actor Balances (Bar Chart horizontal)
+        const actorBalances = {};
+        
+        // Fletes pendientes (Clientes deben al sistema - Saldo A Favor)
+        fletesPendientes.forEach(v => {
+            const actor = v.cliente || 'Cliente Desconocido';
+            actorBalances[actor] = (actorBalances[actor] || 0) + (parseFloat(v.monto_flete) || 0);
+        });
+        
+        // Anticipos (Choferes deben al sistema - Saldo A Favor) y Cuentas por Pagar (les debemos)
+        cuentasPendientes.forEach(c => {
+            const actor = driverMap[c.actor_nombre] || c.actor_nombre || 'Desconocido';
+            const val = parseFloat(c.monto) || 0;
+            if (c.tipo === 'A Favor') {
+                actorBalances[actor] = (actorBalances[actor] || 0) + val;
+            } else {
+                actorBalances[actor] = (actorBalances[actor] || 0) - val;
+            }
+        });
+        
+        // Convert to array and sort by absolute balance
+        const sortedActors = Object.entries(actorBalances)
+            .sort((a,b) => b[1] - a[1]) // De mayor a menor
+            .slice(0, 10);
+            
+        renderChartInstance('debtsActorChart', 'bar', {
+            indexAxis: 'y',
+            labels: sortedActors.map(a => a[0]),
+            datasets: [{
+                label: 'Saldo Neto (Positivo = Nos deben, Negativo = Debemos)',
+                data: sortedActors.map(a => a[1]),
+                backgroundColor: sortedActors.map(a => a[1] >= 0 ? 'rgba(59, 130, 246, 0.7)' : 'rgba(244, 63, 94, 0.7)'),
+                borderColor: sortedActors.map(a => a[1] >= 0 ? 'rgba(59, 130, 246, 1)' : 'rgba(244, 63, 94, 1)'),
+                borderWidth: 1
+            }]
+        });
+        
+        if (statusEl) {
+            statusEl.innerText = 'Conectado';
+            statusEl.className = 'text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+        
+    } catch (e) {
+        console.error('Error updating debts dashboard:', e);
+        if (statusEl) {
+            statusEl.innerText = 'Error: ' + e.message;
+            statusEl.className = 'text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+    }
+}
+
+window.updateUnitDashboard = updateUnitDashboard;
+window.initUnitDashboard = initUnitDashboard;
+window.initDriverDashboard = initDriverDashboard;
+window.updateDriverDashboard = updateDriverDashboard;
+window.initExpensesDashboard = initExpensesDashboard;
+window.updateExpensesDashboard = updateExpensesDashboard;
+window.initDebtsDashboard = initDebtsDashboard;
+window.updateDebtsDashboard = updateDebtsDashboard;
 
 // --- MOVIMIENTOS POR PERIODO ---
 
@@ -2451,6 +3192,12 @@ async function showSection(sectionId) {
             case 'dashboard':
                 if (currentDashboardTab === 'unit') {
                     updateUnitDashboard();
+                } else if (currentDashboardTab === 'driver') {
+                    updateDriverDashboard();
+                } else if (currentDashboardTab === 'expenses') {
+                    updateExpensesDashboard();
+                } else if (currentDashboardTab === 'debts') {
+                    updateDebtsDashboard();
                 } else {
                     updateDashboardByPeriod();
                 }
