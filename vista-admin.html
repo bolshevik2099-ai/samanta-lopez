@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
@@ -180,6 +180,49 @@
                 padding-top: 3.5rem !important;
                 padding-left: 0.5rem !important;
                 padding-right: 0.5rem !important;
+            }
+        /* Optimización de Scroll Táctil */
+        .overflow-x-auto {
+            touch-action: pan-y;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+        }
+        .overflow-y-auto {
+            touch-action: pan-x;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+        }
+
+        /* Ajustes para dispositivos móviles generales */
+        @media (max-width: 768px) {
+            #modal-content {
+                padding: 1rem !important; /* reducir padding */
+                max-height: 85vh !important;
+            }
+            /* Hacer todo el contenido de los modales más pequeño proporcionalmente */
+            #detail-modal > div,
+            #universal-modal > div {
+                transform: scale(0.9);
+                transform-origin: top center;
+                width: 100% !important;
+            }
+        }
+
+        /* Ajustes especiales para modo horizontal (landscape) móvil */
+        @media (max-height: 500px) and (orientation: landscape) {
+            #modal-content {
+                padding: 0.75rem !important;
+                max-height: 80vh !important;
+            }
+            #detail-modal .bg-slate-900,
+            #universal-modal .bg-slate-900 {
+                max-width: 98vw !important;
+                margin: auto;
+            }
+            #detail-modal > div,
+            #universal-modal > div {
+                transform: scale(0.85); /* Más chico en horizontal */
+                transform-origin: top center;
             }
         }
     </style>
@@ -947,6 +990,21 @@
                                         Recorridos</label>
                                     <input type="number" id="Kmts_Recorridos" readonly
                                         class="w-full px-5 py-3.5 rounded-2xl bg-slate-950/50 border border-white/5 text-amber-500 font-black outline-none cursor-not-allowed">
+                                </div>
+                            </div>
+
+                            <!-- Rendimiento en Vivo y Último -->
+                            <div id="live-yield-container" class="bg-amber-500/10 border border-amber-500/20 p-5 rounded-2xl grid grid-cols-2 md:grid-cols-3 gap-4 items-center animate-in fade-in">
+                                <div>
+                                    <p class="text-[8px] font-black text-amber-500/70 uppercase tracking-widest mb-0.5">Rendimiento Estimado</p>
+                                    <p id="lbl-live-yield" class="text-xl font-black text-amber-500 tracking-tight">- km/L</p>
+                                </div>
+                                <div class="border-l border-white/10 pl-4 flex flex-col justify-center">
+                                    <p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Rendimiento Anterior</p>
+                                    <p id="lbl-last-yield" class="text-xl font-black text-slate-300 tracking-tight">- km/L</p>
+                                </div>
+                                <div class="col-span-2 md:col-span-1 text-[9px] text-slate-400 font-bold text-right border-t md:border-t-0 md:border-l border-white/10 pt-2 md:pt-0 md:pl-4">
+                                    Fórmula: <span class="text-amber-500 font-black">Km Rec / Lts Tracto</span>
                                 </div>
                             </div>
                         </div>
@@ -1886,15 +1944,6 @@
         // Initialize Gasto Form
         const d = new Date();
         document.getElementById('Fecha').value = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-
-        // Calculation logic for Admin Gasto
-        const calcKm = () => {
-            const ant = parseFloat(document.getElementById('Kmts_Anteriores').value) || 0;
-            const act = parseFloat(document.getElementById('Kmts_Actuales').value) || 0;
-            document.getElementById('Kmts_Recorridos').value = act > ant ? (act - ant) : 0;
-        };
-        document.getElementById('Kmts_Anteriores').addEventListener('input', calcKm);
-        document.getElementById('Kmts_Actuales').addEventListener('input', calcKm);
     </script>
     <script>
         function toggleSidebar() {

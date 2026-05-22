@@ -67,6 +67,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isDiesel) {
                 dieselBlock.classList.remove('hidden');
                 dieselInputs.forEach(id => document.getElementById(id)?.setAttribute('required', 'true'));
+                
+                // Actualizar rendimientos inmediatamente al mostrar los campos
+                if (typeof window.updateLiveYield === 'function') {
+                    window.updateLiveYield();
+                }
+                const currentUnit = document.getElementById('ID_Unidad')?.value;
+                if (currentUnit && typeof window.updateLastYieldDisplay === 'function') {
+                    window.updateLastYieldDisplay(currentUnit);
+                }
             } else {
                 dieselBlock.classList.add('hidden');
                 dieselInputs.forEach(id => {
@@ -95,9 +104,41 @@ document.addEventListener('DOMContentLoaded', () => {
             const ant = parseFloat(kmAntInput.value) || 0;
             const act = parseFloat(kmActInput.value) || 0;
             kmRecInput.value = act > ant ? (act - ant) : 0;
+            if (typeof window.updateLiveYield === 'function') {
+                window.updateLiveYield();
+            }
         };
         kmAntInput.addEventListener('input', calcKm);
         kmActInput.addEventListener('input', calcKm);
+    }
+
+    // --- Cálculo de Rendimiento en Vivo al Cambiar Campos ---
+    const updateYieldInputs = [
+        'Kmts_Anteriores', 'Kmts_Actuales', 'Litros_Tracto', 'Litros_Termo',
+        'chk-tracto', 'chk-termo', 'Litros_Rellenados'
+    ];
+    updateYieldInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            const eventName = el.type === 'checkbox' ? 'change' : 'input';
+            el.addEventListener(eventName, () => {
+                if (typeof window.updateLiveYield === 'function') {
+                    window.updateLiveYield();
+                }
+            });
+        }
+    });
+
+    const unitSelect = document.getElementById('ID_Unidad');
+    if (unitSelect) {
+        unitSelect.addEventListener('change', (e) => {
+            if (typeof window.updateLastYieldDisplay === 'function') {
+                window.updateLastYieldDisplay(e.target.value);
+            }
+            if (typeof window.updateLiveYield === 'function') {
+                window.updateLiveYield();
+            }
+        });
     }
 
     // Inicializar Dashboard Nativo por API
@@ -284,7 +325,7 @@ function calculateEntityFuelMetrics(expenses, entityId, entityType) {
     const fuelExpenses = expenses.filter(g => {
         const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
         const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
-        const isFuel = (effectiveVol > 0);
+        const isFuel = (effectiveVol > 0 && g.concepto === 'Diesel');
         // If entityId is provided, double check (though usually pre-filtered)
         const isMatch = entityId ? (entityType === 'choferes' ? g.id_chofer === entityId : (g.id_unidad === entityId || g.id_unit_eco === entityId)) : true;
         return isFuel && isMatch;
@@ -379,13 +420,9 @@ async function renderDriverDetail(id) {
                             <p class="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Comisiones</p>
                             <p class="text-3xl font-black text-white tracking-tighter">$${totalEarned.toLocaleString()}</p>
                         </div>
-                        <div class="bg-amber-600/10 p-6 rounded-3xl border border-amber-500/10 flex flex-col justify-center">
-                            <p class="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1">Rend. Ãšltimo</p>
+                        <div class="bg-amber-600/10 p-6 rounded-3xl border border-amber-500/10 flex flex-col justify-center col-span-2">
+                            <p class="text-[9px] font-black text-amber-500 uppercase tracking-widest mb-1">Rend. Último</p>
                             <p class="text-2xl font-black text-amber-400 tracking-tighter">${lastYield.toFixed(2)} <span class="text-xs">km/l</span></p>
-                        </div>
-                         <div class="bg-blue-600/10 p-6 rounded-3xl border border-blue-500/10 flex flex-col justify-center">
-                            <p class="text-[9px] font-black text-blue-400 uppercase tracking-widest mb-1">Rend. Promedio</p>
-                            <p class="text-2xl font-black text-blue-400 tracking-tighter">${avgYield.toFixed(2)} <span class="text-xs">km/l</span></p>
                         </div>
                     </div>
                 </div>
@@ -526,6 +563,31 @@ async function renderUnitDetail(id) {
         const expenses = expensesReq.data || [];
         const totalExpenses = expenses.reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0);
 
+        // Pre-calculate individual yields and liters display for the log
+        expenses.forEach(e => {
+            if (e.concepto === 'Diesel') {
+                const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
+                const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
+                if (effectiveVol > 0 && parseFloat(e.kmts_recorridos) > 0) {
+                    e._calculatedYield = parseFloat(e.kmts_recorridos) / effectiveVol;
+                } else {
+                    e._calculatedYield = null;
+                }
+
+                if (tractoSupport) {
+                    const parts = [];
+                    if (parseFloat(e.litros_tracto) > 0) parts.push(`${parseFloat(e.litros_tracto)} LT (Tracto)`);
+                    if (parseFloat(e.litros_termo) > 0) parts.push(`${parseFloat(e.litros_termo)} LT (Termo)`);
+                    e._litrosDisplay = parts.join(' + ');
+                } else {
+                    e._litrosDisplay = parseFloat(e.litros_rellenados) > 0 ? `${parseFloat(e.litros_rellenados)} LT` : null;
+                }
+            } else {
+                e._calculatedYield = null;
+                e._litrosDisplay = null;
+            }
+        });
+
         // Calculate Efficiency
         const metrics = calculateEntityFuelMetrics(expenses, id, 'unidades');
         const lastYield = metrics.last;
@@ -555,15 +617,9 @@ async function renderUnitDetail(id) {
                                 <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Inversión Reciente</p>
                                 <p class="text-2xl font-black text-red-500 tracking-tighter">$${totalExpenses.toLocaleString()}</p>
                              </div>
-                             <div class="bg-white/5 p-5 rounded-3xl border border-white/5 grid grid-cols-2 gap-4">
-                                <div>
-                                    <p class="text-[8px] font-black text-amber-500/70 uppercase tracking-widest mb-1">Ãšltimo Rend.</p>
-                                    <p class="text-lg font-black text-amber-500 tracking-tighter">${lastYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
-                                </div>
-                                <div class="border-l border-white/5 pl-4">
-                                    <p class="text-[8px] font-black text-blue-500/70 uppercase tracking-widest mb-1">Promedio</p>
-                                    <p class="text-lg font-black text-blue-500 tracking-tighter">${avgYield.toFixed(2)} <span class="text-[10px]">km/l</span></p>
-                                </div>
+                             <div class="bg-white/5 p-5 rounded-3xl border border-white/5">
+                                 <p class="text-[9px] font-black text-amber-500/70 uppercase tracking-widest mb-1">Último Rend.</p>
+                                 <p class="text-2xl font-black text-amber-500 tracking-tighter">${lastYield.toFixed(2)} <span class="text-xs">km/l</span></p>
                              </div>
                         </div>
                     </div>
@@ -599,7 +655,7 @@ async function renderUnitDetail(id) {
                                         <td class="px-6 py-4 text-center">
                                             <div class="text-[10px] text-slate-500 font-medium">
                                                 ${e.kmts_actuales ? `<span>${e.kmts_actuales} KM</span>` : ''}
-                                                ${e.litros ? `<span class="mx-2 text-slate-700">|</span> <span>${e.litros} LT</span>` : ''}
+                                                ${e._litrosDisplay ? `<span class="mx-2 text-slate-700">|</span> <span>${e._litrosDisplay}</span>` : ''}
                                             </div>
                                         </td>
                                         <td class="px-6 py-4 text-right font-black text-amber-500 text-xs">
@@ -890,6 +946,19 @@ async function updateDashboardByPeriod() {
         safeSetText('period-ganancia', fmt(totalGanancia));
         safeSetText('period-viajes-count', viajes.length);
         safeSetText('period-label', `Periodo: ${start} al ${end}`);
+
+        // Rendimiento de la flota del periodo
+        const fleetFuelExpenses = gastos.filter(g => {
+            const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+            const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+            return effectiveVol > 0 && g.id_unidad && g.concepto === 'Diesel';
+        });
+        const { fleetAvg } = calculateFleetEfficiency(fleetFuelExpenses);
+        const rendText = fleetAvg > 0 ? `${fleetAvg.toFixed(2)}` : '--';
+        const rendEl = document.getElementById('period-rendimiento');
+        if (rendEl) {
+            rendEl.innerHTML = `${rendText} <span class="text-sm font-bold text-slate-600">km/l</span>`;
+        }
 
         // Renderizar Tabla y Gráfico Principal
         renderPeriodTable(viajes, gastos);
@@ -1364,7 +1433,11 @@ function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
     });
 
     // 4. Eficiencia de Combustible (Yield)
-    const fuelExpenses = gastosData.filter(g => parseFloat(g.litros_rellenados) > 0 && g.id_unidad);
+    const fuelExpenses = gastosData.filter(g => {
+        const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+        const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+        return g.concepto === 'Diesel' && effectiveVol > 0 && g.id_unidad;
+    });
     const { unitYields } = calculateFleetEfficiency(fuelExpenses);
 
     const sortedYields = Object.entries(unitYields)
@@ -1390,7 +1463,11 @@ function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
     });
 
     // 5. Best & Worst Drivers (Yield)
-    const driverFuelExpenses = gastosData.filter(g => parseFloat(g.litros_rellenados) > 0 && g.id_chofer);
+    const driverFuelExpenses = gastosData.filter(g => {
+        const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+        const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+        return g.concepto === 'Diesel' && effectiveVol > 0 && g.id_chofer;
+    });
     const { driverYields } = calculateDriverEfficiency(driverFuelExpenses);
 
     const allDrivers = Object.entries(driverYields);
@@ -1431,9 +1508,13 @@ function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
 function calculateFleetEfficiency(expenses) {
     const unitGroups = {};
     expenses.forEach(e => {
-        if (!unitGroups[e.id_unidad]) unitGroups[e.id_unidad] = { km: 0, lts: 0 };
-        unitGroups[e.id_unidad].km += (parseFloat(e.kmts_recorridos) || 0);
-        unitGroups[e.id_unidad].lts += (parseFloat(e.litros_rellenados) || 0);
+        const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
+        const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
+        if (effectiveVol > 0) {
+            if (!unitGroups[e.id_unidad]) unitGroups[e.id_unidad] = { km: 0, lts: 0 };
+            unitGroups[e.id_unidad].km += (parseFloat(e.kmts_recorridos) || 0);
+            unitGroups[e.id_unidad].lts += effectiveVol;
+        }
     });
 
     const unitYields = {};
@@ -1467,10 +1548,14 @@ function calculateDriverEfficiency(expenses) {
     // Based on previous code, 'id_chofer' in expenses seems to be the stored value (name or ID).
 
     expenses.forEach(e => {
-        const id = e.id_chofer;
-        if (!driverGroups[id]) driverGroups[id] = { km: 0, lts: 0 };
-        driverGroups[id].km += (parseFloat(e.kmts_recorridos) || 0);
-        driverGroups[id].lts += (parseFloat(e.litros_rellenados) || 0);
+        const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
+        const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
+        if (effectiveVol > 0) {
+            const id = e.id_chofer;
+            if (!driverGroups[id]) driverGroups[id] = { km: 0, lts: 0 };
+            driverGroups[id].km += (parseFloat(e.kmts_recorridos) || 0);
+            driverGroups[id].lts += effectiveVol;
+        }
     });
 
     const driverYields = {};
@@ -1729,6 +1814,9 @@ function registerExpenseFromTrip(tripId, unitId, driverId) {
     // Pre-llenar datos
     document.getElementById('ID_Viaje').value = tripId;
     document.getElementById('ID_Unidad').value = unitId;
+    if (typeof window.updateLastYieldDisplay === 'function') {
+        window.updateLastYieldDisplay(unitId);
+    }
 
     // Seleccionar chofer si existe en la lista y no es null
     const choferSelect = document.getElementById('ID_Chofer');
@@ -1810,6 +1898,9 @@ function editExpense(id) {
     document.getElementById('Fecha').value = expense.fecha;
     document.getElementById('ID_Viaje').value = expense.id_viaje;
     document.getElementById('ID_Unidad').value = expense.id_unidad;
+    if (typeof window.updateLastYieldDisplay === 'function') {
+        window.updateLastYieldDisplay(expense.id_unidad);
+    }
     if (document.getElementById('ID_Chofer')) document.getElementById('ID_Chofer').value = expense.id_chofer || '';
     document.getElementById('Concepto').value = expense.concepto;
     document.getElementById('Monto').value = expense.monto;
@@ -1826,6 +1917,10 @@ function editExpense(id) {
     document.getElementById('Kmts_Anteriores').value = expense.kmts_anteriores;
     document.getElementById('Kmts_Actuales').value = expense.kmts_actuales;
     document.getElementById('Kmts_Recorridos').value = expense.kmts_recorridos;
+
+    if (typeof window.updateLiveYield === 'function') {
+        window.updateLiveYield();
+    }
 
     // Handle Forma Pago and Acreedor
     const formaPagoSelect = document.getElementById('Exp_Forma_Pago');
@@ -2018,6 +2113,20 @@ function toggleSectionView(section, view) {
     if (view === 'form' && section === 'tesoreria') {
         document.getElementById('account-form')?.reset();
     }
+    if (view === 'form' && section === 'gastos') {
+        const form = document.getElementById('gasto-form');
+        if (form) {
+            form.reset();
+            isEditingExpense = false;
+            editingExpenseId = null;
+            const btn = form.querySelector('button[type="submit"]');
+            if (btn) btn.innerText = 'Registrar Gasto';
+        }
+        const lblLive = document.getElementById('lbl-live-yield');
+        if (lblLive) lblLive.innerText = '- km/L';
+        const lblLast = document.getElementById('lbl-last-yield');
+        if (lblLast) lblLast.innerText = '- km/L';
+    }
 }
 
 async function loadTripsList() {
@@ -2209,7 +2318,7 @@ function renderCatalogTable(type, data, expenses = [], crossRef = []) {
 
     const config = {
         'choferes': {
-            headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada', 'Rendimiento (Último / Promedio)'],
+            headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada', 'Rendimiento (Último)'],
             row: d => {
                 const metrics = calculateFuelMetrics(d.id_chofer, 'choferes', expenses);
                 const unit = crossRef.find(u => u.id_unidad === d.id_unidad);
@@ -2219,14 +2328,11 @@ function renderCatalogTable(type, data, expenses = [], crossRef = []) {
                        <td class="px-6 py-4 font-bold text-slate-200 text-xs">${d.nombre}</td>
                        <td class="px-6 py-4 text-slate-400 text-[11px] font-medium">${d.licencia || '-'}</td>
                        <td class="px-6 py-4 text-blue-400 font-black text-xs">${unitDisplay}</td>
-                       <td class="px-6 py-4">
-                           <div class="text-[10px] font-black text-amber-500">Últ: ${metrics.last}</div>
-                           <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Prom: ${metrics.avg}</div>
-                       </td>`;
+                       <td class="px-6 py-4 font-black text-amber-500 text-xs">${metrics.last}</td>`;
             }
         },
         'unidades': {
-            headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado', 'Rendimiento (Último / Promedio)'],
+            headers: ['ID', 'Unidad', 'Placas', 'Chofer Asignado', 'Rendimiento (Último)'],
             row: d => {
                 const id = d.id_unidad; // Use ECO ID usually
                 const metrics = calculateFuelMetrics(id, 'unidades', expenses);
@@ -2237,10 +2343,7 @@ function renderCatalogTable(type, data, expenses = [], crossRef = []) {
                        <td class="px-6 py-4 font-bold text-slate-200 text-xs">${d.nombre_unidad}</td>
                        <td class="px-6 py-4 text-slate-400 text-[11px] font-medium">${d.placas || '-'}</td>
                        <td class="px-6 py-4 text-emerald-400 font-black text-xs">${driverDisplay}</td>
-                       <td class="px-6 py-4">
-                           <div class="text-[10px] font-black text-amber-500">Últ: ${metrics.last}</div>
-                           <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Prom: ${metrics.avg}</div>
-                       </td>`;
+                       <td class="px-6 py-4 font-black text-amber-500 text-xs">${metrics.last}</td>`;
             }
         },
         'clientes': {
@@ -2410,6 +2513,94 @@ window.calcLitrosTotales = function () {
 
     const el = document.getElementById('Litros_Rellenados');
     if (el) el.value = sum > 0 ? sum.toFixed(1) : '';
+
+    if (typeof window.updateLiveYield === 'function') {
+        window.updateLiveYield();
+    }
+};
+
+window.updateLiveYield = function () {
+    const kmRecInput = document.getElementById('Kmts_Recorridos');
+    const t = parseFloat(document.getElementById('Litros_Tracto')?.value) || 0;
+    const r = parseFloat(document.getElementById('Litros_Termo')?.value) || 0;
+    const chkTracto = document.getElementById('chk-tracto')?.checked;
+    const chkTermo = document.getElementById('chk-termo')?.checked;
+    const litrosRellenados = parseFloat(document.getElementById('Litros_Rellenados')?.value) || 0;
+
+    const kmRec = parseFloat(kmRecInput?.value) || 0;
+    const lbl = document.getElementById('lbl-live-yield');
+    if (!lbl) return;
+
+    // Determinamos volumen efectivo
+    let effectiveVol = 0;
+    let onlyTermo = false;
+
+    if (chkTracto || chkTermo) {
+        if (chkTracto) {
+            effectiveVol = t;
+        } else {
+            // Solo termo
+            onlyTermo = true;
+        }
+    } else {
+        effectiveVol = litrosRellenados;
+    }
+
+    if (onlyTermo) {
+        lbl.innerHTML = `<span class="text-xs text-amber-400 font-bold uppercase">N/A (Solo Termo)</span>`;
+    } else if (effectiveVol > 0 && kmRec > 0) {
+        const yieldVal = kmRec / effectiveVol;
+        lbl.innerText = `${yieldVal.toFixed(2)} km/L`;
+    } else {
+        lbl.innerText = `- km/L`;
+    }
+};
+
+
+window.updateLastYieldDisplay = async function (unitId) {
+    const lbl = document.getElementById('lbl-last-yield');
+    if (!lbl) return;
+
+    if (!unitId) {
+        lbl.innerText = '- km/L';
+        return;
+    }
+
+    lbl.innerText = 'Cargando...';
+
+    try {
+        const { data, error } = await window.supabaseClient
+            .from(DB_CONFIG.tableGastos)
+            .select('kmts_recorridos, litros_tracto, litros_rellenados, litros_termo, concepto')
+            .eq('id_unidad', unitId)
+            .eq('concepto', 'Diesel')
+            .order('fecha', { ascending: false })
+            .limit(10);
+
+        if (error) throw error;
+
+        let lastYield = null;
+        if (data && data.length > 0) {
+            for (const g of data) {
+                const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+                const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+                const km = parseFloat(g.kmts_recorridos) || 0;
+                if (effectiveVol > 0 && km > 0) {
+                    lastYield = km / effectiveVol;
+                    break;
+                }
+            }
+        }
+
+        if (lastYield !== null) {
+            lbl.innerText = `${lastYield.toFixed(2)} km/L`;
+        } else {
+            lbl.innerText = 'N/A';
+        }
+    } catch (err) {
+        console.error('Error fetching last yield:', err);
+        lbl.innerText = 'Error';
+    }
 };
 
 
@@ -4573,6 +4764,13 @@ async function showUnitMaintDetail(id_unidad) {
         const restante = limiteKm - recorrido;
         const isUrgent = recorrido >= limiteKm;
 
+        let recorridoColorClass = 'text-green-400';
+        if (recorrido >= 25000) {
+            recorridoColorClass = 'text-red-500 animate-pulse';
+        } else if (recorrido >= 15000) {
+            recorridoColorClass = 'text-yellow-400';
+        }
+
         const lastChangeDate = u.ultimo_cambio_aceite_fecha || 'No registrada';
 
         // Filtrar viajes realizados desde la fecha del último cambio de aceite
@@ -4607,7 +4805,7 @@ async function showUnitMaintDetail(id_unidad) {
                     <!-- Tarjeta Recorrido -->
                     <div class="bg-slate-950/40 p-5 rounded-2xl border border-white/5 flex flex-col justify-between">
                         <span class="text-[9px] text-slate-500 uppercase font-black tracking-widest font-mono">Distancia Recorrida</span>
-                        <div class="text-xl font-bold ${isUrgent ? 'text-red-400 animate-pulse' : 'text-green-400'} mt-1">${recorrido.toLocaleString()} km</div>
+                        <div class="text-xl font-bold ${recorridoColorClass} mt-1">${recorrido.toLocaleString()} km</div>
                         <span class="text-[9px] text-slate-400 mt-1">Kilómetros acumulados</span>
                     </div>
 
