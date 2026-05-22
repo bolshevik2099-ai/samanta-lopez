@@ -3379,10 +3379,10 @@ function editExpense(id) {
 
     if (!expense) return;
 
+    toggleSectionView('gastos', 'form');
+
     isEditingExpense = true;
     editingExpenseId = id;
-
-    toggleSectionView('gastos', 'form');
 
     document.getElementById('ID_Gasto').value = expense.id_gasto;
     document.getElementById('Fecha').value = expense.fecha;
