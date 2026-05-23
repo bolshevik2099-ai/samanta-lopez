@@ -1128,7 +1128,7 @@ let debtsDashboardInitialized = false;
 window.switchDashboardTab = function(tab) {
     currentDashboardTab = tab;
     
-    const tabs = ['general', 'unit', 'driver', 'expenses', 'debts'];
+    const tabs = ['general', 'unit', 'driver', 'expenses', 'debts', 'summary'];
     
     tabs.forEach(t => {
         const btn = document.getElementById('tab-db-' + t);
@@ -1161,8 +1161,310 @@ window.switchDashboardTab = function(tab) {
         initExpensesDashboard();
     } else if (tab === 'debts') {
         initDebtsDashboard();
+    } else if (tab === 'summary') {
+        initDailySummaryDashboard();
     }
 };
+
+let dailySummaryInitialized = false;
+let dailySummaryTrips = [];
+let dailySummaryExpenses = [];
+
+async function initDailySummaryDashboard() {
+    const dateInput = document.getElementById('db-summary-date');
+    if (!dateInput) return;
+
+    if (!dateInput.value) {
+        dateInput.value = getLocalISODate();
+    }
+
+    if (!dailySummaryInitialized) {
+        dailySummaryInitialized = true;
+    }
+
+    updateDailySummary();
+}
+
+async function updateDailySummary() {
+    const dateInput = document.getElementById('db-summary-date');
+    if (!dateInput) return;
+
+    const dateStr = dateInput.value;
+    if (!dateStr) return;
+
+    // Set printable titles
+    const printTitle = document.getElementById('print-summary-date-title');
+    if (printTitle) printTitle.innerText = `Fecha: ${dateStr}`;
+    const printTime = document.getElementById('print-generation-time');
+    if (printTime) printTime.innerText = new Date().toLocaleString('es-MX');
+
+    const statusEl = document.getElementById('conn-status');
+    if (statusEl) {
+        statusEl.innerText = 'Cargando Resumen...';
+        statusEl.className = 'text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest animate-pulse';
+    }
+
+    try {
+        // Generate formatting variations for dates stored in db
+        const parts = dateStr.split('-'); // [YYYY, MM, DD]
+        const yyyy = parts[0];
+        const mm = parts[1];
+        const dd = parts[2];
+        const dateSlash1 = `${dd}/${mm}/${yyyy}`; // DD/MM/YYYY
+        const dateSlash2 = `${mm}/${dd}/${yyyy}`; // MM/DD/YYYY
+
+        const dateQueries = [dateStr, dateSlash1, dateSlash2];
+
+        const [tripsRaw, expensesRaw] = await Promise.all([
+            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').in('fecha', dateQueries),
+            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').in('fecha', dateQueries)
+        ]);
+
+        if (tripsRaw.error) throw tripsRaw.error;
+        if (expensesRaw.error) throw expensesRaw.error;
+
+        const viajes = tripsRaw.data || [];
+        const gastos = expensesRaw.data || [];
+
+        dailySummaryTrips = viajes;
+        dailySummaryExpenses = gastos;
+
+        // Aggregate KPIs
+        const totalRevenue = viajes.reduce((sum, v) => sum + (parseFloat(v.monto_flete) || 0), 0);
+        const totalExpenses = gastos.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+        const totalComisiones = viajes.reduce((sum, v) => sum + (parseFloat(v.comision_chofer) || 0), 0);
+        const netProfit = totalRevenue - totalExpenses - totalComisiones;
+
+        const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+
+        safeSetText('db-summary-total-revenue', fmt(totalRevenue));
+        safeSetText('db-summary-total-expenses', fmt(totalExpenses));
+        safeSetText('db-summary-total-comisiones', fmt(totalComisiones));
+        
+        const profitEl = document.getElementById('db-summary-net-profit');
+        if (profitEl) {
+            profitEl.innerText = fmt(netProfit);
+            if (netProfit >= 0) {
+                profitEl.className = 'text-2xl font-black text-emerald-400';
+            } else {
+                profitEl.className = 'text-2xl font-black text-rose-400';
+            }
+        }
+
+        // Diesel Breakdown
+        let dieselLiters = 0;
+        let dieselCost = 0;
+        let dieselKm = 0;
+
+        gastos.forEach(g => {
+            if (g.concepto === 'Diesel') {
+                const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+                const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+                dieselLiters += effectiveVol;
+                dieselCost += parseFloat(g.monto) || 0;
+                dieselKm += parseFloat(g.kmts_recorridos) || 0;
+            }
+        });
+
+        const avgYield = (dieselLiters > 0 && dieselKm > 0) ? (dieselKm / dieselLiters) : 0;
+
+        safeSetText('db-summary-diesel-liters', `${dieselLiters.toFixed(1)} L`);
+        safeSetText('db-summary-diesel-cost', fmt(dieselCost));
+        safeSetText('db-summary-diesel-yield', avgYield > 0 ? `${avgYield.toFixed(2)} km/L` : '-- km/L');
+
+        // Render Tables
+        await ensureGlobalMapsLoaded();
+
+        const tripsTbody = document.getElementById('db-summary-trips-table-body');
+        if (tripsTbody) {
+            if (viajes.length === 0) {
+                tripsTbody.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500 italic">No hay viajes registrados en este día</td></tr>';
+            } else {
+                tripsTbody.innerHTML = viajes.map(v => {
+                    const choferName = globalDriverMap[v.id_chofer] || v.id_chofer || 'No asignado';
+                    return `
+                        <tr class="hover:bg-slate-800/20 transition-colors">
+                            <td class="px-4 py-3">
+                                <div class="font-mono font-bold text-white">${v.id_viaje}</div>
+                                <div class="text-[10px] text-slate-400">${choferName}</div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-slate-200">ECO: ${v.id_unidad}</div>
+                                <div class="text-[10px] text-slate-400 truncate max-w-[180px]">${v.origen} ➔ ${v.destino}</div>
+                            </td>
+                            <td class="px-4 py-3 text-right font-bold text-blue-400">${fmt(parseFloat(v.monto_flete) || 0)}</td>
+                            <td class="px-4 py-3 text-center no-print">
+                                <button onclick="showDetailModal('viajes', '${v.id_viaje}')" class="text-slate-400 hover:text-blue-400 p-1 cursor-pointer transition-all" title="Ver Detalle">
+                                    <i class="fas fa-eye text-[11px]"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        const expensesTbody = document.getElementById('db-summary-expenses-table-body');
+        if (expensesTbody) {
+            if (gastos.length === 0) {
+                expensesTbody.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500 italic">No hay gastos registrados en este día</td></tr>';
+            } else {
+                expensesTbody.innerHTML = gastos.map(g => {
+                    return `
+                        <tr class="hover:bg-slate-800/20 transition-colors">
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-white">${g.concepto}</div>
+                                <div class="font-mono text-[9px] text-slate-400">${g.id_gasto}</div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-slate-200">ECO: ${g.id_unidad}</div>
+                                <div class="text-[10px] text-slate-400 truncate max-w-[180px]">${g.id_viaje ? `Viaje: ${g.id_viaje}` : 'Gasto General'}</div>
+                            </td>
+                            <td class="px-4 py-3 text-right font-bold text-red-400">${fmt(parseFloat(g.monto) || 0)}</td>
+                            <td class="px-4 py-3 text-center no-print">
+                                <button onclick="showDetailModal('gastos', '${g.id_gasto}')" class="text-slate-400 hover:text-red-400 p-1 cursor-pointer transition-all" title="Ver Detalle">
+                                    <i class="fas fa-eye text-[11px]"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        if (statusEl) {
+            statusEl.innerText = 'Conectado';
+            statusEl.className = 'text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+
+    } catch (e) {
+        console.error('Error updating daily summary:', e);
+        if (statusEl) {
+            statusEl.innerText = 'Error: ' + e.message;
+            statusEl.className = 'text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+    }
+}
+
+function printDailySummary() {
+    window.print();
+}
+
+function copyDailySummaryToClipboard() {
+    const dateInput = document.getElementById('db-summary-date');
+    if (!dateInput || !dateInput.value) return;
+
+    const dateStr = dateInput.value;
+    const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+
+    const totalRevenue = dailySummaryTrips.reduce((sum, v) => sum + (parseFloat(v.monto_flete) || 0), 0);
+    const totalExpenses = dailySummaryExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+    const totalComisiones = dailySummaryTrips.reduce((sum, v) => sum + (parseFloat(v.comision_chofer) || 0), 0);
+    const netProfit = totalRevenue - totalExpenses - totalComisiones;
+
+    let dieselLiters = 0;
+    let dieselCost = 0;
+    dailySummaryExpenses.forEach(g => {
+        if (g.concepto === 'Diesel') {
+            const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+            const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+            dieselLiters += effectiveVol;
+            dieselCost += parseFloat(g.monto) || 0;
+        }
+    });
+
+    let text = `*📋 RESUMEN DIARIO PROCESA-T*\n`;
+    text += `*📅 Fecha:* ${dateStr}\n`;
+    text += `------------------------------------\n\n`;
+    
+    text += `🚚 *Viajes del Día:* ${dailySummaryTrips.length}\n`;
+    text += `💰 *Ingresos (Fletes):* ${fmt(totalRevenue)}\n`;
+    text += `💸 *Gastos Operativos:* ${fmt(totalExpenses)}\n`;
+    text += `👤 *Comisiones Chofer:* ${fmt(totalComisiones)}\n`;
+    text += `📈 *Utilidad Neta:* ${fmt(netProfit)}\n\n`;
+
+    if (dieselLiters > 0) {
+        text += `⛽ *Consumo Diésel:*\n`;
+        text += `• Litros Totales: ${dieselLiters.toFixed(1)} L\n`;
+        text += `• Costo Diésel: ${fmt(dieselCost)}\n\n`;
+    }
+
+    if (dailySummaryTrips.length > 0) {
+        text += `⚓ *Detalle de Viajes:*\n`;
+        dailySummaryTrips.forEach((v, idx) => {
+            const choferName = globalDriverMap[v.id_chofer] || v.id_chofer || 'Sin chofer';
+            text += `${idx + 1}. *${v.id_viaje}* (ECO ${v.id_unidad}) - ${choferName}\n   Ruta: ${v.origen} ➔ ${v.destino}\n   Flete: ${fmt(parseFloat(v.monto_flete) || 0)}\n`;
+        });
+        text += `\n`;
+    }
+
+    if (dailySummaryExpenses.length > 0) {
+        text += `💵 *Detalle de Gastos:*\n`;
+        dailySummaryExpenses.forEach((g, idx) => {
+            text += `${idx + 1}. *${g.concepto}* (ECO ${g.id_unidad}) - ${fmt(parseFloat(g.monto) || 0)}\n`;
+        });
+        text += `\n`;
+    }
+
+    text += `_Generado automáticamente desde Procesa-T Admin Panel_`;
+
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Resumen copiado al portapapeles. Listo para pegar en WhatsApp.');
+    }).catch(err => {
+        console.error('Error copying text to clipboard:', err);
+        alert('No se pudo copiar automáticamente. Copia este texto:\n\n' + text);
+    });
+}
+
+function exportDailySummaryToCSV() {
+    const dateInput = document.getElementById('db-summary-date');
+    if (!dateInput || !dateInput.value) return;
+
+    const dateStr = dateInput.value;
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += `RESUMEN DIARIO PROCESA-T;Fecha: ${dateStr}\n\n`;
+
+    const totalRevenue = dailySummaryTrips.reduce((sum, v) => sum + (parseFloat(v.monto_flete) || 0), 0);
+    const totalExpenses = dailySummaryExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+    const totalComisiones = dailySummaryTrips.reduce((sum, v) => sum + (parseFloat(v.comision_chofer) || 0), 0);
+    const netProfit = totalRevenue - totalExpenses - totalComisiones;
+
+    csvContent += "CONSOLIDADO OPERATIVO\n";
+    csvContent += `Viajes del Dia;${dailySummaryTrips.length}\n`;
+    csvContent += `Ingresos Fletes;${totalRevenue}\n`;
+    csvContent += `Gastos del Dia;${totalExpenses}\n`;
+    csvContent += `Comisiones Chofer;${totalComisiones}\n`;
+    csvContent += `Utilidad Neta;${netProfit}\n\n`;
+
+    csvContent += "DETALLE DE VIAJES\n";
+    csvContent += "ID Viaje;Chofer;Unidad;Origen;Destino;Monto Flete;Comision Chofer;Estatus Viaje\n";
+    dailySummaryTrips.forEach(v => {
+        const choferName = globalDriverMap[v.id_chofer] || v.id_chofer || 'No asignado';
+        csvContent += `"${v.id_viaje}";"${choferName}";"${v.id_unidad}";"${v.origen}";"${v.destino}";${v.monto_flete};${v.comision_chofer};"${v.estatus_viaje}"\n`;
+    });
+    csvContent += "\n";
+
+    csvContent += "DETALLE DE GASTOS\n";
+    csvContent += "ID Gasto;Concepto;Unidad;Monto;Viaje Referencia;Forma Pago;Estatus Pago\n";
+    dailySummaryExpenses.forEach(g => {
+        csvContent += `"${g.id_gasto}";"${g.concepto}";"${g.id_unidad}";${g.monto};"${g.id_viaje || ''}";"${g.forma_pago || ''}";"${g.estatus_pago || ''}"\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `resumen_diario_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+window.initDailySummaryDashboard = initDailySummaryDashboard;
+window.updateDailySummary = updateDailySummary;
+window.printDailySummary = printDailySummary;
+window.copyDailySummaryToClipboard = copyDailySummaryToClipboard;
+window.exportDailySummaryToCSV = exportDailySummaryToCSV;
 
 async function initUnitDashboard() {
     const startInput = document.getElementById('db-unit-start');
