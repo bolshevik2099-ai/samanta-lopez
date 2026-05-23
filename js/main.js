@@ -1205,19 +1205,9 @@ async function updateDailySummary() {
     }
 
     try {
-        // Generate formatting variations for dates stored in db
-        const parts = dateStr.split('-'); // [YYYY, MM, DD]
-        const yyyy = parts[0];
-        const mm = parts[1];
-        const dd = parts[2];
-        const dateSlash1 = `${dd}/${mm}/${yyyy}`; // DD/MM/YYYY
-        const dateSlash2 = `${mm}/${dd}/${yyyy}`; // MM/DD/YYYY
-
-        const dateQueries = [dateStr, dateSlash1, dateSlash2];
-
         const [tripsRaw, expensesRaw] = await Promise.all([
-            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').in('fecha', dateQueries),
-            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').in('fecha', dateQueries)
+            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('fecha', dateStr),
+            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('fecha', dateStr)
         ]);
 
         if (tripsRaw.error) throw tripsRaw.error;
