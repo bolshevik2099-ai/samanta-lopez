@@ -248,7 +248,7 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-xl font-bold flex items-center gap-2">
                     <i class="fas fa-shield-alt text-blue-400"></i>
-                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.28</span>
+                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.29</span>
                 </h1>
                 <!-- Close Button: visible en portrait y landscape -->
                 <button onclick="toggleSidebar()" class="sidebar-close-btn text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-all">
@@ -1230,9 +1230,9 @@
                         </div>
                         <button onclick="printDailySummary()" 
                             class="px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2 cursor-pointer">
-                            <i class="fas fa-print"></i> Imprimir Reporte
+                            <i class="fas fa-file-pdf"></i> Descargar PDF / Imprimir
                         </button>
-                        <button onclick="copyDailySummaryToClipboard()" 
+                        <button onclick="shareDailySummaryOnWhatsApp()" 
                             class="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer">
                             <i class="fab fa-whatsapp"></i> Compartir WhatsApp
                         </button>
@@ -2780,11 +2780,11 @@
         </div>
     </div>
 
-    <script src="./js/config.js?v=15.28"></script>
+    <script src="./js/config.js?v=15.29"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=15.28"></script>
-    <script src="./js/auth.js?v=15.28"></script>
-    <script src="./js/main.js?v=15.28"></script>
+    <script src="./js/supabase-client.js?v=15.29"></script>
+    <script src="./js/auth.js?v=15.29"></script>
+    <script src="./js/main.js?v=15.29"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>

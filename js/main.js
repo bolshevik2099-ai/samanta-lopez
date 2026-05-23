@@ -1340,7 +1340,7 @@ function printDailySummary() {
     window.print();
 }
 
-function copyDailySummaryToClipboard() {
+function shareDailySummaryOnWhatsApp() {
     const dateInput = document.getElementById('db-summary-date');
     if (!dateInput || !dateInput.value) return;
 
@@ -1399,10 +1399,13 @@ function copyDailySummaryToClipboard() {
     text += `_Generado automáticamente desde Procesa-T Admin Panel_`;
 
     navigator.clipboard.writeText(text).then(() => {
-        alert('Resumen copiado al portapapeles. Listo para pegar en WhatsApp.');
+        // Redirigir a WhatsApp directamente
+        const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+        window.open(waUrl, '_blank');
     }).catch(err => {
         console.error('Error copying text to clipboard:', err);
-        alert('No se pudo copiar automáticamente. Copia este texto:\n\n' + text);
+        const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+        window.open(waUrl, '_blank');
     });
 }
 
@@ -1453,7 +1456,7 @@ function exportDailySummaryToCSV() {
 window.initDailySummaryDashboard = initDailySummaryDashboard;
 window.updateDailySummary = updateDailySummary;
 window.printDailySummary = printDailySummary;
-window.copyDailySummaryToClipboard = copyDailySummaryToClipboard;
+window.shareDailySummaryOnWhatsApp = shareDailySummaryOnWhatsApp;
 window.exportDailySummaryToCSV = exportDailySummaryToCSV;
 
 async function initUnitDashboard() {
