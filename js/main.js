@@ -948,7 +948,10 @@ async function updateDashboardByPeriod() {
         });
 
         const viajes = filterByDate(viajesRaw, start, end);
-        const gastos = filterByDate(gastosRaw, start, end);
+        const gastos = filterByDate(gastosRaw, start, end).filter(g => {
+            const c = (g.concepto || '').toLowerCase();
+            return c !== 'comisión chofer' && c !== 'comision chofer';
+        });
 
         console.log('Viajes filtrados:', viajes.length);
         console.log('Gastos filtrados:', gastos.length);
@@ -1214,7 +1217,10 @@ async function updateDailySummary() {
         if (expensesRaw.error) throw expensesRaw.error;
 
         const viajes = tripsRaw.data || [];
-        const gastos = expensesRaw.data || [];
+        const gastos = (expensesRaw.data || []).filter(g => {
+            const c = (g.concepto || '').toLowerCase();
+            return c !== 'comisión chofer' && c !== 'comision chofer';
+        });
 
         dailySummaryTrips = viajes;
         dailySummaryExpenses = gastos;
@@ -1557,7 +1563,10 @@ async function updateUnitDashboard() {
         });
         
         const viajes = filterByDate(tripsData, start, end);
-        const gastos = filterByDate(expensesData, start, end);
+        const gastos = filterByDate(expensesData, start, end).filter(g => {
+            const c = (g.concepto || '').toLowerCase();
+            return c !== 'comisión chofer' && c !== 'comision chofer';
+        });
         
         currentUnitTrips = viajes;
         currentUnitExpenses = gastos;
@@ -2213,7 +2222,10 @@ async function updateDriverDashboard() {
         });
         
         const viajes = filterByDate(tripsData, start, end);
-        const gastos = filterByDate(expensesData, start, end);
+        const gastos = filterByDate(expensesData, start, end).filter(g => {
+            const c = (g.concepto || '').toLowerCase();
+            return c !== 'comisión chofer' && c !== 'comision chofer';
+        });
         
         const totalTrips = viajes.length;
         const totalRevenue = viajes.reduce((acc, v) => acc + (parseFloat(v.monto_flete) || 0), 0);
@@ -2479,7 +2491,10 @@ async function updateExpensesDashboard() {
             return rowDate && rowDate >= s && rowDate <= e;
         });
         
-        const gastos = filterByDate(expensesData, start, end);
+        const gastos = filterByDate(expensesData, start, end).filter(g => {
+            const c = (g.concepto || '').toLowerCase();
+            return c !== 'comisión chofer' && c !== 'comision chofer';
+        });
         const viajes = filterByDate(tripsData, start, end);
         
         const totalExpenses = gastos.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
@@ -7012,9 +7027,10 @@ async function loadProfitDashboard() {
 
         // Consolidar gastos (Directos vs Generales/Indirectos)
         gastosRaw.forEach(g => {
-            // EXCLUSIÓN DE NÓMINA: No debe afectar las ganancias netas ya que se descuenta de comisiones
+            // EXCLUSIÓN DE NÓMINA Y COMISIONES: No debe afectar las ganancias netas ya que se descuentan de comisiones
             const concepto = g.concepto || '';
-            if (concepto.toLowerCase() === 'nómina' || concepto.toLowerCase() === 'nomina') {
+            const conceptoLower = concepto.toLowerCase();
+            if (conceptoLower === 'nómina' || conceptoLower === 'nomina' || conceptoLower === 'comisión chofer' || conceptoLower === 'comision chofer') {
                 return;
             }
 
@@ -7240,8 +7256,10 @@ function showUnitProfitDetail(id_unidad) {
     const viajes = (window.gananciasViajesRaw || []).filter(v => String(v.id_unidad) == String(id_unidad));
     const gastos = (window.gananciasGastosRaw || []).filter(g => {
         const concepto = g.concepto || '';
-        const isNomina = concepto.toLowerCase() === 'nómina' || concepto.toLowerCase() === 'nomina';
-        return String(g.id_unidad) == String(id_unidad) && !isNomina;
+        const conceptoLower = concepto.toLowerCase();
+        const isNomina = conceptoLower === 'nómina' || conceptoLower === 'nomina';
+        const isComision = conceptoLower === 'comisión chofer' || conceptoLower === 'comision chofer';
+        return String(g.id_unidad) == String(id_unidad) && !isNomina && !isComision;
     });
     const start = window.gananciasPeriodStart || '';
     const end = window.gananciasPeriodEnd || '';
