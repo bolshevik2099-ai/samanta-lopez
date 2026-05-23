@@ -1617,7 +1617,7 @@ async function updateUnitDashboard() {
         
         safeSetText('db-unit-total-trips', totalTrips);
         safeSetText('db-unit-total-revenue', fmt(totalRevenue));
-        safeSetText('db-unit-total-expenses', fmt(totalExpenses));
+        safeSetText('db-unit-total-expenses', fmt(totalExpenses + totalComisiones));
         safeSetText('db-unit-net-profit', fmt(netProfit));
         safeSetText('db-unit-total-km', `${totalKm.toLocaleString()} km`);
         safeSetText('db-unit-total-liters', `${dieselLiters.toFixed(1)} L`);
