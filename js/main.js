@@ -1016,7 +1016,7 @@ async function updateDashboardByPeriod() {
             const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
             return effectiveVol > 0 && (g.id_unidad || g.id_unit_eco) && g.concepto === 'Diesel';
         });
-        const { fleetAvg } = calculateFleetEfficiency(fleetFuelExpenses);
+        const { fleetAvg } = calculateFleetEfficiency(fleetFuelExpenses, unidadesRaw);
         const rendEl = document.getElementById('period-rendimiento');
         if (rendEl) {
             rendEl.innerHTML = fleetAvg > 0 ? `${fleetAvg.toFixed(2)} <span class="text-sm font-bold text-slate-400">km/l</span>` : '-- km/l';
@@ -2295,16 +2295,19 @@ async function updateUnitDashboard() {
     }
     
     try {
-        const [tripsRaw, expensesRaw] = await Promise.all([
+        const [tripsRaw, expensesRaw, unitRaw] = await Promise.all([
             window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').eq('id_unidad', unitId),
-            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_unidad', unitId)
+            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').eq('id_unidad', unitId),
+            window.supabaseClient.from(DB_CONFIG.tableUnidades).select('*').eq('id_unidad', unitId).maybeSingle()
         ]);
         
         if (tripsRaw.error) throw tripsRaw.error;
         if (expensesRaw.error) throw expensesRaw.error;
+        if (unitRaw.error) throw unitRaw.error;
         
         const tripsData = tripsRaw.data || [];
         const expensesData = expensesRaw.data || [];
+        const unitObj = unitRaw.data || {};
         
         const parseDate = parseDateToISO;
         
@@ -2332,6 +2335,8 @@ async function updateUnitDashboard() {
         let dieselCost = 0;
         let totalKm = 0;
         
+        const isMonitoringFuel = unitObj.registra_combustible !== false;
+
         gastos.forEach(g => {
             if (g.concepto === 'Diesel') {
                 const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
@@ -2345,21 +2350,29 @@ async function updateUnitDashboard() {
         const sortedAllExpensesForYield = [...expensesData]
             .filter(g => g.concepto === 'Diesel')
             .sort((a, b) => {
-                const dateA = new Date(parseDate(a.fecha) || 0);
-                const dateB = new Date(parseDate(b.fecha) || 0);
-                return dateB - dateA;
+                const dateA = parseDate(a.fecha) || '';
+                const dateB = parseDate(b.fecha) || '';
+                const dateComp = dateB.localeCompare(dateA);
+                if (dateComp !== 0) return dateComp;
+                const timeA = a.created_at || a.id_gasto || '';
+                const timeB = b.created_at || b.id_gasto || '';
+                return timeB.localeCompare(timeA);
             });
             
         let latestYieldVal = '--';
-        for (const e of sortedAllExpensesForYield) {
-            const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
-            const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
-            const km = parseFloat(e.kmts_recorridos) || 0;
-            if (effectiveVol > 0 && km > 0) {
-                const yld = km / effectiveVol;
-                if (yld > 0.5 && yld < 15) {
-                    latestYieldVal = `${yld.toFixed(2)} km/L`;
-                    break;
+        if (!isMonitoringFuel) {
+            latestYieldVal = 'No Registra';
+        } else {
+            for (const e of sortedAllExpensesForYield) {
+                const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
+                const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
+                const km = parseFloat(e.kmts_recorridos) || 0;
+                if (effectiveVol > 0 && km > 0) {
+                    const yld = km / effectiveVol;
+                    if (yld > 0.5 && yld < 15) {
+                        latestYieldVal = `${yld.toFixed(2)} km/L`;
+                        break;
+                    }
                 }
             }
         }
@@ -2424,7 +2437,7 @@ async function updateUnitDashboard() {
             }
         }
         
-        const dieselExpensesPeriod = gastos
+        const dieselExpensesPeriod = isMonitoringFuel ? gastos
             .filter(g => g.concepto === 'Diesel')
             .map(e => {
                 const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
@@ -2440,7 +2453,7 @@ async function updateUnitDashboard() {
                 };
             })
             .filter(item => item.yieldVal > 0)
-            .sort((a, b) => new Date(parseDate(a.fecha)) - new Date(parseDate(b.fecha)));
+            .sort((a, b) => (parseDate(a.fecha) || '').localeCompare(parseDate(b.fecha) || '')) : [];
             
         renderChartInstance('unitYieldHistoryChart', 'line', {
             labels: dieselExpensesPeriod.map(d => d.fecha),
@@ -4125,7 +4138,7 @@ function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
         const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
         return g.concepto === 'Diesel' && effectiveVol > 0 && (g.id_unidad || g.id_unit_eco);
     });
-    const { unitYields } = calculateFleetEfficiency(fuelExpenses);
+    const { unitYields } = calculateFleetEfficiency(fuelExpenses, unidadesData);
 
     const sortedYields = Object.entries(unitYields)
         .sort((a, b) => b[1] - a[1])
@@ -4155,7 +4168,7 @@ function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
         const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
         return g.concepto === 'Diesel' && effectiveVol > 0 && g.id_chofer;
     });
-    const { driverYields } = calculateDriverEfficiency(driverFuelExpenses);
+    const { driverYields } = calculateDriverEfficiency(driverFuelExpenses, unidadesData);
 
     const allDrivers = Object.entries(driverYields);
 
@@ -4192,7 +4205,13 @@ function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
     });
 }
 
-function calculateFleetEfficiency(expenses) {
+function calculateFleetEfficiency(expenses, unidadesData = []) {
+    // Build a map of unit monitoring status
+    const fuelMonitoringMap = {};
+    unidadesData.forEach(u => {
+        fuelMonitoringMap[u.id_unidad] = u.registra_combustible !== false;
+    });
+
     // Sort expenses by date descending to get the most recent records first
     const sortedExpenses = [...expenses].sort((a, b) => {
         const dateA = parseDateToISO(a.fecha);
@@ -4212,6 +4231,10 @@ function calculateFleetEfficiency(expenses) {
     sortedExpenses.forEach(e => {
         const unitId = e.id_unidad || e.id_unit_eco;
         if (!unitId) return;
+        
+        // Exclude units not registering fuel monitoring
+        if (fuelMonitoringMap[unitId] === false) return;
+        
         if (seenUnits.has(unitId)) return;
 
         const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
@@ -4238,7 +4261,13 @@ function calculateFleetEfficiency(expenses) {
     };
 }
 
-function calculateDriverEfficiency(expenses) {
+function calculateDriverEfficiency(expenses, unidadesData = []) {
+    // Build a map of unit monitoring status
+    const fuelMonitoringMap = {};
+    unidadesData.forEach(u => {
+        fuelMonitoringMap[u.id_unidad] = u.registra_combustible !== false;
+    });
+
     // Sort expenses by date descending to get the most recent records first
     const sortedExpenses = [...expenses].sort((a, b) => {
         const dateA = parseDateToISO(a.fecha);
@@ -4255,6 +4284,11 @@ function calculateDriverEfficiency(expenses) {
 
     sortedExpenses.forEach(e => {
         if (!e.id_chofer) return;
+        
+        // Exclude expenses belonging to units not registering fuel monitoring
+        const unitId = e.id_unidad || e.id_unit_eco;
+        if (unitId && fuelMonitoringMap[unitId] === false) return;
+        
         if (seenDrivers.has(e.id_chofer)) return;
 
         const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
@@ -7256,7 +7290,7 @@ async function loadMaintUnidades() {
         if (loader) loader.classList.add('hidden');
 
         if (units.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500 font-bold uppercase tracking-wider text-xs">No hay unidades registradas</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-slate-500 font-bold uppercase tracking-wider text-xs">No hay unidades registradas</td></tr>`;
             return;
         }
 
@@ -7280,6 +7314,18 @@ async function loadMaintUnidades() {
                 : `<span class="px-2.5 py-1 text-[9px] font-black uppercase rounded bg-green-500/10 text-green-400 border border-green-500/20">${recorrido.toLocaleString()} km recorridos</span>`;
 
             const unitRowClass = isUrgent ? 'bg-red-500/[0.03] hover:bg-red-500/[0.05]' : 'hover:bg-white/[0.01]';
+
+            const registersFuel = u.registra_combustible !== false;
+            const monitoringBadge = registersFuel
+                ? `<span class="px-2.5 py-1 text-[9px] font-black uppercase rounded bg-green-500/10 text-green-400 border border-green-500/20">Registra</span>`
+                : `<span class="px-2.5 py-1 text-[9px] font-black uppercase rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">No Registra</span>`;
+            const toggleButton = `
+                <button onclick="toggleUnitFuelMonitoring('${u.id_unidad}', ${registersFuel})" 
+                    class="w-7 h-7 rounded-lg ${registersFuel ? 'bg-rose-600/10 hover:bg-rose-600 text-rose-400' : 'bg-emerald-600/10 hover:bg-emerald-600 text-emerald-400'} hover:text-white flex items-center justify-center transition-all active:scale-90 border border-white/5" 
+                    title="${registersFuel ? 'Desactivar Monitoreo de Diésel' : 'Activar Monitoreo de Diésel'}">
+                    <i class="fas ${registersFuel ? 'fa-toggle-on' : 'fa-toggle-off'} text-xs"></i>
+                </button>
+            `;
 
             return `
                 <tr class="transition-colors border-b border-white/5 last:border-0 ${unitRowClass}">
@@ -7314,6 +7360,14 @@ async function loadMaintUnidades() {
 
                     <td class="px-6 py-4">${recorridoDisplay}</td>
                     
+                    <!-- Monitoreo Diésel -->
+                    <td class="px-6 py-4">
+                        <div class="flex items-center gap-2">
+                            ${monitoringBadge}
+                            ${toggleButton}
+                        </div>
+                    </td>
+
                     <!-- Termo Asignado -->
                     <td class="px-6 py-4">
                         <select onchange="updateUnitTermo('${u.id_unidad}', this.value)" 
@@ -7339,7 +7393,28 @@ async function loadMaintUnidades() {
         }).join('');
     } catch (err) {
         console.error('Error al cargar mantenimiento de unidades:', err);
-        if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-red-500 font-bold uppercase tracking-wider text-xs">Error al cargar datos: ${err.message}</td></tr>`;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-red-500 font-bold uppercase tracking-wider text-xs">Error al cargar datos: ${err.message}</td></tr>`;
+    }
+}
+
+async function toggleUnitFuelMonitoring(id_unidad, currentStatus) {
+    const session = checkAuth();
+    if (!session) return;
+
+    const newStatus = !currentStatus;
+    try {
+        const { error } = await window.supabaseClient
+            .from('cat_unidades')
+            .update({ registra_combustible: newStatus })
+            .eq('id_unidad', id_unidad);
+
+        if (error) throw error;
+
+        showToast(newStatus ? 'Monitoreo de diésel activado.' : 'Monitoreo de diésel desactivado.');
+        await loadMaintUnidades();
+    } catch (err) {
+        console.error('Error al cambiar monitoreo de diésel:', err);
+        alert('Error al cambiar monitoreo de diésel: ' + err.message);
     }
 }
 
