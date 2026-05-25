@@ -1014,7 +1014,7 @@ async function updateDashboardByPeriod() {
         const fleetFuelExpenses = gastos.filter(g => {
             const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
             const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
-            return effectiveVol > 0 && g.id_unidad && g.concepto === 'Diesel';
+            return effectiveVol > 0 && (g.id_unidad || g.id_unit_eco) && g.concepto === 'Diesel';
         });
         const { fleetAvg } = calculateFleetEfficiency(fleetFuelExpenses);
         const rendEl = document.getElementById('period-rendimiento');
@@ -4123,7 +4123,7 @@ function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
     const fuelExpenses = gastosData.filter(g => {
         const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
         const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
-        return g.concepto === 'Diesel' && effectiveVol > 0 && g.id_unidad;
+        return g.concepto === 'Diesel' && effectiveVol > 0 && (g.id_unidad || g.id_unit_eco);
     });
     const { unitYields } = calculateFleetEfficiency(fuelExpenses);
 
@@ -4210,8 +4210,9 @@ function calculateFleetEfficiency(expenses) {
     let totalLts = 0;
 
     sortedExpenses.forEach(e => {
-        if (!e.id_unidad) return;
-        if (seenUnits.has(e.id_unidad)) return;
+        const unitId = e.id_unidad || e.id_unit_eco;
+        if (!unitId) return;
+        if (seenUnits.has(unitId)) return;
 
         const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
         const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
@@ -4221,8 +4222,8 @@ function calculateFleetEfficiency(expenses) {
             const yieldVal = km / effectiveVol;
             // Basic sanity check: 0.5 < yield < 15 km/l to avoid bad data outliers
             if (yieldVal > 0.5 && yieldVal < 15) {
-                unitYields[e.id_unidad] = parseFloat(yieldVal.toFixed(2));
-                seenUnits.add(e.id_unidad);
+                unitYields[unitId] = parseFloat(yieldVal.toFixed(2));
+                seenUnits.add(unitId);
                 totalKm += km;
                 totalLts += effectiveVol;
             }
