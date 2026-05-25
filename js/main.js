@@ -4214,7 +4214,7 @@ function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
 
     renderChartInstance('bestDriversChart', 'bar', {
         indexAxis: 'y',
-        labels: bestDrivers.map(d => d[0]),
+        labels: bestDrivers.map(d => globalDriverMap[d[0]] || d[0]),
         datasets: [{
             label: 'Km/L (Mejor)',
             data: bestDrivers.map(d => d[1]),
@@ -4226,7 +4226,7 @@ function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
 
     renderChartInstance('worstDriversChart', 'bar', {
         indexAxis: 'y',
-        labels: worstDrivers.map(d => d[0]),
+        labels: worstDrivers.map(d => globalDriverMap[d[0]] || d[0]),
         datasets: [{
             label: 'Km/L (Menor)',
             data: worstDrivers.map(d => d[1]),
