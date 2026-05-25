@@ -3012,7 +3012,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-client.js?v=15.29"></script>
     <script src="./js/auth.js?v=15.29"></script>
-    <script src="./js/main.js?v=15.36"></script>
+    <script src="./js/main.js?v=15.37"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>
@@ -3240,7 +3240,26 @@
             padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            position: relative !important;
+            transform: none !important;
         }
+
+        body.generating-pdf .spreadsheet-table tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+
+        body.generating-pdf .print-spreadsheet-view,
+        body.generating-pdf .print-spreadsheet-view .spreadsheet-table {
+            height: auto !important;
+            overflow: visible !important;
+        }
+
 
         body.generating-pdf .screen-only-summary {
             display: none !important;
