@@ -15,6 +15,58 @@ function getLocalISODate(date = new Date()) {
     return new Date(date.getTime() - tzOffset).toISOString().split('T')[0];
 }
 
+// Global Helper to parse and normalize date strings to YYYY-MM-DD
+function parseDateToISO(d) {
+    if (!d) return '';
+    if (typeof d !== 'string') {
+        try {
+            d = new Date(d).toISOString().split('T')[0];
+        } catch(e) {
+            return '';
+        }
+    }
+    
+    // If it already matches YYYY-MM-DD, return the date part
+    if (/^\d{4}-\d{2}-\d{2}/.test(d)) {
+        return d.substring(0, 10);
+    }
+    
+    if (d.includes('/')) {
+        const parts = d.split(' ')[0].split('/');
+        if (parts.length === 3) {
+            const part0 = parseInt(parts[0], 10);
+            const part1 = parseInt(parts[1], 10);
+            let year = parseInt(parts[2], 10);
+            if (year < 100) year += 2000;
+            
+            let day = part0;
+            let month = part1;
+            
+            if (part1 > 12) {
+                // Format must be MM/DD/YYYY because month is <= 12 and part1 (day) is > 12
+                day = part1;
+                month = part0;
+            } else {
+                // Default to Mexican Spanish standard DD/MM/YYYY
+                day = part0;
+                month = part1;
+            }
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+    }
+    
+    try {
+        const dateObj = new Date(d);
+        if (isNaN(dateObj.getTime())) return '';
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    } catch (e) {
+        return '';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Verificar sesión al cargar
     const session = checkAuth();
@@ -341,22 +393,16 @@ function calculateEntityFuelMetrics(expenses, entityId, entityType) {
 
     if (fuelExpenses.length === 0) return { last: 0, avg: 0, lastStr: 'N/A', avgStr: 'N/A' };
 
-    // Helper to parse dates robustly (handles DD/MM/YYYY and MM/DD/YYYY formats)
-    const parseDateHelper = (d) => {
-        if (!d) return new Date(0);
-        if (d.includes('/')) {
-            const parts = d.split('/');
-            if (parseInt(parts[0]) > 12) {
-                return new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
-            } else {
-                return new Date(`${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`);
-            }
-        }
-        return new Date(d);
-    };
-
     // Sort Descending (Newest first)
-    fuelExpenses.sort((a, b) => parseDateHelper(b.fecha) - parseDateHelper(a.fecha));
+    fuelExpenses.sort((a, b) => {
+        const dateA = parseDateToISO(a.fecha);
+        const dateB = parseDateToISO(b.fecha);
+        const dateComp = dateB.localeCompare(dateA);
+        if (dateComp !== 0) return dateComp;
+        const timeA = a.created_at || a.id_gasto || '';
+        const timeB = b.created_at || b.id_gasto || '';
+        return timeB.localeCompare(timeA);
+    });
 
     // 1. Last Yield (Most recent fill-up)
     const last = fuelExpenses[0];
@@ -926,21 +972,7 @@ async function updateDashboardByPeriod() {
 
 
         // Helper para normalizar fechas de AppSheet (vienen como MM/DD/YYYY en es-MX o YYYY-MM-DD)
-        const parseDate = (d) => {
-            if (!d) return null;
-            if (d.includes('/')) {
-                const parts = d.split('/'); // DD/MM/YYYY o MM/DD/YYYY
-                // Detectar si es DD/MM o MM/DD (AppSheet suele usar MM/DD/YYYY o DD/MM/YYYY segÃºn el locale)
-                if (parseInt(parts[0]) > 12) {
-                    // DD/MM/YYYY -> YYYY-MM-DD
-                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                } else {
-                    // MM/DD/YYYY -> YYYY-MM-DD
-                    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-                }
-            }
-            return d; // Asumimos YYYY-MM-DD
-        };
+        const parseDate = parseDateToISO;
 
         const filterByDate = (rows, s, e) => rows.filter(r => {
             const rowDate = parseDate(r.fecha);
@@ -2274,18 +2306,7 @@ async function updateUnitDashboard() {
         const tripsData = tripsRaw.data || [];
         const expensesData = expensesRaw.data || [];
         
-        const parseDate = (d) => {
-            if (!d) return null;
-            if (d.includes('/')) {
-                const parts = d.split('/');
-                if (parseInt(parts[0]) > 12) {
-                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                } else {
-                    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-                }
-            }
-            return d;
-        };
+        const parseDate = parseDateToISO;
         
         const filterByDate = (rows, s, e) => rows.filter(r => {
             const rowDate = parseDate(r.fecha);
@@ -2769,18 +2790,7 @@ function showFullUnitTripsModal() {
     
     const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
     
-    const parseDate = (d) => {
-        if (!d) return '';
-        if (d.includes('/')) {
-            const parts = d.split('/');
-            if (parseInt(parts[0]) > 12) {
-                return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-            } else {
-                return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-            }
-        }
-        return d;
-    };
+    const parseDate = parseDateToISO;
     
     // Sort descending by date
     const sortedTrips = [...currentUnitTrips].sort((a,b) => {
@@ -2913,18 +2923,7 @@ function showFullUnitExpensesModal() {
     
     const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
     
-    const parseDate = (d) => {
-        if (!d) return '';
-        if (d.includes('/')) {
-            const parts = d.split('/');
-            if (parseInt(parts[0]) > 12) {
-                return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-            } else {
-                return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-            }
-        }
-        return d;
-    };
+    const parseDate = parseDateToISO;
     
     const sortedExpenses = [...currentUnitExpenses].sort((a,b) => {
         const dateA = parseDate(a.fecha) || '';
@@ -3168,18 +3167,7 @@ async function updateDriverDashboard() {
         const tripsData = tripsRaw.data || [];
         const expensesData = expensesRaw.data || [];
         
-        const parseDate = (d) => {
-            if (!d) return null;
-            if (d.includes('/')) {
-                const parts = d.split('/');
-                if (parseInt(parts[0]) > 12) {
-                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                } else {
-                    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-                }
-            }
-            return d;
-        };
+        const parseDate = parseDateToISO;
         
         const filterByDate = (rows, s, e) => rows.filter(r => {
             const rowDate = parseDate(r.fecha);
@@ -3438,18 +3426,7 @@ async function updateExpensesDashboard() {
             driverMap[d.id_chofer] = d.nombre;
         });
         
-        const parseDate = (d) => {
-            if (!d) return null;
-            if (d.includes('/')) {
-                const parts = d.split('/');
-                if (parseInt(parts[0]) > 12) {
-                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                } else {
-                    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-                }
-            }
-            return d;
-        };
+        const parseDate = parseDateToISO;
         
         const filterByDate = (rows, s, e) => rows.filter(r => {
             const rowDate = parseDate(r.fecha);
@@ -3653,18 +3630,7 @@ async function updateDebtsDashboard() {
             driverMap[d.id_chofer] = d.nombre;
         });
         
-        const parseDate = (d) => {
-            if (!d) return null;
-            if (d.includes('/')) {
-                const parts = d.split('/');
-                if (parseInt(parts[0]) > 12) {
-                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                } else {
-                    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-                }
-            }
-            return d;
-        };
+        const parseDate = parseDateToISO;
         
         const filterByDate = (rows, s, e) => rows.filter(r => {
             const rowDate = parseDate(r.fecha);
@@ -3864,18 +3830,7 @@ async function updateMovementsList() {
         const unitMap = {};
         unidadesRaw.forEach(u => unitMap[u.id_unidad] = u.nombre_unidad || u.id_unidad);
 
-        const parseDate = (d) => {
-            if (!d) return null;
-            if (d.includes('/')) {
-                const parts = d.split('/');
-                if (parseInt(parts[0]) > 12) {
-                    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                } else {
-                    return `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
-                }
-            }
-            return d;
-        };
+        const parseDate = parseDateToISO;
 
         const filterByDate = (rows, s, e) => rows.filter(r => {
             // reg_liquidaciones usa created_at o fecha_fin, usemos created_at simplificado a YYYY-MM-DD
@@ -4238,25 +4193,15 @@ function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
 }
 
 function calculateFleetEfficiency(expenses) {
-    // Helper to parse dates robustly (handles DD/MM/YYYY and MM/DD/YYYY formats)
-    const parseDateHelper = (d) => {
-        if (!d) return new Date(0);
-        if (d.includes('/')) {
-            const parts = d.split('/');
-            if (parseInt(parts[0]) > 12) {
-                return new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
-            } else {
-                return new Date(`${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`);
-            }
-        }
-        return new Date(d);
-    };
-
     // Sort expenses by date descending to get the most recent records first
     const sortedExpenses = [...expenses].sort((a, b) => {
-        const dateA = parseDateHelper(a.fecha);
-        const dateB = parseDateHelper(b.fecha);
-        return dateB - dateA;
+        const dateA = parseDateToISO(a.fecha);
+        const dateB = parseDateToISO(b.fecha);
+        const dateComp = dateB.localeCompare(dateA);
+        if (dateComp !== 0) return dateComp;
+        const timeA = a.created_at || a.id_gasto || '';
+        const timeB = b.created_at || b.id_gasto || '';
+        return timeB.localeCompare(timeA);
     });
 
     const unitYields = {};
@@ -4293,25 +4238,15 @@ function calculateFleetEfficiency(expenses) {
 }
 
 function calculateDriverEfficiency(expenses) {
-    // Helper to parse dates robustly (handles DD/MM/YYYY and MM/DD/YYYY formats)
-    const parseDateHelper = (d) => {
-        if (!d) return new Date(0);
-        if (d.includes('/')) {
-            const parts = d.split('/');
-            if (parseInt(parts[0]) > 12) {
-                return new Date(`${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`);
-            } else {
-                return new Date(`${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`);
-            }
-        }
-        return new Date(d);
-    };
-
     // Sort expenses by date descending to get the most recent records first
     const sortedExpenses = [...expenses].sort((a, b) => {
-        const dateA = parseDateHelper(a.fecha);
-        const dateB = parseDateHelper(b.fecha);
-        return dateB - dateA;
+        const dateA = parseDateToISO(a.fecha);
+        const dateB = parseDateToISO(b.fecha);
+        const dateComp = dateB.localeCompare(dateA);
+        if (dateComp !== 0) return dateComp;
+        const timeA = a.created_at || a.id_gasto || '';
+        const timeB = b.created_at || b.id_gasto || '';
+        return timeB.localeCompare(timeA);
     });
 
     const driverYields = {};
