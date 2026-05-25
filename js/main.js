@@ -2500,6 +2500,201 @@ async function updateUnitDashboard() {
             ]
         });
         
+        // Update unit title display in top bar
+        const titleDisplayEl = document.getElementById('db-unit-title-display');
+        if (titleDisplayEl) {
+            titleDisplayEl.innerText = `ECO-${unitId}`;
+        }
+
+        // Populate unit spreadsheet print view
+        const unitSpreadsheetTbody = document.getElementById('unit-spreadsheet-tbody');
+        if (unitSpreadsheetTbody) {
+            let rowNum = 1;
+            let ssHtml = '';
+
+            // Row 1: Header title and Period
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-left" colspan="2">RESUMEN DE UNIDAD: ECO-${unitId}</td>
+                <td class="text-left" colspan="2">Periodo: ${start} a ${end}</td>
+                <td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 2: Empty
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 3: CONSOLIDADO OPERATIVO Title
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-left" colspan="9">CONSOLIDADO OPERATIVO</td>
+            </tr>`;
+
+            // Row 4: Viajes Realizados
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Viajes Realizados</td>
+                <td class="text-right">${totalTrips}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 5: Ingreso Flete
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Ingreso Flete</td>
+                <td class="text-right">${Math.round(totalRevenue)}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 6: Gasto Operativo
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Gasto Operativo (con Comisiones)</td>
+                <td class="text-right">${Math.round(totalExpenses + totalComisiones)}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 7: Ganancia Neta
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Ganancia Neta</td>
+                <td class="text-right">${Math.round(netProfit)}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 8: Distancia Recorrida
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Distancia Recorrida</td>
+                <td class="text-right">${Math.round(totalKm).toLocaleString()} km</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 9: Litros Diésel
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Litros Diésel</td>
+                <td class="text-right">${dieselLiters.toFixed(1)} L</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 10: Costo Diésel
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Costo Diésel</td>
+                <td class="text-right">${Math.round(dieselCost)}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 11: Rendimiento Promedio
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Último Rendimiento</td>
+                <td class="text-right">${latestYieldVal}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 12: Empty
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 13: DETALLE DE VIAJES Title
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-left" colspan="9">DETALLE DE VIAJES</td>
+            </tr>`;
+
+            // Row 14: DETALLE DE VIAJES Header
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-center">Fecha</td>
+                <td class="font-bold text-center">ID Viaje</td>
+                <td class="font-bold text-center">Cliente</td>
+                <td class="font-bold text-center">Origen</td>
+                <td class="font-bold text-center">Destino</td>
+                <td class="font-bold text-center">Monto Flete</td>
+                <td class="font-bold text-center">Comisión Chofer</td>
+                <td class="font-bold text-center">Estatus Viaje</td>
+                <td></td>
+            </tr>`;
+
+            // Rows: DETALLE DE VIAJES Data
+            if (viajes.length === 0) {
+                ssHtml += `<tr>
+                    <td class="ss-row-num">${rowNum++}</td>
+                    <td colspan="9" class="text-center italic">No hay viajes registrados</td>
+                </tr>`;
+            } else {
+                viajes.sort((a,b) => new Date(parseDate(b.fecha)) - new Date(parseDate(a.fecha))).forEach(v => {
+                    ssHtml += `<tr>
+                        <td class="ss-row-num">${rowNum++}</td>
+                        <td class="text-center font-mono">${v.fecha || ''}</td>
+                        <td class="text-left font-mono">${v.id_viaje}</td>
+                        <td class="text-left">${v.cliente || ''}</td>
+                        <td class="text-left">${v.origen || ''}</td>
+                        <td class="text-left">${v.destino || ''}</td>
+                        <td class="text-right">${v.monto_flete ? Math.round(v.monto_flete) : 0}</td>
+                        <td class="text-right">${v.comision_chofer ? Math.round(v.comision_chofer) : 0}</td>
+                        <td class="text-center">${v.estatus_viaje || ''}</td>
+                        <td></td>
+                    </tr>`;
+                });
+            }
+
+            // Row for spacing
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row: DETALLE DE GASTOS Title
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-left" colspan="9">DETALLE DE GASTOS</td>
+            </tr>`;
+
+            // Row: DETALLE DE GASTOS Header
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-center">Fecha</td>
+                <td class="font-bold text-center">ID Gasto</td>
+                <td class="font-bold text-center">Concepto</td>
+                <td class="font-bold text-center">Monto</td>
+                <td class="font-bold text-center">Viaje Referencia</td>
+                <td class="font-bold text-center">Forma Pago</td>
+                <td class="font-bold text-center">Estatus Pago</td>
+                <td></td><td></td>
+            </tr>`;
+
+            // Rows: DETALLE DE GASTOS Data
+            if (gastos.length === 0) {
+                ssHtml += `<tr>
+                    <td class="ss-row-num">${rowNum++}</td>
+                    <td colspan="9" class="text-center italic">No hay gastos registrados</td>
+                </tr>`;
+            } else {
+                gastos.sort((a,b) => new Date(parseDate(b.fecha)) - new Date(parseDate(a.fecha))).forEach(g => {
+                    ssHtml += `<tr>
+                        <td class="ss-row-num">${rowNum++}</td>
+                        <td class="text-center font-mono">${g.fecha || ''}</td>
+                        <td class="text-left font-mono">${g.id_gasto}</td>
+                        <td class="text-left">${g.concepto || ''}</td>
+                        <td class="text-right">${g.monto ? Math.round(g.monto) : 0}</td>
+                        <td class="text-left font-mono">${g.id_viaje || ''}</td>
+                        <td class="text-center">${g.forma_pago || ''}</td>
+                        <td class="text-center">${g.estatus_pago || ''}</td>
+                        <td></td><td></td>
+                    </tr>`;
+                });
+            }
+
+            unitSpreadsheetTbody.innerHTML = ssHtml;
+        }
+
         if (statusEl) {
             statusEl.innerText = 'Conectado';
             statusEl.className = 'text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
@@ -2514,8 +2709,48 @@ async function updateUnitDashboard() {
     }
 }
 
+async function printUnitDashboard() {
+    const element = document.getElementById('unit-summary-print-area');
+    if (!element) return;
+
+    const unitSelect = document.getElementById('db-unit-select');
+    const startInput = document.getElementById('db-unit-start');
+    const endInput = document.getElementById('db-unit-end');
+    
+    const unitId = unitSelect ? unitSelect.value : '';
+    const startStr = startInput ? startInput.value : '';
+    const endStr = endInput ? endInput.value : '';
+
+    if (typeof html2pdf !== 'undefined') {
+        document.body.classList.add('generating-pdf');
+        document.body.offsetHeight;
+        await new Promise(resolve => setTimeout(resolve, 250));
+
+        const opt = {
+            margin:       0.3,
+            filename:     `Resumen_Unidad_ECO_${unitId}_Periodo_${startStr}_a_${endStr}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false, backgroundColor: null },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
+            pagebreak:    { mode: ['css', 'legacy'] }
+        };
+
+        try {
+            await html2pdf().set(opt).from(element).save();
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            window.print();
+        } finally {
+            document.body.classList.remove('generating-pdf');
+        }
+    } else {
+        window.print();
+    }
+}
+
 window.updateUnitDashboard = updateUnitDashboard;
 window.initUnitDashboard = initUnitDashboard;
+window.printUnitDashboard = printUnitDashboard;
 
 function showFullUnitTripsModal() {
     const unitSelect = document.getElementById('db-unit-select');

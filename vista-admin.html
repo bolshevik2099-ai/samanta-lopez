@@ -632,8 +632,24 @@
                     <p class="text-sm font-semibold uppercase tracking-wider">Selecciona una unidad para ver su desglose de datos</p>
                 </div>
 
-                <!-- Content container (hidden by default until unit selected) -->
-                <div id="db-unit-content" class="hidden space-y-8">
+                <!-- Printable Area -->
+                <div id="unit-summary-print-area" class="space-y-8">
+                    <!-- Screen-Only View wrapper -->
+                    <div class="screen-only-summary space-y-8">
+                        <!-- Content container (hidden by default until unit selected) -->
+                        <div id="db-unit-content" class="hidden space-y-8">
+                            <!-- Top Action Bar (No Print) -->
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl border border-white/5 gap-4 no-print">
+                                <div>
+                                    <h3 class="font-bold text-white text-lg flex items-center gap-2">
+                                        <i class="fas fa-truck text-blue-400"></i> Desglose de Unidad: <span id="db-unit-title-display" class="font-mono text-blue-400"></span>
+                                    </h3>
+                                    <p class="text-xs text-slate-500 font-medium">Análisis operativo e historial de rendimiento</p>
+                                </div>
+                                <button onclick="printUnitDashboard()" class="px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2 cursor-pointer">
+                                    <i class="fas fa-file-pdf"></i> Descargar PDF
+                                </button>
+                            </div>
                     <!-- Metrics Cards Grid -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
                         <!-- Viajes Card -->
@@ -804,7 +820,30 @@
                                 </button>
                             </div>
                         </div>
+                        </div>
                     </div>
+
+                    <!-- Spreadsheet Print View (new content) -->
+                    <div id="unit-summary-spreadsheet-view" class="print-spreadsheet-view">
+                        <table class="spreadsheet-table">
+                            <thead>
+                                <tr>
+                                    <th class="ss-row-header-col"></th>
+                                    <th>A</th>
+                                    <th>B</th>
+                                    <th>C</th>
+                                    <th>D</th>
+                                    <th>E</th>
+                                    <th>F</th>
+                                    <th>G</th>
+                                    <th>H</th>
+                                    <th>I</th>
+                                </tr>
+                            </thead>
+                            <tbody id="unit-spreadsheet-tbody">
+                                <!-- Dynamically populated in js/main.js -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -3012,7 +3051,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-client.js?v=15.29"></script>
     <script src="./js/auth.js?v=15.29"></script>
-    <script src="./js/main.js?v=15.37"></script>
+    <script src="./js/main.js?v=15.38"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>
@@ -3077,15 +3116,16 @@
             #sidebar-overlay,
             header,
             .content-section:not(#section-dashboard),
-            #section-dashboard > *:not(#db-summary-subview):not(#db-range-summary-subview),
+            #section-dashboard > *:not(#db-summary-subview):not(#db-range-summary-subview):not(#db-unit-subview),
             #db-summary-subview > *:not(#daily-summary-print-area),
             #db-range-summary-subview > *:not(#range-summary-print-area),
+            #db-unit-subview > *:not(#unit-summary-print-area),
             .no-print {
                 display: none !important;
             }
 
             /* Make sure the main content is full screen */
-            body, main, #section-dashboard, #db-summary-subview, #db-range-summary-subview, #daily-summary-print-area, #range-summary-print-area {
+            body, main, #section-dashboard, #db-summary-subview, #db-range-summary-subview, #db-unit-subview, #daily-summary-print-area, #range-summary-print-area, #unit-summary-print-area {
                 background: #121212 !important;
                 color: #ffffff !important;
                 width: 100% !important;
@@ -3218,9 +3258,10 @@
         body.generating-pdf #sidebar-overlay,
         body.generating-pdf header,
         body.generating-pdf .content-section:not(#section-dashboard),
-        body.generating-pdf #section-dashboard > *:not(#db-summary-subview):not(#db-range-summary-subview),
+        body.generating-pdf #section-dashboard > *:not(#db-summary-subview):not(#db-range-summary-subview):not(#db-unit-subview),
         body.generating-pdf #db-summary-subview > *:not(#daily-summary-print-area),
         body.generating-pdf #db-range-summary-subview > *:not(#range-summary-print-area),
+        body.generating-pdf #db-unit-subview > *:not(#unit-summary-print-area),
         body.generating-pdf .no-print {
             display: none !important;
         }
@@ -3230,8 +3271,10 @@
         body.generating-pdf #section-dashboard,
         body.generating-pdf #db-summary-subview,
         body.generating-pdf #db-range-summary-subview,
+        body.generating-pdf #db-unit-subview,
         body.generating-pdf #daily-summary-print-area,
-        body.generating-pdf #range-summary-print-area {
+        body.generating-pdf #range-summary-print-area,
+        body.generating-pdf #unit-summary-print-area {
             background: #121212 !important;
             color: #ffffff !important;
             width: 100% !important;
