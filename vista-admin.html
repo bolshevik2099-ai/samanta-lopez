@@ -1245,6 +1245,7 @@
 
                 <!-- Printable Area -->
                 <div id="daily-summary-print-area" class="space-y-8 p-1">
+                    <div class="screen-only-summary space-y-8">
                     <!-- Print-Only Header -->
                     <div class="hidden print-header p-6 border-b border-slate-300 mb-6">
                         <div class="flex justify-between items-center">
@@ -1374,6 +1375,30 @@
                                 </table>
                             </div>
                         </div>
+                    </div>
+                    </div>
+
+                    <!-- Spreadsheet Print View (new content) -->
+                    <div id="daily-summary-spreadsheet-view" class="print-spreadsheet-view">
+                        <table class="spreadsheet-table">
+                            <thead>
+                                <tr>
+                                    <th class="ss-row-header-col"></th>
+                                    <th>A</th>
+                                    <th>B</th>
+                                    <th>C</th>
+                                    <th>D</th>
+                                    <th>E</th>
+                                    <th>F</th>
+                                    <th>G</th>
+                                    <th>H</th>
+                                    <th>I</th>
+                                </tr>
+                            </thead>
+                            <tbody id="spreadsheet-tbody">
+                                <!-- Dynamically populated in js/main.js -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -2786,7 +2811,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-client.js?v=15.29"></script>
     <script src="./js/auth.js?v=15.29"></script>
-    <script src="./js/main.js?v=15.32"></script>
+    <script src="./js/main.js?v=15.33"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>
@@ -2838,6 +2863,10 @@
             background: rgba(15, 23, 42, 0.8);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .print-spreadsheet-view {
+            display: none !important;
         }
 
         /* --- PRINT STYLES FOR DAILY SUMMARY --- */
@@ -2929,6 +2958,84 @@
 
             tr {
                 break-inside: avoid !important;
+            }
+
+            /* SPREADSHEET CUSTOM STYLES */
+            .screen-only-summary {
+                display: none !important;
+            }
+
+            .print-spreadsheet-view {
+                display: block !important;
+                background-color: #121212 !important;
+                color: #ffffff !important;
+                padding: 15px !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            body.generating-pdf,
+            body.generating-pdf main,
+            body.generating-pdf #section-dashboard,
+            body.generating-pdf #db-summary-subview,
+            body.generating-pdf #daily-summary-print-area {
+                background: #121212 !important;
+                color: #ffffff !important;
+            }
+
+            .spreadsheet-table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                background-color: #121212 !important;
+                font-family: 'Consolas', 'Courier New', monospace !important;
+                font-size: 11px !important;
+                color: #dddddd !important;
+                border: 1px solid #333333 !important;
+            }
+
+            .spreadsheet-table th,
+            .spreadsheet-table td {
+                border: 1px solid #333333 !important;
+                padding: 4px 6px !important;
+                height: 22px !important;
+                vertical-align: middle !important;
+                font-size: 11px !important;
+                color: #dddddd !important;
+                background-color: transparent !important;
+            }
+
+            .spreadsheet-table thead th {
+                background-color: #2b2b2b !important;
+                color: #888888 !important;
+                text-align: center !important;
+                font-weight: normal !important;
+                border: 1px solid #3c3c3c !important;
+            }
+
+            .spreadsheet-table td.ss-row-num {
+                background-color: #2b2b2b !important;
+                color: #888888 !important;
+                text-align: center !important;
+                font-weight: normal !important;
+                width: 30px !important;
+                border: 1px solid #3c3c3c !important;
+            }
+
+            .spreadsheet-table td.font-bold {
+                font-weight: bold !important;
+                color: #ffffff !important;
+            }
+
+            .spreadsheet-table td.text-left {
+                text-align: left !important;
+            }
+
+            .spreadsheet-table td.text-right {
+                text-align: right !important;
+            }
+
+            .spreadsheet-table td.text-center {
+                text-align: center !important;
             }
         }
     </style>

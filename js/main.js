@@ -1328,6 +1328,172 @@ async function updateDailySummary() {
             }
         }
 
+        // Populate spreadsheet print view table body
+        const spreadsheetTbody = document.getElementById('spreadsheet-tbody');
+        if (spreadsheetTbody) {
+            let rowNum = 1;
+            let ssHtml = '';
+
+            // Row 1: Header title and Date
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-left" colspan="2">RESUMEN DIARIO PROCESA-T</td>
+                <td class="text-left" colspan="2">Fecha: ${dateStr}</td>
+                <td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 2: Empty
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 3: CONSOLIDADO OPERATIVO Title
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-left" colspan="9">CONSOLIDADO OPERATIVO</td>
+            </tr>`;
+
+            // Row 4: Viajes del Dia
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Viajes del Dia</td>
+                <td class="text-right">${viajes.length}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 5: Ingresos Fletes
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Ingresos Fletes</td>
+                <td class="text-right">${Math.round(totalRevenue)}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 6: Gastos del Dia
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Gastos del Dia</td>
+                <td class="text-right">${Math.round(totalExpenses)}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 7: Comisiones Chofer
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Comisiones Chofer</td>
+                <td class="text-right">${Math.round(totalComisiones)}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 8: Utilidad Neta
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Utilidad Neta</td>
+                <td class="text-right">${Math.round(netProfit)}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 9: Empty
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 10: DETALLE DE VIAJES Title
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-left" colspan="9">DETALLE DE VIAJES</td>
+            </tr>`;
+
+            // Row 11: DETALLE DE VIAJES Header
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-center">ID Viaje</td>
+                <td class="font-bold text-center">Chofer</td>
+                <td class="font-bold text-center">Unidad</td>
+                <td class="font-bold text-center">Origen</td>
+                <td class="font-bold text-center">Destino</td>
+                <td class="font-bold text-center">Monto Flete</td>
+                <td class="font-bold text-center">Comision Chofer</td>
+                <td class="font-bold text-center">Estatus Viaje</td>
+                <td></td>
+            </tr>`;
+
+            // Rows 12+: DETALLE DE VIAJES Data
+            if (viajes.length === 0) {
+                ssHtml += `<tr>
+                    <td class="ss-row-num">${rowNum++}</td>
+                    <td colspan="9" class="text-center italic">No hay viajes registrados</td>
+                </tr>`;
+            } else {
+                viajes.forEach(v => {
+                    const choferName = globalDriverMap[v.id_chofer] || v.id_chofer || 'No asignado';
+                    ssHtml += `<tr>
+                        <td class="ss-row-num">${rowNum++}</td>
+                        <td class="text-left font-mono">${v.id_viaje}</td>
+                        <td class="text-left">${choferName}</td>
+                        <td class="text-center font-mono">${v.id_unidad}</td>
+                        <td class="text-left">${v.origen || ''}</td>
+                        <td class="text-left">${v.destino || ''}</td>
+                        <td class="text-right">${v.monto_flete ? Math.round(v.monto_flete) : 0}</td>
+                        <td class="text-right">${v.comision_chofer ? Math.round(v.comision_chofer) : 0}</td>
+                        <td class="text-center">${v.estatus_viaje || ''}</td>
+                        <td></td>
+                    </tr>`;
+                });
+            }
+
+            // Row for spacing
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row: DETALLE DE GASTOS Title
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-left" colspan="9">DETALLE DE GASTOS</td>
+            </tr>`;
+
+            // Row: DETALLE DE GASTOS Header
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-center">ID Gasto</td>
+                <td class="font-bold text-center">Concepto</td>
+                <td class="font-bold text-center">Unidad</td>
+                <td class="font-bold text-center">Monto</td>
+                <td class="font-bold text-center">Viaje Referencia</td>
+                <td class="font-bold text-center">Forma Pago</td>
+                <td class="font-bold text-center">Estatus Pago</td>
+                <td></td><td></td>
+            </tr>`;
+
+            // Rows: DETALLE DE GASTOS Data
+            if (gastos.length === 0) {
+                ssHtml += `<tr>
+                    <td class="ss-row-num">${rowNum++}</td>
+                    <td colspan="9" class="text-center italic">No hay gastos registrados</td>
+                </tr>`;
+            } else {
+                gastos.forEach(g => {
+                    ssHtml += `<tr>
+                        <td class="ss-row-num">${rowNum++}</td>
+                        <td class="text-left font-mono">${g.id_gasto}</td>
+                        <td class="text-left">${g.concepto || ''}</td>
+                        <td class="text-center font-mono">${g.id_unidad || ''}</td>
+                        <td class="text-right">${g.monto ? Math.round(g.monto) : 0}</td>
+                        <td class="text-left font-mono">${g.id_viaje || ''}</td>
+                        <td class="text-center">${g.forma_pago || ''}</td>
+                        <td class="text-center">${g.estatus_pago || ''}</td>
+                        <td></td><td></td>
+                    </tr>`;
+                });
+            }
+
+            spreadsheetTbody.innerHTML = ssHtml;
+        }
+
         if (statusEl) {
             statusEl.innerText = 'Conectado';
             statusEl.className = 'text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
@@ -1360,7 +1526,7 @@ async function printDailySummary() {
             margin:       0.3,
             filename:     `Resumen_Diario_${dateStr}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+            html2canvas:  { scale: 2, useCORS: true, logging: false, backgroundColor: null },
             jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
         };
 
