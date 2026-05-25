@@ -1519,8 +1519,11 @@ async function printDailySummary() {
         // Add generating-pdf class to body to temporarily apply print styles on-screen
         document.body.classList.add('generating-pdf');
         
-        // Wait a tiny bit for the styles to apply
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Force layout reflow
+        document.body.offsetHeight;
+        
+        // Wait a bit for the styles to apply
+        await new Promise(resolve => setTimeout(resolve, 250));
 
         const opt = {
             margin:       0.3,
