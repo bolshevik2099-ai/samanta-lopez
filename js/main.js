@@ -4984,6 +4984,8 @@ function filterTrips(query) {
 // --- CATALOG MANAGEMENT LOGIC ---
 let currentCatalog = 'choferes';
 let catalogData = [];
+let isEditingCatalog = false;
+let editingCatalogId = null;
 
 function switchCatalogTab(type) {
     currentCatalog = type;
@@ -5132,7 +5134,7 @@ function renderCatalogTable(type, data, expenses = [], crossRef = []) {
                 </td>
                 <td class="px-6 py-4 text-right space-x-2">
                     <button onclick="showDetailModal('${type}', '${id}')" title="Ver Detalle" class="text-slate-400 hover:text-slate-600 p-1"><i class="fas fa-eye"></i></button>
-                    <button onclick="editCatalogInline('${type}', '${id}')" class="text-blue-500 hover:text-blue-700 p-1"><i class="fas fa-edit"></i></button>
+                    <button onclick="showCatalogForm('${id}')" class="text-blue-500 hover:text-blue-700 p-1" title="Editar Registro"><i class="fas fa-edit"></i></button>
                     <button onclick="deleteItem('${DB_CONFIG['table' + type.charAt(0).toUpperCase() + type.slice(1)]}', '${id}', '${idCol}')" class="text-red-500 hover:text-red-700 p-1"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
@@ -5152,56 +5154,124 @@ async function deleteItem(table, id, idCol) {
     }
 }
 
-function showCatalogForm() {
+function showCatalogForm(itemId = null) {
     document.getElementById('catalog-list-view').classList.add('hidden');
     document.getElementById('catalog-form-view').classList.remove('hidden');
 
     const fieldsContainer = document.getElementById('catalog-form-fields');
+    const submitBtn = document.querySelector('#catalog-form button[type="submit"]');
+
+    if (itemId && itemId !== '[object MouseEvent]') {
+        isEditingCatalog = true;
+        editingCatalogId = itemId;
+        if (submitBtn) submitBtn.innerText = 'Actualizar Registro';
+    } else {
+        isEditingCatalog = false;
+        editingCatalogId = null;
+        if (submitBtn) submitBtn.innerText = 'Guardar Registro';
+    }
+
     const config = {
         'choferes': [
-            { id: 'id_chofer', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01' },
+            { id: 'id_chofer', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01', readonly: isEditingCatalog },
             { id: 'nombre', label: 'Nombre Completo', type: 'text', placeholder: 'Nombre Apellido' },
             { id: 'licencia', label: 'Num. Licencia', type: 'text', placeholder: 'LIC-000' },
             { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
-            { id: 'id_unidad', label: 'Unidad Asignada (ID ECO)', type: 'text', placeholder: 'ECO-01' }
+            { id: 'id_unidad', label: 'Unidad Asignada (ID ECO)', type: 'text', placeholder: 'ECO-01' },
+            { id: 'estatus', label: 'Estatus', type: 'select', options: ['Activo', 'Inactivo'] }
         ],
         'unidades': [
-            { id: 'id_unidad', label: 'ID Unidad (ECO)', type: 'text', placeholder: 'ECO-01' },
+            { id: 'id_unidad', label: 'ID Unidad (ECO)', type: 'text', placeholder: 'ECO-01', readonly: isEditingCatalog },
             { id: 'nombre_unidad', label: 'Nombre/Alias', type: 'text', placeholder: 'Kenworth T680' },
             { id: 'placas', label: 'Placas', type: 'text', placeholder: '00-AA-00' },
             { id: 'modelo', label: 'Modelo', type: 'text', placeholder: '2024' },
             { id: 'marca', label: 'Marca', type: 'text', placeholder: 'Freightliner' },
-            { id: 'id_chofer', label: 'Chofer Asignado (ID)', type: 'text', placeholder: 'CHO-01' }
+            { id: 'id_chofer', label: 'Chofer Asignado (ID)', type: 'text', placeholder: 'CHO-01' },
+            { id: 'registra_combustible', label: '¿Lleva registro de diésel/rendimiento?', type: 'select', options: [
+                { value: 'true', label: 'Sí' },
+                { value: 'false', label: 'No' }
+            ]},
+            { id: 'estatus', label: 'Estatus', type: 'select', options: ['Activo', 'Inactivo'] }
         ],
         'clientes': [
+            { id: 'nombre_cliente', label: 'Nombre Comercial', type: 'text', placeholder: 'Empresa S.A.', readonly: isEditingCatalog },
             { id: 'id_cliente', label: 'ID Cliente (Opcional)', type: 'text', placeholder: 'CLI-01' },
-            { id: 'nombre_cliente', label: 'Nombre Comercial', type: 'text', placeholder: 'Empresa S.A.' },
             { id: 'razon_social', label: 'Razón Social', type: 'text', placeholder: 'Logística Total S.A. de C.V.' },
             { id: 'rfc', label: 'RFC', type: 'text', placeholder: 'RFC000000AAA' },
             { id: 'contacto_nombre', label: 'Nombre de Contacto', type: 'text', placeholder: 'Juan Pérez' },
             { id: 'email', label: 'Email', type: 'email', placeholder: 'contacto@empresa.com' },
-            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
+            { id: 'estatus', label: 'Estatus', type: 'select', options: ['Activo', 'Inactivo'] }
         ],
         'proveedores': [
-            { id: 'id_proveedor', label: 'ID Proveedor', type: 'text', placeholder: 'PROV-01' },
+            { id: 'id_proveedor', label: 'ID Proveedor', type: 'text', placeholder: 'PROV-01', readonly: isEditingCatalog },
             { id: 'nombre_proveedor', label: 'Nombre/Razón Social', type: 'text', placeholder: 'Gasolinera Plus' },
             { id: 'tipo_proveedor', label: 'Tipo Proveedor', type: 'text', placeholder: 'Diesel / Refacciones' },
-            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' }
+            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
+            { id: 'estatus', label: 'Estatus', type: 'select', options: ['Activo', 'Inactivo'] }
         ]
     };
 
-    fieldsContainer.innerHTML = config[currentCatalog].map(f => `
-        <div>
-            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">${f.label}</label>
-            <input type="${f.type}" id="${f.id}" required placeholder="${f.placeholder}"
-                class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all">
-        </div>
-    `).join('');
+    let itemData = null;
+    if (isEditingCatalog && editingCatalogId) {
+        itemData = catalogData.find(d => {
+            if (currentCatalog === 'choferes') return d.id_chofer === editingCatalogId;
+            if (currentCatalog === 'unidades') return d.id_unidad === editingCatalogId;
+            if (currentCatalog === 'clientes') return d.nombre_cliente === editingCatalogId;
+            if (currentCatalog === 'proveedores') return d.id_proveedor === editingCatalogId;
+            return false;
+        });
+    }
+
+    fieldsContainer.innerHTML = config[currentCatalog].map(f => {
+        let val = '';
+        if (itemData) {
+            if (f.id === 'registra_combustible') {
+                val = itemData[f.id] !== false ? 'true' : 'false';
+            } else {
+                val = itemData[f.id] !== undefined && itemData[f.id] !== null ? itemData[f.id] : '';
+            }
+        } else {
+            // Default value for registra_combustible when creating new
+            if (f.id === 'registra_combustible') val = 'true';
+            else if (f.id === 'estatus') val = 'Activo';
+        }
+
+        const readonlyAttr = f.readonly ? 'readonly cursor-not-allowed bg-slate-800/40 text-slate-400 font-semibold' : '';
+
+        if (f.type === 'select') {
+            const opts = f.options.map(o => {
+                const optVal = typeof o === 'string' ? o : o.value;
+                const optLabel = typeof o === 'string' ? o : o.label;
+                const selected = String(val) === String(optVal) ? 'selected' : '';
+                return `<option value="${optVal}" class="bg-slate-900 text-white">${optLabel}</option>`;
+            }).join('');
+
+            return `
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">${f.label}</label>
+                    <select id="${f.id}" required class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer ${readonlyAttr}">
+                        ${opts}
+                    </select>
+                </div>
+            `;
+        }
+
+        return `
+            <div>
+                <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">${f.label}</label>
+                <input type="${f.type}" id="${f.id}" required placeholder="${f.placeholder}" value="${val}" ${f.readonly ? 'readonly' : ''}
+                    class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none ${readonlyAttr}">
+            </div>
+        `;
+    }).join('');
 }
 
 function hideCatalogForm() {
     document.getElementById('catalog-list-view').classList.remove('hidden');
     document.getElementById('catalog-form-view').classList.add('hidden');
+    isEditingCatalog = false;
+    editingCatalogId = null;
 }
 
 async function handleCatalogSubmit(e) {
@@ -5216,20 +5286,37 @@ async function handleCatalogSubmit(e) {
         const inputs = e.target.querySelectorAll('input, select');
         inputs.forEach(input => {
             if (input.id) {
-                payload[input.id] = input.value;
+                if (input.id === 'registra_combustible') {
+                    payload[input.id] = input.value === 'true';
+                } else {
+                    payload[input.id] = input.value;
+                }
             }
         });
 
-        payload.estatus = 'Activo';
+        if (payload.estatus === undefined) {
+            payload.estatus = 'Activo';
+        }
 
         const tableName = 'table' + currentCatalog.charAt(0).toUpperCase() + currentCatalog.slice(1);
         const table = DB_CONFIG[tableName];
         
         if (!table) throw new Error('Tabla no configurada para ' + currentCatalog);
 
-        const { error } = await window.supabaseClient
-            .from(table)
-            .insert([payload]);
+        let error;
+        if (isEditingCatalog && editingCatalogId) {
+            const idCol = currentCatalog === 'choferes' ? 'id_chofer' : (currentCatalog === 'unidades' ? 'id_unidad' : (currentCatalog === 'clientes' ? 'nombre_cliente' : 'id_proveedor'));
+            const { error: updateError } = await window.supabaseClient
+                .from(table)
+                .update(payload)
+                .eq(idCol, editingCatalogId);
+            error = updateError;
+        } else {
+            const { error: insertError } = await window.supabaseClient
+                .from(table)
+                .insert([payload]);
+            error = insertError;
+        }
 
         if (error) throw error;
 
