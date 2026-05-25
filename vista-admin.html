@@ -371,6 +371,10 @@
                     class="px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all">
                     <i class="fas fa-calendar-day mr-2"></i>Resumen Diario
                 </button>
+                <button onclick="switchDashboardTab('range-summary')" id="tab-db-range-summary"
+                    class="px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all">
+                    <i class="fas fa-calendar-alt mr-2"></i>Resumen por Fecha
+                </button>
             </div>
 
             <!-- SUB-VIEW: General Dashboard -->
@@ -1396,6 +1400,203 @@
                                 </tr>
                             </thead>
                             <tbody id="spreadsheet-tbody">
+                                <!-- Dynamically populated in js/main.js -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUB-VIEW: Range Summary Dashboard -->
+            <div id="db-range-summary-subview" class="space-y-8 hidden">
+                <!-- Control Panel (No Print) -->
+                <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6 no-print">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-blue-600/10 flex items-center justify-center border border-blue-500/20">
+                            <i class="fas fa-calendar-alt text-blue-400"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-black text-white text-base">Resumen por Fecha</h3>
+                            <p class="text-xs text-slate-500 font-medium">Visualiza, comparte e imprime la operación de un rango de fechas</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-2 bg-slate-950/50 border border-white/10 rounded-xl px-3 py-1.5 shadow-inner">
+                            <span class="text-[10px] uppercase font-bold text-slate-500">Desde:</span>
+                            <input type="date" id="db-range-summary-date-start" onchange="updateRangeSummary()"
+                                class="bg-transparent text-slate-300 text-sm outline-none font-bold cursor-pointer">
+                            <span class="text-[10px] uppercase font-bold text-slate-500 ml-2">Hasta:</span>
+                            <input type="date" id="db-range-summary-date-end" onchange="updateRangeSummary()"
+                                class="bg-transparent text-slate-300 text-sm outline-none font-bold cursor-pointer">
+                        </div>
+                        <button onclick="printRangeSummary()" 
+                            class="px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2 cursor-pointer">
+                            <i class="fas fa-file-pdf"></i> Descargar PDF
+                        </button>
+                        <button onclick="shareRangeSummaryOnWhatsApp()" 
+                            class="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer">
+                            <i class="fab fa-whatsapp"></i> Compartir WhatsApp
+                        </button>
+                        <button onclick="exportRangeSummaryToCSV()" 
+                            class="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/5 transition-all flex items-center gap-2 cursor-pointer">
+                            <i class="fas fa-file-csv"></i> Exportar CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Printable Area -->
+                <div id="range-summary-print-area" class="space-y-8 p-1">
+                    <div class="screen-only-summary space-y-8">
+                    <!-- Print-Only Header -->
+                    <div class="hidden print-header p-6 border-b border-slate-300 mb-6">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <h1 class="text-2xl font-black text-black">PROCESA-T LOGÍSTICA</h1>
+                                <p class="text-xs text-slate-600">Reporte Consolidado de Operación por Fecha</p>
+                            </div>
+                            <div class="text-right">
+                                <h2 class="text-lg font-bold text-black" id="print-range-summary-date-title">Periodo: -</h2>
+                                <p class="text-[9px] text-slate-500">Generado el: <span id="print-range-generation-time"></span></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daily KPIs -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <!-- Revenue -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 flex items-center gap-4 relative overflow-hidden summary-kpi-card">
+                            <div class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 text-blue-400">
+                                <i class="fas fa-hand-holding-usd text-xl"></i>
+                            </div>
+                            <div>
+                                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-widest block mb-0.5">Ingreso Fletes</span>
+                                <h4 id="db-range-summary-total-revenue" class="text-2xl font-black text-blue-400">$0.00</h4>
+                            </div>
+                        </div>
+                        <!-- Expenses -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 flex items-center gap-4 relative overflow-hidden summary-kpi-card">
+                            <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20 text-red-400">
+                                <i class="fas fa-file-invoice-dollar text-xl"></i>
+                            </div>
+                            <div>
+                                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-widest block mb-0.5">Gastos Operativos</span>
+                                <h4 id="db-range-summary-total-expenses" class="text-2xl font-black text-red-400">$0.00</h4>
+                            </div>
+                        </div>
+                        <!-- Commissions -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 flex items-center gap-4 relative overflow-hidden summary-kpi-card">
+                            <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 text-amber-400">
+                                <i class="fas fa-user-tag text-xl"></i>
+                            </div>
+                            <div>
+                                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-widest block mb-0.5">Comisiones Chofer</span>
+                                <h4 id="db-range-summary-total-comisiones" class="text-2xl font-black text-amber-400">$0.00</h4>
+                            </div>
+                        </div>
+                        <!-- Profit -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5 flex items-center gap-4 relative overflow-hidden summary-kpi-card">
+                            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 text-emerald-400">
+                                <i class="fas fa-piggy-bank text-xl"></i>
+                            </div>
+                            <div>
+                                <span class="text-[9px] uppercase font-bold text-slate-500 tracking-widest block mb-0.5">Utilidad Neta</span>
+                                <h4 id="db-range-summary-net-profit" class="text-2xl font-black text-emerald-400">$0.00</h4>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Diesel Summary Card -->
+                    <div class="bg-slate-900/40 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-white/5">
+                        <div class="flex items-center gap-3 mb-6">
+                            <i class="fas fa-gas-pump text-purple-400 text-lg"></i>
+                            <h4 class="font-black text-white text-sm uppercase tracking-wider">Desglose de Diésel del Periodo</h4>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="bg-slate-950/40 p-4 rounded-xl border border-white/5 flex justify-between items-center">
+                                <span class="text-xs text-slate-400 font-bold">Litros Totales Cargados:</span>
+                                <span id="db-range-summary-diesel-liters" class="text-lg font-black text-purple-400">0.0 L</span>
+                            </div>
+                            <div class="bg-slate-950/40 p-4 rounded-xl border border-white/5 flex justify-between items-center">
+                                <span class="text-xs text-slate-400 font-bold">Costo Total Diésel:</span>
+                                <span id="db-range-summary-diesel-cost" class="text-lg font-black text-rose-400">$0.00</span>
+                            </div>
+                            <div class="bg-slate-950/40 p-4 rounded-xl border border-white/5 flex justify-between items-center">
+                                <span class="text-xs text-slate-400 font-bold">Rendimiento Promedio:</span>
+                                <span id="db-range-summary-diesel-yield" class="text-lg font-black text-emerald-400">-- km/L</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Lists -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <!-- Trips list -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
+                            <div class="p-6 border-b border-white/5">
+                                <h3 class="font-bold text-white flex items-center gap-2"><i class="fas fa-route text-blue-400"></i> Viajes del Periodo</h3>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs border-collapse">
+                                    <thead class="bg-white/[0.02] text-slate-400 font-bold uppercase tracking-wider text-[9px]">
+                                        <tr>
+                                            <th class="px-4 py-3">ID / Chofer</th>
+                                            <th class="px-4 py-3">Unidad / Ruta</th>
+                                            <th class="px-4 py-3 text-right">Flete</th>
+                                            <th class="px-4 py-3 text-center no-print w-16">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="db-range-summary-trips-table-body" class="divide-y divide-white/5 text-slate-300">
+                                        <tr>
+                                            <td colspan="4" class="px-4 py-6 text-center text-slate-500 italic">No hay viajes registrados</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Expenses list -->
+                        <div class="bg-slate-900/40 backdrop-blur-xl rounded-2xl shadow-xl border border-white/5 overflow-hidden">
+                            <div class="p-6 border-b border-white/5">
+                                <h3 class="font-bold text-white flex items-center gap-2"><i class="fas fa-receipt text-red-400"></i> Gastos del Periodo</h3>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs border-collapse">
+                                    <thead class="bg-white/[0.02] text-slate-400 font-bold uppercase tracking-wider text-[9px]">
+                                        <tr>
+                                            <th class="px-4 py-3">Concepto / ID</th>
+                                            <th class="px-4 py-3">Unidad / Detalle</th>
+                                            <th class="px-4 py-3 text-right">Monto</th>
+                                            <th class="px-4 py-3 text-center no-print w-16">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="db-range-summary-expenses-table-body" class="divide-y divide-white/5 text-slate-300">
+                                        <tr>
+                                            <td colspan="4" class="px-4 py-6 text-center text-slate-500 italic">No hay gastos registrados</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+
+                    <!-- Spreadsheet Print View (new content) -->
+                    <div id="range-summary-spreadsheet-view" class="print-spreadsheet-view">
+                        <table class="spreadsheet-table">
+                            <thead>
+                                <tr>
+                                    <th class="ss-row-header-col"></th>
+                                    <th>A</th>
+                                    <th>B</th>
+                                    <th>C</th>
+                                    <th>D</th>
+                                    <th>E</th>
+                                    <th>F</th>
+                                    <th>G</th>
+                                    <th>H</th>
+                                    <th>I</th>
+                                </tr>
+                            </thead>
+                            <tbody id="range-spreadsheet-tbody">
                                 <!-- Dynamically populated in js/main.js -->
                             </tbody>
                         </table>
@@ -2811,7 +3012,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-client.js?v=15.29"></script>
     <script src="./js/auth.js?v=15.29"></script>
-    <script src="./js/main.js?v=15.35"></script>
+    <script src="./js/main.js?v=15.36"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>
@@ -2876,14 +3077,15 @@
             #sidebar-overlay,
             header,
             .content-section:not(#section-dashboard),
-            #section-dashboard > *:not(#db-summary-subview),
+            #section-dashboard > *:not(#db-summary-subview):not(#db-range-summary-subview),
             #db-summary-subview > *:not(#daily-summary-print-area),
+            #db-range-summary-subview > *:not(#range-summary-print-area),
             .no-print {
                 display: none !important;
             }
 
             /* Make sure the main content is full screen */
-            body, main, #section-dashboard, #db-summary-subview, #daily-summary-print-area {
+            body, main, #section-dashboard, #db-summary-subview, #db-range-summary-subview, #daily-summary-print-area, #range-summary-print-area {
                 background: #121212 !important;
                 color: #ffffff !important;
                 width: 100% !important;
@@ -3016,8 +3218,9 @@
         body.generating-pdf #sidebar-overlay,
         body.generating-pdf header,
         body.generating-pdf .content-section:not(#section-dashboard),
-        body.generating-pdf #section-dashboard > *:not(#db-summary-subview),
+        body.generating-pdf #section-dashboard > *:not(#db-summary-subview):not(#db-range-summary-subview),
         body.generating-pdf #db-summary-subview > *:not(#daily-summary-print-area),
+        body.generating-pdf #db-range-summary-subview > *:not(#range-summary-print-area),
         body.generating-pdf .no-print {
             display: none !important;
         }
@@ -3026,7 +3229,9 @@
         body.generating-pdf main,
         body.generating-pdf #section-dashboard,
         body.generating-pdf #db-summary-subview,
-        body.generating-pdf #daily-summary-print-area {
+        body.generating-pdf #db-range-summary-subview,
+        body.generating-pdf #daily-summary-print-area,
+        body.generating-pdf #range-summary-print-area {
             background: #121212 !important;
             color: #ffffff !important;
             width: 100% !important;

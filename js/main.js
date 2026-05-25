@@ -1131,7 +1131,7 @@ let debtsDashboardInitialized = false;
 window.switchDashboardTab = function(tab) {
     currentDashboardTab = tab;
     
-    const tabs = ['general', 'unit', 'driver', 'expenses', 'debts', 'summary'];
+    const tabs = ['general', 'unit', 'driver', 'expenses', 'debts', 'summary', 'range-summary'];
     
     tabs.forEach(t => {
         const btn = document.getElementById('tab-db-' + t);
@@ -1166,6 +1166,8 @@ window.switchDashboardTab = function(tab) {
         initDebtsDashboard();
     } else if (tab === 'summary') {
         initDailySummaryDashboard();
+    } else if (tab === 'range-summary') {
+        initRangeSummary();
     }
 };
 
@@ -1665,6 +1667,531 @@ window.updateDailySummary = updateDailySummary;
 window.printDailySummary = printDailySummary;
 window.shareDailySummaryOnWhatsApp = shareDailySummaryOnWhatsApp;
 window.exportDailySummaryToCSV = exportDailySummaryToCSV;
+
+// --- RANGE SUMMARY HELPER FUNCTIONS ---
+function getCurrentWeekRange() {
+    const today = new Date();
+    const day = today.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diffToMonday);
+    
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    
+    return {
+        start: getLocalISODate(monday),
+        end: getLocalISODate(sunday)
+    };
+}
+
+let rangeSummaryInitialized = false;
+let rangeSummaryTrips = [];
+let rangeSummaryExpenses = [];
+
+async function initRangeSummary() {
+    const startInput = document.getElementById('db-range-summary-date-start');
+    const endInput = document.getElementById('db-range-summary-date-end');
+    if (!startInput || !endInput) return;
+
+    if (!startInput.value || !endInput.value) {
+        const range = getCurrentWeekRange();
+        startInput.value = range.start;
+        endInput.value = range.end;
+    }
+
+    if (!rangeSummaryInitialized) {
+        rangeSummaryInitialized = true;
+    }
+
+    updateRangeSummary();
+}
+
+async function updateRangeSummary() {
+    const startInput = document.getElementById('db-range-summary-date-start');
+    const endInput = document.getElementById('db-range-summary-date-end');
+    if (!startInput || !endInput) return;
+
+    const startStr = startInput.value;
+    const endStr = endInput.value;
+    if (!startStr || !endStr) return;
+
+    // Set printable titles
+    const printTitle = document.getElementById('print-range-summary-date-title');
+    if (printTitle) printTitle.innerText = `Periodo: ${startStr} a ${endStr}`;
+    const printTime = document.getElementById('print-range-generation-time');
+    if (printTime) printTime.innerText = new Date().toLocaleString('es-MX');
+
+    const statusEl = document.getElementById('conn-status');
+    if (statusEl) {
+        statusEl.innerText = 'Cargando Resumen...';
+        statusEl.className = 'text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest animate-pulse';
+    }
+
+    try {
+        const [tripsRaw, expensesRaw] = await Promise.all([
+            window.supabaseClient.from(DB_CONFIG.tableViajes).select('*').gte('fecha', startStr).lte('fecha', endStr),
+            window.supabaseClient.from(DB_CONFIG.tableGastos).select('*').gte('fecha', startStr).lte('fecha', endStr)
+        ]);
+
+        if (tripsRaw.error) throw tripsRaw.error;
+        if (expensesRaw.error) throw expensesRaw.error;
+
+        const viajes = tripsRaw.data || [];
+        const gastos = (expensesRaw.data || []).filter(g => {
+            const c = (g.concepto || '').toLowerCase();
+            return c !== 'comisión chofer' && c !== 'comision chofer';
+        });
+
+        rangeSummaryTrips = viajes;
+        rangeSummaryExpenses = gastos;
+
+        // Aggregate KPIs
+        const totalRevenue = viajes.reduce((sum, v) => sum + (parseFloat(v.monto_flete) || 0), 0);
+        const totalExpenses = gastos.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+        const totalComisiones = viajes.reduce((sum, v) => sum + (parseFloat(v.comision_chofer) || 0), 0);
+        const netProfit = totalRevenue - totalExpenses - totalComisiones;
+
+        const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+
+        safeSetText('db-range-summary-total-revenue', fmt(totalRevenue));
+        safeSetText('db-range-summary-total-expenses', fmt(totalExpenses));
+        safeSetText('db-range-summary-total-comisiones', fmt(totalComisiones));
+        
+        const profitEl = document.getElementById('db-range-summary-net-profit');
+        if (profitEl) {
+            profitEl.innerText = fmt(netProfit);
+            if (netProfit >= 0) {
+                profitEl.className = 'text-2xl font-black text-emerald-400';
+            } else {
+                profitEl.className = 'text-2xl font-black text-rose-400';
+            }
+        }
+
+        // Diesel Breakdown
+        let dieselLiters = 0;
+        let dieselCost = 0;
+        let dieselKm = 0;
+
+        gastos.forEach(g => {
+            if (g.concepto === 'Diesel') {
+                const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+                const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+                dieselLiters += effectiveVol;
+                dieselCost += parseFloat(g.monto) || 0;
+                dieselKm += parseFloat(g.kmts_recorridos) || 0;
+            }
+        });
+
+        const avgYield = (dieselLiters > 0 && dieselKm > 0) ? (dieselKm / dieselLiters) : 0;
+
+        safeSetText('db-range-summary-diesel-liters', `${dieselLiters.toFixed(1)} L`);
+        safeSetText('db-range-summary-diesel-cost', fmt(dieselCost));
+        safeSetText('db-range-summary-diesel-yield', avgYield > 0 ? `${avgYield.toFixed(2)} km/L` : '-- km/L');
+
+        // Render Tables
+        await ensureGlobalMapsLoaded();
+
+        const tripsTbody = document.getElementById('db-range-summary-trips-table-body');
+        if (tripsTbody) {
+            if (viajes.length === 0) {
+                tripsTbody.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500 italic">No hay viajes registrados en este periodo</td></tr>';
+            } else {
+                tripsTbody.innerHTML = viajes.map(v => {
+                    const choferName = globalDriverMap[v.id_chofer] || v.id_chofer || 'No asignado';
+                    return `
+                        <tr class="hover:bg-slate-800/20 transition-colors">
+                            <td class="px-4 py-3">
+                                <div class="font-mono font-bold text-white">${v.id_viaje}</div>
+                                <div class="text-[10px] text-slate-400">${choferName}</div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-slate-200">ECO: ${v.id_unidad}</div>
+                                <div class="text-[10px] text-slate-400 truncate max-w-[180px]">${v.origen} ➔ ${v.destino}</div>
+                            </td>
+                            <td class="px-4 py-3 text-right font-bold text-blue-400">${fmt(parseFloat(v.monto_flete) || 0)}</td>
+                            <td class="px-4 py-3 text-center no-print">
+                                <button onclick="showDetailModal('viajes', '${v.id_viaje}')" class="text-slate-400 hover:text-blue-400 p-1 cursor-pointer transition-all" title="Ver Detalle">
+                                    <i class="fas fa-eye text-[11px]"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        const expensesTbody = document.getElementById('db-range-summary-expenses-table-body');
+        if (expensesTbody) {
+            if (gastos.length === 0) {
+                expensesTbody.innerHTML = '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-500 italic">No hay gastos registrados en este periodo</td></tr>';
+            } else {
+                expensesTbody.innerHTML = gastos.map(g => {
+                    return `
+                        <tr class="hover:bg-slate-800/20 transition-colors">
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-white">${g.concepto}</div>
+                                <div class="font-mono text-[9px] text-slate-400">${g.id_gasto}</div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="font-semibold text-slate-200">ECO: ${g.id_unidad}</div>
+                                <div class="text-[10px] text-slate-400 truncate max-w-[180px]">${g.id_viaje ? `Viaje: ${g.id_viaje}` : 'Gasto General'}</div>
+                            </td>
+                            <td class="px-4 py-3 text-right font-bold text-red-400">${fmt(parseFloat(g.monto) || 0)}</td>
+                            <td class="px-4 py-3 text-center no-print">
+                                <button onclick="showDetailModal('gastos', '${g.id_gasto}')" class="text-slate-400 hover:text-red-400 p-1 cursor-pointer transition-all" title="Ver Detalle">
+                                    <i class="fas fa-eye text-[11px]"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        // Populate spreadsheet print view table body
+        const spreadsheetTbody = document.getElementById('range-spreadsheet-tbody');
+        if (spreadsheetTbody) {
+            let rowNum = 1;
+            let ssHtml = '';
+
+            // Row 1: Header title and Period
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-left" colspan="2">RESUMEN DIARIO PROCESA-T</td>
+                <td class="text-left" colspan="2">Periodo: ${startStr} a ${endStr}</td>
+                <td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 2: Empty
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 3: CONSOLIDADO OPERATIVO Title
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-left" colspan="9">CONSOLIDADO OPERATIVO</td>
+            </tr>`;
+
+            // Row 4: Viajes del Periodo
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Viajes del Periodo</td>
+                <td class="text-right">${viajes.length}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 5: Ingresos Fletes
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Ingresos Fletes</td>
+                <td class="text-right">${Math.round(totalRevenue)}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 6: Gastos del Periodo
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Gastos del Periodo</td>
+                <td class="text-right">${Math.round(totalExpenses)}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 7: Comisiones Chofer
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Comisiones Chofer</td>
+                <td class="text-right">${Math.round(totalComisiones)}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 8: Utilidad Neta
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="text-left">Utilidad Neta</td>
+                <td class="text-right">${Math.round(netProfit)}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 9: Empty
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row 10: DETALLE DE VIAJES Title
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-left" colspan="9">DETALLE DE VIAJES</td>
+            </tr>`;
+
+            // Row 11: DETALLE DE VIAJES Header
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-center">ID Viaje</td>
+                <td class="font-bold text-center">Chofer</td>
+                <td class="font-bold text-center">Unidad</td>
+                <td class="font-bold text-center">Origen</td>
+                <td class="font-bold text-center">Destino</td>
+                <td class="font-bold text-center">Monto Flete</td>
+                <td class="font-bold text-center">Comision Chofer</td>
+                <td class="font-bold text-center">Estatus Viaje</td>
+                <td></td>
+            </tr>`;
+
+            // Rows 12+: DETALLE DE VIAJES Data
+            if (viajes.length === 0) {
+                ssHtml += `<tr>
+                    <td class="ss-row-num">${rowNum++}</td>
+                    <td colspan="9" class="text-center italic">No hay viajes registrados</td>
+                </tr>`;
+            } else {
+                viajes.forEach(v => {
+                    const choferName = globalDriverMap[v.id_chofer] || v.id_chofer || 'No asignado';
+                    ssHtml += `<tr>
+                        <td class="ss-row-num">${rowNum++}</td>
+                        <td class="text-left font-mono">${v.id_viaje}</td>
+                        <td class="text-left">${choferName}</td>
+                        <td class="text-center font-mono">${v.id_unidad}</td>
+                        <td class="text-left">${v.origen || ''}</td>
+                        <td class="text-left">${v.destino || ''}</td>
+                        <td class="text-right">${v.monto_flete ? Math.round(v.monto_flete) : 0}</td>
+                        <td class="text-right">${v.comision_chofer ? Math.round(v.comision_chofer) : 0}</td>
+                        <td class="text-center">${v.estatus_viaje || ''}</td>
+                        <td></td>
+                    </tr>`;
+                });
+            }
+
+            // Row for spacing
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>`;
+
+            // Row: DETALLE DE GASTOS Title
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-left" colspan="9">DETALLE DE GASTOS</td>
+            </tr>`;
+
+            // Row: DETALLE DE GASTOS Header
+            ssHtml += `<tr>
+                <td class="ss-row-num">${rowNum++}</td>
+                <td class="font-bold text-center">ID Gasto</td>
+                <td class="font-bold text-center">Concepto</td>
+                <td class="font-bold text-center">Unidad</td>
+                <td class="font-bold text-center">Monto</td>
+                <td class="font-bold text-center">Viaje Referencia</td>
+                <td class="font-bold text-center">Forma Pago</td>
+                <td class="font-bold text-center">Estatus Pago</td>
+                <td></td><td></td>
+            </tr>`;
+
+            // Rows: DETALLE DE GASTOS Data
+            if (gastos.length === 0) {
+                ssHtml += `<tr>
+                    <td class="ss-row-num">${rowNum++}</td>
+                    <td colspan="9" class="text-center italic">No hay gastos registrados</td>
+                </tr>`;
+            } else {
+                gastos.forEach(g => {
+                    ssHtml += `<tr>
+                        <td class="ss-row-num">${rowNum++}</td>
+                        <td class="text-left font-mono">${g.id_gasto}</td>
+                        <td class="text-left">${g.concepto || ''}</td>
+                        <td class="text-center font-mono">${g.id_unidad || ''}</td>
+                        <td class="text-right">${g.monto ? Math.round(g.monto) : 0}</td>
+                        <td class="text-left font-mono">${g.id_viaje || ''}</td>
+                        <td class="text-center">${g.forma_pago || ''}</td>
+                        <td class="text-center">${g.estatus_pago || ''}</td>
+                        <td></td><td></td>
+                    </tr>`;
+                });
+            }
+
+            spreadsheetTbody.innerHTML = ssHtml;
+        }
+
+        if (statusEl) {
+            statusEl.innerText = 'Conectado';
+            statusEl.className = 'text-[10px] bg-green-100 text-green-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+
+    } catch (e) {
+        console.error('Error updating range summary:', e);
+        if (statusEl) {
+            statusEl.innerText = 'Error: ' + e.message;
+            statusEl.className = 'text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest';
+        }
+    }
+}
+
+async function printRangeSummary() {
+    const element = document.getElementById('range-summary-print-area');
+    if (!element) return;
+
+    const startInput = document.getElementById('db-range-summary-date-start');
+    const endInput = document.getElementById('db-range-summary-date-end');
+    const startStr = startInput ? startInput.value : '';
+    const endStr = endInput ? endInput.value : '';
+
+    if (typeof html2pdf !== 'undefined') {
+        document.body.classList.add('generating-pdf');
+        document.body.offsetHeight;
+        await new Promise(resolve => setTimeout(resolve, 250));
+
+        const opt = {
+            margin:       0.3,
+            filename:     `Resumen_Periodo_${startStr}_a_${endStr}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false, backgroundColor: null },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+
+        try {
+            await html2pdf().set(opt).from(element).save();
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            window.print();
+        } finally {
+            document.body.classList.remove('generating-pdf');
+        }
+    } else {
+        window.print();
+    }
+}
+
+function shareRangeSummaryOnWhatsApp() {
+    const startInput = document.getElementById('db-range-summary-date-start');
+    const endInput = document.getElementById('db-range-summary-date-end');
+    if (!startInput || !endInput || !startInput.value || !endInput.value) return;
+
+    const startStr = startInput.value;
+    const endStr = endInput.value;
+    const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+
+    const totalRevenue = rangeSummaryTrips.reduce((sum, v) => sum + (parseFloat(v.monto_flete) || 0), 0);
+    const totalExpenses = rangeSummaryExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+    const totalComisiones = rangeSummaryTrips.reduce((sum, v) => sum + (parseFloat(v.comision_chofer) || 0), 0);
+    const netProfit = totalRevenue - totalExpenses - totalComisiones;
+
+    let dieselLiters = 0;
+    let dieselCost = 0;
+    rangeSummaryExpenses.forEach(g => {
+        if (g.concepto === 'Diesel') {
+            const tractoSupport = (parseFloat(g.litros_tracto) > 0 || parseFloat(g.litros_termo) > 0);
+            const effectiveVol = tractoSupport ? (parseFloat(g.litros_tracto) || 0) : (parseFloat(g.litros_rellenados) || 0);
+            dieselLiters += effectiveVol;
+            dieselCost += parseFloat(g.monto) || 0;
+        }
+    });
+
+    let text = `*📋 RESUMEN DE OPERACIÓN POR FECHA (PROCESA-T)*\n`;
+    text += `*📅 Periodo:* ${startStr} a ${endStr}\n`;
+    text += `------------------------------------\n\n`;
+    
+    text += `🚚 *Viajes del Periodo:* ${rangeSummaryTrips.length}\n`;
+    text += `💰 *Ingresos (Fletes):* ${fmt(totalRevenue)}\n`;
+    text += `💸 *Gastos del Periodo:* ${fmt(totalExpenses)}\n`;
+    text += `👤 *Comisiones Chofer:* ${fmt(totalComisiones)}\n`;
+    text += `📈 *Utilidad Neta:* ${fmt(netProfit)}\n\n`;
+
+    if (dieselLiters > 0) {
+        text += `⛽ *Consumo Diésel:*\n`;
+        text += `• Litros Totales: ${dieselLiters.toFixed(1)} L\n`;
+        text += `• Costo Diésel: ${fmt(dieselCost)}\n\n`;
+    }
+
+    if (rangeSummaryTrips.length > 0) {
+        text += `⚓ *Detalle de Viajes:*\n`;
+        rangeSummaryTrips.slice(0, 15).forEach((v, idx) => {
+            const choferName = globalDriverMap[v.id_chofer] || v.id_chofer || 'Sin chofer';
+            text += `${idx + 1}. *${v.id_viaje}* (ECO ${v.id_unidad}) - ${choferName}\n   Ruta: ${v.origen} ➔ ${v.destino}\n   Flete: ${fmt(parseFloat(v.monto_flete) || 0)}\n`;
+        });
+        if (rangeSummaryTrips.length > 15) {
+            text += `... y ${rangeSummaryTrips.length - 15} viajes más.\n`;
+        }
+        text += `\n`;
+    }
+
+    if (rangeSummaryExpenses.length > 0) {
+        text += `💵 *Detalle de Gastos:*\n`;
+        rangeSummaryExpenses.slice(0, 15).forEach((g, idx) => {
+            text += `${idx + 1}. *${g.concepto}* (ECO ${g.id_unidad}) - ${fmt(parseFloat(g.monto) || 0)}\n`;
+        });
+        if (rangeSummaryExpenses.length > 15) {
+            text += `... y ${rangeSummaryExpenses.length - 15} gastos más.\n`;
+        }
+        text += `\n`;
+    }
+
+    text += `_Generado automáticamente desde Procesa-T Admin Panel_`;
+
+    navigator.clipboard.writeText(text).then(() => {
+        const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+        window.open(waUrl, '_blank');
+    }).catch(err => {
+        console.error('Error copying text to clipboard:', err);
+        const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+        window.open(waUrl, '_blank');
+    });
+}
+
+function exportRangeSummaryToCSV() {
+    const startInput = document.getElementById('db-range-summary-date-start');
+    const endInput = document.getElementById('db-range-summary-date-end');
+    if (!startInput || !endInput || !startInput.value || !endInput.value) return;
+
+    const startStr = startInput.value;
+    const endStr = endInput.value;
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+    csvContent += `RESUMEN DE OPERACION PROCESA-T;Periodo: ${startStr} a ${endStr}\n\n`;
+
+    const totalRevenue = rangeSummaryTrips.reduce((sum, v) => sum + (parseFloat(v.monto_flete) || 0), 0);
+    const totalExpenses = rangeSummaryExpenses.reduce((sum, g) => sum + (parseFloat(g.monto) || 0), 0);
+    const totalComisiones = rangeSummaryTrips.reduce((sum, v) => sum + (parseFloat(v.comision_chofer) || 0), 0);
+    const netProfit = totalRevenue - totalExpenses - totalComisiones;
+
+    csvContent += "CONSOLIDADO OPERATIVO\n";
+    csvContent += `Viajes;${rangeSummaryTrips.length}\n`;
+    csvContent += `Ingresos Fletes;${totalRevenue}\n`;
+    csvContent += `Gastos del Periodo;${totalExpenses}\n`;
+    csvContent += `Comisiones Chofer;${totalComisiones}\n`;
+    csvContent += `Utilidad Neta;${netProfit}\n\n`;
+
+    csvContent += "DETALLE DE VIAJES\n";
+    csvContent += "ID Viaje;Chofer;Unidad;Origen;Destino;Monto Flete;Comision Chofer;Estatus Viaje\n";
+    rangeSummaryTrips.forEach(v => {
+        const choferName = globalDriverMap[v.id_chofer] || v.id_chofer || 'No asignado';
+        csvContent += `"${v.id_viaje}";"${choferName}";"${v.id_unidad}";"${v.origen}";"${v.destino}";${v.monto_flete};${v.comision_chofer};"${v.estatus_viaje}"\n`;
+    });
+    csvContent += "\n";
+
+    csvContent += "DETALLE DE GASTOS\n";
+    csvContent += "ID Gasto;Concepto;Unidad;Monto;Viaje Referencia;Forma Pago;Estatus Pago\n";
+    rangeSummaryExpenses.forEach(g => {
+        csvContent += `"${g.id_gasto}";"${g.concepto}";"${g.id_unidad}";${g.monto};"${g.id_viaje || ''}";"${g.forma_pago || ''}";"${g.estatus_pago || ''}"\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `resumen_periodo_${startStr}_a_${endStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+window.initRangeSummary = initRangeSummary;
+window.updateRangeSummary = updateRangeSummary;
+window.printRangeSummary = printRangeSummary;
+window.shareRangeSummaryOnWhatsApp = shareRangeSummaryOnWhatsApp;
+window.exportRangeSummaryToCSV = exportRangeSummaryToCSV;
 
 async function initUnitDashboard() {
     const startInput = document.getElementById('db-unit-start');
