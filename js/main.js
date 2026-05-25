@@ -4129,7 +4129,7 @@ function renderAdvancedCharts(viajesData, gastosData, unidadesData = []) {
 
     const sortedYields = Object.entries(unitYields)
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 8);
+        .slice(0, 15);
 
     // Map unit ID to name if available
     const unitMap = {};
