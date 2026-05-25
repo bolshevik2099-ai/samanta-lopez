@@ -1230,7 +1230,7 @@
                         </div>
                         <button onclick="printDailySummary()" 
                             class="px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2 cursor-pointer">
-                            <i class="fas fa-file-pdf"></i> Descargar PDF / Imprimir
+                            <i class="fas fa-file-pdf"></i> Descargar PDF
                         </button>
                         <button onclick="shareDailySummaryOnWhatsApp()" 
                             class="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2 cursor-pointer">
@@ -2780,11 +2780,13 @@
         </div>
     </div>
 
+    <!-- PDF Generation Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="./js/config.js?v=15.29"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-client.js?v=15.29"></script>
     <script src="./js/auth.js?v=15.29"></script>
-    <script src="./js/main.js?v=15.31"></script>
+    <script src="./js/main.js?v=15.32"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>
@@ -2839,7 +2841,7 @@
         }
 
         /* --- PRINT STYLES FOR DAILY SUMMARY --- */
-        @media print {
+        @media print, .generating-pdf {
             /* Hide all sidebar, header nav, toggle and filters */
             body > *:not(#section-dashboard),
             #section-dashboard > *:not(#db-summary-subview),

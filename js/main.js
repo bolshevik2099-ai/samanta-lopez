@@ -1342,8 +1342,40 @@ async function updateDailySummary() {
     }
 }
 
-function printDailySummary() {
-    window.print();
+async function printDailySummary() {
+    const element = document.getElementById('daily-summary-print-area');
+    if (!element) return;
+
+    const dateInput = document.getElementById('db-summary-date');
+    const dateStr = dateInput ? dateInput.value : new Date().toISOString().split('T')[0];
+
+    if (typeof html2pdf !== 'undefined') {
+        // Add generating-pdf class to body to temporarily apply print styles on-screen
+        document.body.classList.add('generating-pdf');
+        
+        // Wait a tiny bit for the styles to apply
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const opt = {
+            margin:       0.3,
+            filename:     `Resumen_Diario_${dateStr}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
+            jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+
+        try {
+            await html2pdf().set(opt).from(element).save();
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            window.print();
+        } finally {
+            // Remove the class to restore normal screen styling
+            document.body.classList.remove('generating-pdf');
+        }
+    } else {
+        window.print();
+    }
 }
 
 function shareDailySummaryOnWhatsApp() {
