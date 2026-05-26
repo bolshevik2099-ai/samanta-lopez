@@ -74,7 +74,7 @@ module.exports = async (req, res) => {
             `3. Si el usuario te pide un cálculo o análisis complejo (como el rendimiento de unidades, el chofer que más consume diésel, etc.) para el cual no existe una herramienta directa, primero haz la consulta de la información base usando las herramientas correspondientes (ej: 'consultar_gastos' o 'consultar_unidades') SIN filtros de fecha para poder analizar todo el histórico, y luego haz el cálculo o análisis en tu respuesta de texto final.\n` +
             `4. Si una pregunta no se puede responder directamente con una herramienta, o consideras que no tienes herramientas aptas, NO intentes forzar una llamada a función errónea. Explica amigablemente en tu respuesta de texto lo que necesitas o las limitaciones del sistema en base a los datos disponibles.\n` +
             `5. Asegúrate de dar respuestas analíticas, completas, bien estructuradas y formales en español basándote en la información extraída.`;
-        const modelName = config.model_name || "gemini-1.5-flash";
+        const modelName = config.model_name || "gemini-2.5-flash";
 
         // 3. Obtener historial corto
         const { data: chatHistory } = await supabaseClient

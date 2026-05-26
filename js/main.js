@@ -8558,7 +8558,7 @@ async function loadChatSettings() {
             }
             
             updateModelOptions(data.provider || 'gemini');
-            document.getElementById('chat-model-name').value = data.model_name || 'gemini-1.5-flash';
+            document.getElementById('chat-model-name').value = data.model_name || 'gemini-2.5-flash';
             document.getElementById('chat-api-key').value = data.api_key || '';
             document.getElementById('chat-system-instruction').value = data.system_instruction || '';
         }
