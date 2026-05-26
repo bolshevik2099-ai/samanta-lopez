@@ -347,22 +347,30 @@ module.exports = async (req, res) => {
 async function executeTool(name, args, supabaseClient) {
     try {
         if (name === "consultar_viajes") {
-            let query = supabaseClient.from('reg_viajes').select('*');
+            let query = supabaseClient.from('reg_viajes').select('*', { count: 'exact' });
             if (args.id_chofer) query = query.ilike('id_chofer', `%${args.id_chofer}%`);
             if (args.cliente) query = query.ilike('cliente', `%${args.cliente}%`);
             if (args.estatus_viaje) query = query.eq('estatus_viaje', args.estatus_viaje);
             if (args.fecha) query = query.eq('fecha', args.fecha);
-            const { data } = await query.order('fecha', { ascending: false }).limit(10);
-            return data || [];
+            const { data, count, error } = await query.order('fecha', { ascending: false }).limit(20);
+            if (error) throw error;
+            return {
+                total_registros_encontrados: count || 0,
+                registros_muestra: data || []
+            };
 
         } else if (name === "consultar_gastos") {
-            let query = supabaseClient.from('reg_gastos').select('*');
+            let query = supabaseClient.from('reg_gastos').select('*', { count: 'exact' });
             if (args.id_chofer) query = query.ilike('id_chofer', `%${args.id_chofer}%`);
             if (args.id_unidad) query = query.eq('id_unidad', args.id_unidad);
             if (args.concepto) query = query.ilike('concepto', `%${args.concepto}%`);
             if (args.fecha) query = query.eq('fecha', args.fecha);
-            const { data } = await query.order('fecha', { ascending: false }).limit(10);
-            return data || [];
+            const { data, count, error } = await query.order('fecha', { ascending: false }).limit(20);
+            if (error) throw error;
+            return {
+                total_registros_encontrados: count || 0,
+                registros_muestra: data || []
+            };
 
         } else if (name === "consultar_choferes") {
             const { data } = await supabaseClient.from('cat_choferes').select('*');
