@@ -64,7 +64,9 @@ module.exports = async (req, res) => {
         const day = String(new Date().getDate()).padStart(2, '0');
         const dateStringYYYYMMDD = `${year}-${month}-${day}`;
 
-        const systemInstruction = systemInstructionBase + `\n\n` + 
+        const isSaul = userId && String(userId).trim().toLowerCase() === 'saulrivas@gmail.com';
+
+        let systemInstruction = systemInstructionBase + `\n\n` + 
             `[INFORMACIÓN DEL ENTORNO]\n` + 
             `- Fecha actual de hoy: ${dateStringYYYYMMDD} (formato YYYY-MM-DD)\n` +
             `\n` +
@@ -74,6 +76,11 @@ module.exports = async (req, res) => {
             `3. Si el usuario te pide un cálculo o análisis complejo (como el rendimiento de unidades, el chofer que más consume diésel, etc.) para el cual no existe una herramienta directa, primero haz la consulta de la información base usando las herramientas correspondientes (ej: 'consultar_gastos' o 'consultar_unidades') SIN filtros de fecha para poder analizar todo el histórico, y luego haz el cálculo o análisis en tu respuesta de texto final.\n` +
             `4. Si una pregunta no se puede responder directamente con una herramienta, o consideras que no tienes herramientas aptas, NO intentes forzar una llamada a función errónea. Explica amigablemente en tu respuesta de texto lo que necesitas o las limitaciones del sistema en base a los datos disponibles.\n` +
             `5. Asegúrate de dar respuestas analíticas, completas, bien estructuradas y formales en español basándote en la información extraída.`;
+
+        if (isSaul) {
+            systemInstruction += `\n6. [RESTRICCIÓN CRÍTICA] El usuario actual (saulrivas@gmail.com) no tiene permitido registrar viajes. Si te pide registrar un viaje, debes responderle claramente en español que esta función no está disponible para su cuenta y que no es posible realizarla.`;
+        }
+
         const modelName = config.model_name || "gemini-2.5-flash";
 
         // 3. Obtener historial corto
@@ -168,6 +175,10 @@ module.exports = async (req, res) => {
             }
         ];
 
+        if (isSaul) {
+            tools[0].functionDeclarations = tools[0].functionDeclarations.filter(fd => fd.name !== 'registrar_viaje');
+        }
+
         const provider = (config.provider || 'gemini').trim().toLowerCase();
         let finalResponseText = '';
 
@@ -244,7 +255,7 @@ module.exports = async (req, res) => {
                         const args = JSON.parse(argsString || '{}');
                         
                         console.log(`Ejecutando herramienta (Groq): ${name}`);
-                        const executionResult = await executeTool(name, args, supabaseClient);
+                        const executionResult = await executeTool(name, args, supabaseClient, userId);
 
                         messages.push({
                             role: 'tool',
@@ -300,7 +311,7 @@ module.exports = async (req, res) => {
                     const { name, args } = functionCallPart.functionCall;
                     
                     console.log(`Ejecutando herramienta (Gemini): ${name}`);
-                    const executionResult = await executeTool(name, args, supabaseClient);
+                    const executionResult = await executeTool(name, args, supabaseClient, userId);
 
                     contents.push({
                         role: 'function',
@@ -344,7 +355,7 @@ module.exports = async (req, res) => {
 };
 
 // Función auxiliar compartida para ejecutar herramientas
-async function executeTool(name, args, supabaseClient) {
+async function executeTool(name, args, supabaseClient, userId) {
     try {
         if (name === "consultar_viajes") {
             let query = supabaseClient.from('reg_viajes').select('*', { count: 'exact' });
@@ -401,6 +412,10 @@ async function executeTool(name, args, supabaseClient) {
             return { success: true, message: "Gasto registrado exitosamente", data: data?.[0] };
 
         } else if (name === "registrar_viaje") {
+            const isSaul = userId && String(userId).trim().toLowerCase() === 'saulrivas@gmail.com';
+            if (isSaul) {
+                return { error: "No tienes permisos para registrar viajes. Esta función no es posible para tu usuario." };
+            }
             const idViaje = 'VIA-' + Math.floor(100000 + Math.random() * 900000);
             const viajeData = {
                 id_viaje: idViaje,
