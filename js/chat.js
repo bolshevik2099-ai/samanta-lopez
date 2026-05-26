@@ -43,7 +43,8 @@ function initChat() {
 
         try {
             const session = typeof checkAuth === 'function' ? checkAuth() : null;
-            const isAdmin = session && (session.rol === 'admin' || session.rol === 'superadmin' || session.rol === 'super admin');
+            const userRol = session && session.rol ? String(session.rol).trim().toLowerCase() : '';
+            const isAdmin = userRol === 'admin' || userRol === 'superadmin' || userRol === 'super admin';
             const userId = session ? session.userID : null;
 
             // Si es administrador, ejecutamos vía Vercel Serverless Function Proxy para evitar errores de CORS
