@@ -26,11 +26,12 @@ module.exports = async (req, res) => {
             const { data: userRecord, error: userError } = await supabaseClient
                 .from('usuarios')
                 .select('rol')
-                .or(`usuario.eq.${userId},id_contacto.eq.${userId}`)
+                .or(`usuario.eq."${userId}",id_contacto.eq."${userId}"`)
                 .maybeSingle();
 
-            if (userError || !userRecord || !(userRecord.rol === 'admin' || userRecord.rol === 'superadmin' || userRecord.rol === 'super admin')) {
-                console.warn(`Acceso denegado para el usuario: ${userId}`);
+            const userRol = String(userRecord.rol).trim().toLowerCase();
+            if (userError || !userRecord || !(userRol === 'admin' || userRol === 'superadmin' || userRol === 'super admin')) {
+                console.warn(`Acceso denegado para el usuario: ${userId} con rol: ${userRecord.rol}`);
                 return res.status(200).json({ 
                     reply: '⚠️ Acceso denegado: No tienes permisos de administrador para interactuar con este asistente.' 
                 });

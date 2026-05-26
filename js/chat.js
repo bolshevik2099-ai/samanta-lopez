@@ -103,6 +103,12 @@ function initChat() {
             removeMessage(typingId);
             if (error.name === 'AbortError') {
                 appendMessage('bot', 'La respuesta está tardando demasiado. Por favor, intenta de nuevo.');
+            } else if (error.message && error.message.includes('Failed to fetch')) {
+                appendMessage('bot', '⚠️ <b>Error de conexión (Failed to fetch):</b> No se pudo establecer contacto con el servidor.<br><br>' +
+                    '<b>Causas comunes:</b><br>' +
+                    '1. <b>Pruebas Locales:</b> Si abriste el archivo <code>vista-admin.html</code> directamente haciendo doble clic (usando la ruta <code>file://</code>) o con un servidor estático simple, las peticiones a la API local (<code>/api/...</code>) fallarán. Para probar localmente con funciones API, debes ejecutar <code>npx vercel dev</code> en la consola.<br>' +
+                    '2. <b>Protección de Vercel:</b> Si estás usando el enlace de vista previa de Vercel, es probable que tenga activado <b>Deployment Protection</b> (Autenticación de Vercel), lo cual bloquea las llamadas API externas. Puedes desactivar esto en la pestaña <i>Settings -> Deployment Protection</i> de tu proyecto en el panel de Vercel.<br>' +
+                    '3. <b>CORS o Servidor apagado:</b> Si estás intentando acceder de forma externa, asegúrate de que el servidor permita peticiones CORS.');
             } else {
                 appendMessage('bot', 'Error de conexión con el asistente: ' + error.message);
             }

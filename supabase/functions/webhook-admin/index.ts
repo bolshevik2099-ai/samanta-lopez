@@ -32,11 +32,12 @@ serve(async (req) => {
       const { data: userRecord, error: userError } = await supabaseClient
         .from('usuarios')
         .select('rol')
-        .or(`usuario.eq.${userId},id_contacto.eq.${userId}`)
+        .or(`usuario.eq."${userId}",id_contacto.eq."${userId}"`)
         .maybeSingle();
 
-      if (userError || !userRecord || !(userRecord.rol === 'admin' || userRecord.rol === 'superadmin' || userRecord.rol === 'super admin')) {
-        console.warn(`Intento de acceso no autorizado de userId: ${userId}`);
+      const userRol = String(userRecord.rol).trim().toLowerCase();
+      if (userError || !userRecord || !(userRol === 'admin' || userRol === 'superadmin' || userRol === 'super admin')) {
+        console.warn(`Intento de acceso no autorizado de userId: ${userId} con rol: ${userRecord.rol}`);
         return new Response(JSON.stringify({ 
           reply: '⚠️ Acceso denegado: No tienes permisos de administrador para interactuar con este asistente.' 
         }), {
