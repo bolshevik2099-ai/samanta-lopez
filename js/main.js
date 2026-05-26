@@ -4829,6 +4829,9 @@ async function showSection(sectionId) {
             case 'tarifas':
                 if (typeof loadRatesList === 'function') loadRatesList();
                 break;
+            case 'settings-chat':
+                if (typeof loadChatSettings === 'function') loadChatSettings();
+                break;
         }
         
         // Inicializar catálogos si es necesario
@@ -8500,5 +8503,108 @@ function showUnitProfitDetail(id_unidad) {
 
     content.innerHTML = html;
 }
+
+// --- LÓGICA DE CONFIGURACIÓN DEL CHAT DE IA ---
+async function loadChatSettings() {
+    console.log('Cargando ajustes de chat...');
+    if (!window.supabaseClient) {
+        console.error('El cliente de Supabase no está inicializado.');
+        return;
+    }
+
+    try {
+        const { data, error } = await window.supabaseClient
+            .from('chat_config')
+            .select('*')
+            .eq('id', 1)
+            .single();
+
+        if (error) {
+            console.error('Error al consultar chat_config:', error);
+            return;
+        }
+
+        if (data) {
+            document.getElementById('chat-provider').value = data.provider || 'gemini';
+            document.getElementById('chat-model-name').value = data.model_name || 'gemini-1.5-flash';
+            document.getElementById('chat-api-key').value = data.api_key || '';
+            document.getElementById('chat-system-instruction').value = data.system_instruction || '';
+        }
+    } catch (err) {
+        console.error('Excepción al cargar ajustes de chat:', err);
+    }
+}
+
+async function saveChatSettings(e) {
+    if (e) e.preventDefault();
+    console.log('Guardando ajustes de chat...');
+
+    const btn = document.getElementById('btn-save-chat-settings');
+    const originalText = btn.innerHTML;
+
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+
+        const provider = document.getElementById('chat-provider').value;
+        const model_name = document.getElementById('chat-model-name').value;
+        const api_key = document.getElementById('chat-api-key').value.trim();
+        const system_instruction = document.getElementById('chat-system-instruction').value.trim();
+
+        const { error } = await window.supabaseClient
+            .from('chat_config')
+            .update({
+                provider,
+                model_name,
+                api_key,
+                system_instruction,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', 1);
+
+        if (error) throw error;
+
+        alert('✅ Configuración del asistente guardada exitosamente.');
+    } catch (err) {
+        console.error('Error al guardar ajustes de chat:', err);
+        alert('❌ Error al guardar la configuración: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// Inicializar manejadores de eventos del chat
+function initChatSettingsListeners() {
+    const form = document.getElementById('chat-settings-form');
+    if (form) {
+        form.addEventListener('submit', saveChatSettings);
+    }
+
+    const toggleBtn = document.getElementById('toggle-chat-key');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', function() {
+            const input = document.getElementById('chat-api-key');
+            const icon = this.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+    }
+}
+
+// Ejecutar inicialización de escuchas al cargar el archivo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChatSettingsListeners);
+} else {
+    initChatSettingsListeners();
+}
+
 
 
