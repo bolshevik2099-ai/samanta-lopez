@@ -76,6 +76,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const el = document.getElementById(id);
             if (el) el.innerText = session.nombre || session.usuario || 'Usuario';
         });
+
+        // Ocultar botón de configuración de chat para saulrivas@gmail.com
+        if (session.usuario && String(session.usuario).trim().toLowerCase() === 'saulrivas@gmail.com') {
+            const settingsChatBtn = document.getElementById('nav-settings-chat');
+            if (settingsChatBtn) {
+                settingsChatBtn.style.display = 'none';
+            }
+        }
     }
 
     // Inicializar Formularios
@@ -4762,6 +4770,13 @@ function generateTripID() {
 
 // Re-vincular al abrir el formulario de Viaje
 async function showSection(sectionId) {
+    const session = checkAuth();
+    const isSaul = session && session.usuario && String(session.usuario).trim().toLowerCase() === 'saulrivas@gmail.com';
+    if (sectionId === 'settings-chat' && isSaul) {
+        console.warn('Acceso restringido a configuración de chat para Saul Rivas');
+        sectionId = 'dashboard';
+    }
+
     console.log('Navegando a sección:', sectionId);
     
     // Ocultar todas las secciones
