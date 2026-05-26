@@ -184,10 +184,26 @@ serve(async (req) => {
       }
       messages.push({ role: 'user', content: message });
 
-      const groqTools = tools[0].functionDeclarations.map(fd => ({
-        type: 'function',
-        function: fd
-      }));
+      const groqTools = tools[0].functionDeclarations.map(fd => {
+        const mappedFd = JSON.parse(JSON.stringify(fd));
+        if (mappedFd.parameters) {
+          if (mappedFd.parameters.type) {
+            mappedFd.parameters.type = mappedFd.parameters.type.toLowerCase();
+          }
+          if (mappedFd.parameters.properties) {
+            for (const key in mappedFd.parameters.properties) {
+              const prop = mappedFd.parameters.properties[key];
+              if (prop.type) {
+                prop.type = prop.type.toLowerCase();
+              }
+            }
+          }
+        }
+        return {
+          type: 'function',
+          function: mappedFd
+        };
+      });
 
       let groqModel = modelName;
       if (!groqModel || groqModel.startsWith('gemini')) {
@@ -413,4 +429,3 @@ async function executeTool(name: string, args: any, supabaseClient: any) {
     return { error: err.message || 'Error en base de datos.' };
   }
 }
-})
