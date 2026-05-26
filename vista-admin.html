@@ -2925,7 +2925,7 @@
                             class="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 blur-[100px] rounded-full pointer-events-none">
                         </div>
 
-                        <div class="flex flex-col md:flex-row justify-between items-start mb-10 gap-6 relative z-10">
+                        <div class="flex flex-col md:flex-row justify-between items-start mb-6 gap-6 relative z-10">
                             <div class="space-y-2">
                                 <h3 id="set-trip-id" class="text-3xl font-black text-white tracking-tight">DETALLE</h3>
                                 <p id="set-trip-info" class="text-slate-500 font-medium tracking-wide"></p>
@@ -2936,6 +2936,26 @@
                                     Total</span>
                                 <p id="set-flete" class="text-2xl font-black text-white tracking-tight">$0.00</p>
                             </div>
+                        </div>
+
+                        <!-- Filtro de Rango de Fechas -->
+                        <div class="flex flex-col sm:flex-row items-center gap-3 mb-10 relative z-10 bg-slate-950/40 p-4 rounded-2xl border border-white/5">
+                            <div class="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                <i class="fas fa-calendar-alt text-blue-500"></i>
+                                <span>Periodo:</span>
+                            </div>
+                            <div class="flex items-center gap-2 flex-1 w-full sm:w-auto">
+                                <span class="text-[10px] uppercase font-bold text-slate-500">De:</span>
+                                <input type="date" id="settlement-date-start"
+                                    class="bg-slate-800/50 hover:bg-slate-700/80 rounded-xl text-slate-300 px-3 py-2 outline-none font-medium w-full text-sm transition-colors cursor-pointer border border-transparent hover:border-white/10 shadow-sm">
+                                <span class="text-[10px] uppercase font-bold text-slate-500">A:</span>
+                                <input type="date" id="settlement-date-end"
+                                    class="bg-slate-800/50 hover:bg-slate-700/80 rounded-xl text-slate-300 px-3 py-2 outline-none font-medium w-full text-sm transition-colors cursor-pointer border border-transparent hover:border-white/10 shadow-sm">
+                            </div>
+                            <button onclick="applySettlementDateFilter()"
+                                class="px-4 py-2 bg-blue-600/80 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap">
+                                <i class="fas fa-filter mr-1"></i> Filtrar
+                            </button>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
@@ -3053,7 +3073,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./js/supabase-client.js?v=15.29"></script>
     <script src="./js/auth.js?v=15.29"></script>
-    <script src="./js/main.js?v=15.45"></script>
+    <script src="./js/main.js?v=15.46"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
     </script>

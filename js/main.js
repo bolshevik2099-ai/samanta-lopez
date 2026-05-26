@@ -6418,6 +6418,11 @@ async function loadSettlementTrips() {
     }
 }
 
+// Raw (unfiltered) data for the selected driver's settlement
+let rawSettlementTrips = [];
+let rawSettlementExpenses = [];
+let rawSettlementDebts = [];
+
 async function loadDriverSettlementDetail(id_chofer) {
     selectedDriverForSettlement = id_chofer;
     const detail = document.getElementById('settlement-detail');
@@ -6432,6 +6437,15 @@ async function loadDriverSettlementDetail(id_chofer) {
         setTimeout(() => {
             detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
+    }
+
+    // Inicializar filtros de fecha a la semana actual (Lunes a Domingo)
+    const startInput = document.getElementById('settlement-date-start');
+    const endInput = document.getElementById('settlement-date-end');
+    if (startInput && endInput) {
+        const range = getCurrentWeekRange();
+        startInput.value = range.start;
+        endInput.value = range.end;
     }
 
     // Cargar datos: Viajes Terminados/En Proceso no liquidados + Gastos (Por Chofer O Por Viaje) + Cuentas
@@ -6456,9 +6470,46 @@ async function loadDriverSettlementDetail(id_chofer) {
     const allExp = [...(expByDriver.data || []), ...(expByTrip.data || [])];
     const uniqueExp = Array.from(new Map(allExp.map(item => [item.id_gasto, item])).values());
 
-    pendingTripsForDriver = activeTrips;
-    currentExpenses = uniqueExp;
-    currentDebts = (accounts.data || []).filter(acc => !acc.id_unidad);
+    // Guardar datos sin filtrar
+    rawSettlementTrips = activeTrips;
+    rawSettlementExpenses = uniqueExp;
+    rawSettlementDebts = (accounts.data || []).filter(acc => !acc.id_unidad);
+
+    // Renderizar con el filtro de fechas actual
+    renderSettlementUI();
+}
+
+function applySettlementDateFilter() {
+    if (!selectedDriverForSettlement) return;
+    renderSettlementUI();
+}
+
+function renderSettlementUI() {
+    const id_chofer = selectedDriverForSettlement;
+    if (!id_chofer) return;
+
+    // Leer rango de fechas del filtro
+    const startInput = document.getElementById('settlement-date-start');
+    const endInput = document.getElementById('settlement-date-end');
+    const startDate = startInput ? startInput.value : '';
+    const endDate = endInput ? endInput.value : '';
+
+    // Helper para filtrar por fecha
+    const filterByDateRange = (items, dateField) => {
+        if (!startDate && !endDate) return items;
+        return items.filter(item => {
+            const d = (item[dateField] || '').split('T')[0];
+            if (!d) return true; // Si no tiene fecha, incluir
+            if (startDate && d < startDate) return false;
+            if (endDate && d > endDate) return false;
+            return true;
+        });
+    };
+
+    // Aplicar filtros de fecha
+    pendingTripsForDriver = filterByDateRange(rawSettlementTrips, 'fecha');
+    currentExpenses = filterByDateRange(rawSettlementExpenses, 'fecha');
+    currentDebts = filterByDateRange(rawSettlementDebts, 'fecha');
 
     // Llenar UI
     document.getElementById('set-trip-id').innerText = `LIQUIDACIÓN: ${id_chofer}`;
