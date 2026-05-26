@@ -73,7 +73,24 @@ serve(async (req) => {
     }
 
     const apiKey = config.api_key;
-    const systemInstruction = config.system_instruction || "Eres Samanta, el asistente inteligente de Procesa-T CRM.";
+    const systemInstructionBase = config.system_instruction || "Eres Samanta, el asistente inteligente de Procesa-T CRM.";
+    
+    // Obtener la fecha actual en formato YYYY-MM-DD en la zona horaria de México
+    const year = new Date().getFullYear();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const day = String(new Date().getDate()).padStart(2, '0');
+    const dateStringYYYYMMDD = `${year}-${month}-${day}`;
+
+    const systemInstruction = systemInstructionBase + `\n\n` + 
+        `[INFORMACIÓN DEL ENTORNO]\n` + 
+        `- Fecha actual de hoy: ${dateStringYYYYMMDD} (formato YYYY-MM-DD)\n` +
+        `\n` +
+        `[REGLAS DE OPERACIÓN]\n` +
+        `1. Utiliza únicamente las herramientas provistas. NO intentes inventar herramientas ni parámetros.\n` +
+        `2. Si el usuario te pregunta por datos de 'hoy', utiliza el parámetro 'fecha' en 'consultar_gastos' o 'consultar_viajes' con el valor exacto de la fecha actual de hoy: '${dateStringYYYYMMDD}'.\n` +
+        `3. Si el usuario te pide un cálculo o análisis complejo (como el rendimiento de unidades, el chofer que más consume diésel, etc.) para el cual no existe una herramienta directa, primero haz la consulta de la información base usando las herramientas correspondientes (ej: 'consultar_gastos' o 'consultar_unidades') SIN filtros de fecha para poder analizar todo el histórico, y luego haz el cálculo o análisis en tu respuesta de texto final.\n` +
+        `4. Si una pregunta no se puede responder directamente con una herramienta, o consideras que no tienes herramientas aptas, NO intentes forzar una llamada a función errónea. Explica amigablemente en tu respuesta de texto lo que necesitas o las limitaciones del sistema en base a los datos disponibles.\n` +
+        `5. Asegúrate de dar respuestas analíticas, completas, bien estructuradas y formales en español basándote en la información extraída.`;
     const modelName = config.model_name || "gemini-1.5-flash";
 
     // 3. Consultar últimos 6 mensajes del historial en la base de datos para dar contexto
@@ -101,25 +118,27 @@ serve(async (req) => {
         functionDeclarations: [
           {
             name: "consultar_viajes",
-            description: "Busca la lista de viajes registrados en el sistema. Opcionalmente filtra por chofer, cliente o estatus.",
+            description: "Busca la lista de viajes registrados en el sistema. Opcionalmente filtra por chofer, cliente, estatus o fecha.",
             parameters: {
               type: "OBJECT",
               properties: {
                 id_chofer: { type: "STRING", description: "Nombre o ID del chofer para filtrar" },
                 cliente: { type: "STRING", description: "Nombre del cliente para filtrar" },
-                estatus_viaje: { type: "STRING", description: "Estatus (Pendiente, Liquidado)" }
+                estatus_viaje: { type: "STRING", description: "Estatus (Pendiente, Liquidado)" },
+                fecha: { type: "STRING", description: "Fecha en formato YYYY-MM-DD para filtrar viajes de un día específico" }
               }
             }
           },
           {
             name: "consultar_gastos",
-            description: "Busca la lista de gastos registrados en el sistema. Filtra por chofer, unidad o concepto.",
+            description: "Busca la lista de gastos registrados en el sistema. Filtra por chofer, unidad, concepto o fecha.",
             parameters: {
               type: "OBJECT",
               properties: {
                 id_chofer: { type: "STRING", description: "Nombre o ID del chofer para filtrar" },
                 id_unidad: { type: "STRING", description: "Identificador de la unidad (ECO) para filtrar" },
-                concepto: { type: "STRING", description: "Concepto de gasto (Diesel, Casetas, etc.)" }
+                concepto: { type: "STRING", description: "Concepto de gasto (Diesel, Casetas, etc.)" },
+                fecha: { type: "STRING", description: "Fecha en formato YYYY-MM-DD para filtrar gastos de un día específico" }
               }
             }
           },
@@ -363,6 +382,7 @@ async function executeTool(name: string, args: any, supabaseClient: any) {
       if (args.id_chofer) query = query.ilike('id_chofer', `%${args.id_chofer}%`);
       if (args.cliente) query = query.ilike('cliente', `%${args.cliente}%`);
       if (args.estatus_viaje) query = query.eq('estatus_viaje', args.estatus_viaje);
+      if (args.fecha) query = query.eq('fecha', args.fecha);
       const { data } = await query.order('fecha', { ascending: false }).limit(10);
       return data || [];
 
@@ -371,6 +391,7 @@ async function executeTool(name: string, args: any, supabaseClient: any) {
       if (args.id_chofer) query = query.ilike('id_chofer', `%${args.id_chofer}%`);
       if (args.id_unidad) query = query.eq('id_unidad', args.id_unidad);
       if (args.concepto) query = query.ilike('concepto', `%${args.concepto}%`);
+      if (args.fecha) query = query.eq('fecha', args.fecha);
       const { data } = await query.order('fecha', { ascending: false }).limit(10);
       return data || [];
 
