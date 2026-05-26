@@ -48,7 +48,12 @@ function initChat() {
 
             // Si es administrador, ejecutamos vía Vercel Serverless Function Proxy para evitar errores de CORS
             if (isAdmin) {
-                const response = await fetch('/api/webhook-admin', {
+                let targetUrl = '/api/webhook-admin';
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
+                    targetUrl = 'https://crm-samanta.vercel.app/api/webhook-admin';
+                }
+
+                const response = await fetch(targetUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
