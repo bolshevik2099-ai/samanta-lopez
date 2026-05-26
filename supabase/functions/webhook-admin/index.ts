@@ -168,145 +168,148 @@ serve(async (req) => {
       }
     ];
 
-    // 6. Loop de ejecución para manejar Tool Calling recurrentemente
+    // 6. Loop de ejecución para manejar Tool Calling
+    const provider = (config.provider || 'gemini').trim().toLowerCase();
     let finalResponseText = '';
-    let loopCount = 0;
-    const maxLoops = 4;
 
-    while (loopCount < maxLoops) {
-      console.log(`Llamando a Gemini (Iteración ${loopCount + 1})...`);
-      const apiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: contents,
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            tools: tools
-          })
-        }
-      );
+    if (provider === 'groq') {
+      const messages = [
+        { role: 'system', content: systemInstruction }
+      ];
+      if (chatHistory && chatHistory.length > 0) {
+        chatHistory.forEach(log => {
+          messages.push({ role: 'user', content: log.message });
+          messages.push({ role: 'assistant', content: log.response });
+        });
+      }
+      messages.push({ role: 'user', content: message });
 
-      if (!apiResponse.ok) {
-        const errorText = await apiResponse.text();
-        console.error("Gemini API Error:", errorText);
-        throw new Error(`API de Gemini retornó error: ${apiResponse.statusText}`);
+      const groqTools = tools[0].functionDeclarations.map(fd => ({
+        type: 'function',
+        function: fd
+      }));
+
+      let groqModel = modelName;
+      if (!groqModel || groqModel.startsWith('gemini')) {
+        groqModel = 'llama-3.3-70b-versatile';
       }
 
-      const responseJson = await apiResponse.json();
-      const candidate = responseJson.candidates?.[0];
-      const modelContent = candidate?.content;
-      const parts = modelContent?.parts || [];
+      let loopCount = 0;
+      const maxLoops = 4;
 
-      // Guardar el mensaje del modelo en el historial de la conversación actual
-      contents.push(modelContent);
-
-      // Comprobar si hay llamadas a funciones (tool calling)
-      const functionCallPart = parts.find((p: any) => p.functionCall);
-      
-      if (functionCallPart) {
-        const { name, args } = functionCallPart.functionCall;
-        console.log(`Ejecutando herramienta requerida: ${name} con argumentos:`, args);
-
-        let executionResult: any;
-
-        try {
-          if (name === "consultar_viajes") {
-            let query = supabaseClient.from('reg_viajes').select('*');
-            if (args.id_chofer) query = query.ilike('id_chofer', `%${args.id_chofer}%`);
-            if (args.cliente) query = query.ilike('cliente', `%${args.cliente}%`);
-            if (args.estatus_viaje) query = query.eq('estatus_viaje', args.estatus_viaje);
-            const { data } = await query.order('fecha', { ascending: false }).limit(10);
-            executionResult = data || [];
-
-          } else if (name === "consultar_gastos") {
-            let query = supabaseClient.from('reg_gastos').select('*');
-            if (args.id_chofer) query = query.ilike('id_chofer', `%${args.id_chofer}%`);
-            if (args.id_unidad) query = query.eq('id_unidad', args.id_unidad);
-            if (args.concepto) query = query.ilike('concepto', `%${args.concepto}%`);
-            const { data } = await query.order('fecha', { ascending: false }).limit(10);
-            executionResult = data || [];
-
-          } else if (name === "consultar_choferes") {
-            const { data } = await supabaseClient.from('cat_choferes').select('*');
-            executionResult = data || [];
-
-          } else if (name === "consultar_unidades") {
-            const { data } = await supabaseClient.from('cat_unidades').select('*');
-            executionResult = data || [];
-
-          } else if (name === "registrar_gasto") {
-            const idGasto = 'GAS-' + Math.floor(100000 + Math.random() * 900000);
-            const gastoData = {
-              id_gasto: idGasto,
-              fecha: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD
-              concepto: args.concepto,
-              monto: args.monto,
-              id_unidad: args.id_unidad,
-              id_chofer: args.id_chofer || null,
-              tipo_pago: args.tipo_pago || 'Efectivo',
-              estatus_aprobacion: 'Pendiente',
-              estatus_pago: 'Pendiente'
-            };
-            const { data, error: insertError } = await supabaseClient
-              .from('reg_gastos')
-              .insert([gastoData])
-              .select();
-            if (insertError) throw insertError;
-            executionResult = { success: true, message: "Gasto registrado exitosamente", data: data?.[0] };
-
-          } else if (name === "registrar_viaje") {
-            const idViaje = 'VIA-' + Math.floor(100000 + Math.random() * 900000);
-            const viajeData = {
-              id_viaje: idViaje,
-              fecha: new Date().toLocaleDateString('en-CA'),
-              cliente: args.cliente,
-              origen: args.origen,
-              destino: args.destino,
-              monto_flete: args.monto_flete,
-              id_chofer: args.id_chofer || null,
-              id_unidad: args.id_unidad || null,
-              estatus_viaje: 'Pendiente',
-              estatus_pago: 'Pendiente'
-            };
-            const { data, error: insertError } = await supabaseClient
-              .from('reg_viajes')
-              .insert([viajeData])
-              .select();
-            if (insertError) throw insertError;
-            executionResult = { success: true, message: "Viaje registrado exitosamente", data: data?.[0] };
-
-          } else {
-            executionResult = { error: `Herramienta ${name} no disponible.` };
-          }
-        } catch (dbErr: any) {
-          console.error(`Error ejecutando herramienta ${name}:`, dbErr);
-          executionResult = { error: dbErr.message || 'Error en base de datos.' };
-        }
-
-        // Agregar el resultado de la función al contexto para la IA
-        contents.push({
-          role: 'function',
-          parts: [{
-            functionResponse: {
-              name: name,
-              response: { output: executionResult }
-            }
-          }]
+      while (loopCount < maxLoops) {
+        console.log(`Llamando a Groq (${groqModel}) - Iteración ${loopCount + 1}...`);
+        const apiResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: groqModel,
+            messages: messages,
+            tools: groqTools,
+            tool_choice: 'auto'
+          })
         });
 
-        loopCount++;
-      } else {
-        // Si no hay más llamadas a función, la respuesta actual contiene el texto final
-        const textPart = parts.find((p: any) => p.text);
-        finalResponseText = textPart?.text || 'No pude procesar la respuesta.';
-        break;
-      }
-    }
+        if (!apiResponse.ok) {
+          const errorText = await apiResponse.text();
+          throw new Error(`API de Groq retornó error: ${apiResponse.statusText}`);
+        }
 
-    if (!finalResponseText) {
-      finalResponseText = 'Se alcanzó el límite de llamadas a la base de datos sin una respuesta textual de la IA.';
+        const responseJson = await apiResponse.json();
+        const assistantMessage = responseJson.choices?.[0]?.message;
+        messages.push(assistantMessage);
+
+        const toolCalls = assistantMessage?.tool_calls;
+        if (toolCalls && toolCalls.length > 0) {
+          for (const toolCall of toolCalls) {
+            const { name, arguments: argsString } = toolCall.function;
+            const args = JSON.parse(argsString || '{}');
+            
+            console.log(`Ejecutando herramienta (Groq): ${name}`);
+            const executionResult = await executeTool(name, args, supabaseClient);
+
+            messages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              name: name,
+              content: JSON.stringify(executionResult)
+            });
+          }
+          loopCount++;
+        } else {
+          finalResponseText = assistantMessage?.content || 'No pude procesar la respuesta.';
+          break;
+        }
+      }
+
+      if (!finalResponseText) {
+        finalResponseText = 'Se alcanzó el límite de llamadas a Groq sin respuesta.';
+      }
+
+    } else {
+      let loopCount = 0;
+      const maxLoops = 4;
+
+      while (loopCount < maxLoops) {
+        console.log(`Llamando a Gemini (Iteración ${loopCount + 1})...`);
+        const apiResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: contents,
+              systemInstruction: { parts: [{ text: systemInstruction }] },
+              tools: tools
+            })
+          }
+        );
+
+        if (!apiResponse.ok) {
+          const errorText = await apiResponse.text();
+          console.error("Gemini API Error:", errorText);
+          throw new Error(`API de Gemini retornó error: ${apiResponse.statusText}`);
+        }
+
+        const responseJson = await apiResponse.json();
+        const candidate = responseJson.candidates?.[0];
+        const modelContent = candidate?.content;
+        const parts = modelContent?.parts || [];
+
+        contents.push(modelContent);
+
+        const functionCallPart = parts.find((p: any) => p.functionCall);
+        
+        if (functionCallPart) {
+          const { name, args } = functionCallPart.functionCall;
+          console.log(`Ejecutando herramienta (Gemini): ${name}`);
+          
+          const executionResult = await executeTool(name, args, supabaseClient);
+
+          contents.push({
+            role: 'function',
+            parts: [{
+              functionResponse: {
+                name: name,
+                response: { output: executionResult }
+              }
+            }]
+          });
+
+          loopCount++;
+        } else {
+          const textPart = parts.find((p: any) => p.text);
+          finalResponseText = textPart?.text || 'No pude procesar la respuesta.';
+          break;
+        }
+      }
+
+      if (!finalResponseText) {
+        finalResponseText = 'Se alcanzó el límite de llamadas a Gemini sin respuesta.';
+      }
     }
 
     // 7. Guardar log de la conversación en chat_logs
@@ -331,7 +334,83 @@ serve(async (req) => {
       reply: `⚠️ Ocurrió un error en el servidor del asistente: ${err.message}` 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200 // Respondemos con 200 para que aparezca elegantemente en la interfaz del chat
+      status: 200
     })
   }
+})
+
+// Función auxiliar compartida para ejecutar herramientas
+async function executeTool(name: string, args: any, supabaseClient: any) {
+  try {
+    if (name === "consultar_viajes") {
+      let query = supabaseClient.from('reg_viajes').select('*');
+      if (args.id_chofer) query = query.ilike('id_chofer', `%${args.id_chofer}%`);
+      if (args.cliente) query = query.ilike('cliente', `%${args.cliente}%`);
+      if (args.estatus_viaje) query = query.eq('estatus_viaje', args.estatus_viaje);
+      const { data } = await query.order('fecha', { ascending: false }).limit(10);
+      return data || [];
+
+    } else if (name === "consultar_gastos") {
+      let query = supabaseClient.from('reg_gastos').select('*');
+      if (args.id_chofer) query = query.ilike('id_chofer', `%${args.id_chofer}%`);
+      if (args.id_unidad) query = query.eq('id_unidad', args.id_unidad);
+      if (args.concepto) query = query.ilike('concepto', `%${args.concepto}%`);
+      const { data } = await query.order('fecha', { ascending: false }).limit(10);
+      return data || [];
+
+    } else if (name === "consultar_choferes") {
+      const { data } = await supabaseClient.from('cat_choferes').select('*');
+      return data || [];
+
+    } else if (name === "consultar_unidades") {
+      const { data } = await supabaseClient.from('cat_unidades').select('*');
+      return data || [];
+
+    } else if (name === "registrar_gasto") {
+      const idGasto = 'GAS-' + Math.floor(100000 + Math.random() * 900000);
+      const gastoData = {
+        id_gasto: idGasto,
+        fecha: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD
+        concepto: args.concepto,
+        monto: args.monto,
+        id_unidad: args.id_unidad,
+        id_chofer: args.id_chofer || null,
+        tipo_pago: args.tipo_pago || 'Efectivo',
+        estatus_aprobacion: 'Pendiente',
+        estatus_pago: 'Pendiente'
+      };
+      const { data, error: insertError } = await supabaseClient
+        .from('reg_gastos')
+        .insert([gastoData])
+        .select();
+      if (insertError) throw insertError;
+      return { success: true, message: "Gasto registrado exitosamente", data: data?.[0] };
+
+    } else if (name === "registrar_viaje") {
+      const idViaje = 'VIA-' + Math.floor(100000 + Math.random() * 900000);
+      const viajeData = {
+        id_viaje: idViaje,
+        fecha: new Date().toLocaleDateString('en-CA'),
+        cliente: args.cliente,
+        origen: args.origen,
+        destino: args.destino,
+        monto_flete: args.monto_flete,
+        id_chofer: args.id_chofer || null,
+        id_unidad: args.id_unidad || null,
+        estatus_viaje: 'Pendiente',
+        estatus_pago: 'Pendiente'
+      };
+      const { data, error: insertError } = await supabaseClient
+        .from('reg_viajes')
+        .insert([viajeData])
+        .select();
+      if (insertError) throw insertError;
+      return { success: true, message: "Viaje registrado exitosamente", data: data?.[0] };
+    } else {
+      return { error: `Herramienta ${name} no disponible.` };
+    }
+  } catch (err: any) {
+    return { error: err.message || 'Error en base de datos.' };
+  }
+}
 })

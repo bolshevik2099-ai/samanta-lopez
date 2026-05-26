@@ -8505,6 +8505,28 @@ function showUnitProfitDetail(id_unidad) {
 }
 
 // --- LÓGICA DE CONFIGURACIÓN DEL CHAT DE IA ---
+function updateModelOptions(provider) {
+    const modelSelect = document.getElementById('chat-model-name');
+    if (!modelSelect) return;
+    
+    modelSelect.innerHTML = '';
+    if (provider === 'groq') {
+        modelSelect.innerHTML = `
+            <option value="llama-3.3-70b-versatile" class="bg-slate-900">llama-3.3-70b-versatile (Recomendado - Excelente Inteligencia)</option>
+            <option value="llama-3.1-8b-instant" class="bg-slate-900">llama-3.1-8b-instant (Rápido y eficiente)</option>
+            <option value="mixtral-8x7b-32768" class="bg-slate-900">mixtral-8x7b-32768 (Mixtral 8x7B)</option>
+        `;
+    } else {
+        modelSelect.innerHTML = `
+            <option value="gemini-1.5-flash" class="bg-slate-900">gemini-1.5-flash (Estable y rápido)</option>
+            <option value="gemini-2.5-flash" class="bg-slate-900">gemini-2.5-flash (Nueva generación rápida)</option>
+            <option value="gemini-2.5-flash-lite" class="bg-slate-900">gemini-2.5-flash-lite (Ligero y de bajo consumo)</option>
+            <option value="gemini-1.5-pro" class="bg-slate-900">gemini-1.5-pro (Inteligencia avanzada v1.5)</option>
+            <option value="gemini-2.5-pro" class="bg-slate-900">gemini-2.5-pro (Máxima inteligencia v2.5)</option>
+        `;
+    }
+}
+
 async function loadChatSettings() {
     console.log('Cargando ajustes de chat...');
     if (!window.supabaseClient) {
@@ -8525,7 +8547,17 @@ async function loadChatSettings() {
         }
 
         if (data) {
-            document.getElementById('chat-provider').value = data.provider || 'gemini';
+            const providerSelect = document.getElementById('chat-provider');
+            providerSelect.value = data.provider || 'gemini';
+            
+            if (!providerSelect.dataset.listenerAttached) {
+                providerSelect.addEventListener('change', (e) => {
+                    updateModelOptions(e.target.value);
+                });
+                providerSelect.dataset.listenerAttached = 'true';
+            }
+            
+            updateModelOptions(data.provider || 'gemini');
             document.getElementById('chat-model-name').value = data.model_name || 'gemini-1.5-flash';
             document.getElementById('chat-api-key').value = data.api_key || '';
             document.getElementById('chat-system-instruction').value = data.system_instruction || '';
