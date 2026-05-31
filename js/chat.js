@@ -39,7 +39,7 @@ function initChat() {
         const typingId = appendMessage('bot', '<i class="fas fa-circle-notch fa-spin text-slate-400"></i>', true);
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout para llamadas con herramientas
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout para llamadas con herramientas y modo pensamiento
 
         try {
             const session = typeof checkAuth === 'function' ? checkAuth() : null;
