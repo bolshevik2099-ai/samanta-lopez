@@ -465,7 +465,7 @@ async function executeTool(name, args, supabaseClient, userId) {
             if (args.cliente) query = query.ilike('cliente', `%${args.cliente}%`);
             if (args.estatus_viaje) query = query.eq('estatus_viaje', args.estatus_viaje);
             if (args.fecha) query = query.eq('fecha', args.fecha);
-            const { data, count, error } = await query.order('fecha', { ascending: false }).limit(20);
+            const { data, count, error } = await query.order('fecha', { ascending: false }).limit(2000);
             if (error) throw error;
             return {
                 total_registros_encontrados: count || 0,
@@ -478,7 +478,7 @@ async function executeTool(name, args, supabaseClient, userId) {
             if (args.id_unidad) query = query.eq('id_unidad', args.id_unidad);
             if (args.concepto) query = query.ilike('concepto', `%${args.concepto}%`);
             if (args.fecha) query = query.eq('fecha', args.fecha);
-            const { data, count, error } = await query.order('fecha', { ascending: false }).limit(20);
+            const { data, count, error } = await query.order('fecha', { ascending: false }).limit(2000);
             if (error) throw error;
             return {
                 total_registros_encontrados: count || 0,
