@@ -202,7 +202,109 @@ serve(async (req) => {
     const provider = (config.provider || 'gemini').trim().toLowerCase();
     let finalResponseText = '';
 
-    if (provider === 'groq') {
+    if (provider === 'deepseek') {
+      const messages = [
+        { role: 'system', content: systemInstruction }
+      ];
+      if (chatHistory && chatHistory.length > 0) {
+        chatHistory.forEach(log => {
+          messages.push({ role: 'user', content: log.message });
+          messages.push({ role: 'assistant', content: log.response });
+        });
+      }
+      messages.push({ role: 'user', content: message });
+
+      const deepseekTools = tools[0].functionDeclarations.map(fd => {
+        const mappedFd = JSON.parse(JSON.stringify(fd));
+        if (mappedFd.parameters) {
+          if (mappedFd.parameters.type) {
+            mappedFd.parameters.type = mappedFd.parameters.type.toLowerCase();
+          }
+          if (mappedFd.parameters.properties) {
+            for (const key in mappedFd.parameters.properties) {
+              const prop = mappedFd.parameters.properties[key];
+              if (prop.type) {
+                prop.type = prop.type.toLowerCase();
+              }
+            }
+          }
+        }
+        return {
+          type: 'function',
+          function: mappedFd
+        };
+      });
+
+      let deepseekModel = modelName;
+      if (!deepseekModel || !deepseekModel.startsWith('deepseek')) {
+        deepseekModel = 'deepseek-v4-pro';
+      }
+
+      let loopCount = 0;
+      const maxLoops = 4;
+
+      while (loopCount < maxLoops) {
+        console.log(`Llamando a DeepSeek (${deepseekModel}) - Iteración ${loopCount + 1}...`);
+        
+        const requestBody: any = {
+          model: deepseekModel,
+          messages: messages,
+          tools: deepseekTools,
+          tool_choice: 'auto'
+        };
+
+        // Si es el modelo deepseek-v4-pro, habilitamos thinking mode y reasoning effort
+        if (deepseekModel === 'deepseek-v4-pro') {
+          requestBody.thinking = { type: "enabled" };
+          requestBody.reasoning_effort = "high";
+        }
+
+        const apiResponse = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!apiResponse.ok) {
+          const errorText = await apiResponse.text();
+          throw new Error(`API de DeepSeek retornó error: ${apiResponse.statusText}. Detalle: ${errorText}`);
+        }
+
+        const responseJson = await apiResponse.json();
+        const assistantMessage = responseJson.choices?.[0]?.message;
+        messages.push(assistantMessage);
+
+        const toolCalls = assistantMessage?.tool_calls;
+        if (toolCalls && toolCalls.length > 0) {
+          for (const toolCall of toolCalls) {
+            const { name, arguments: argsString } = toolCall.function;
+            const args = JSON.parse(argsString || '{}');
+            
+            console.log(`Ejecutando herramienta (DeepSeek): ${name}`);
+            const executionResult = await executeTool(name, args, supabaseClient, userId);
+
+            messages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              name: name,
+              content: JSON.stringify(executionResult)
+            });
+          }
+          loopCount++;
+        } else {
+          finalResponseText = assistantMessage?.content || 'No pude procesar la respuesta.';
+          break;
+        }
+      }
+
+      if (!finalResponseText) {
+        finalResponseText = 'Se alcanzó el límite de llamadas a DeepSeek sin respuesta.';
+      }
+
+    } else if (provider === 'groq') {
       const messages = [
         { role: 'system', content: systemInstruction }
       ];

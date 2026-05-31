@@ -8531,6 +8531,13 @@ function updateModelOptions(provider) {
             <option value="llama-3.1-8b-instant" class="bg-slate-900">llama-3.1-8b-instant (Rápido y eficiente)</option>
             <option value="mixtral-8x7b-32768" class="bg-slate-900">mixtral-8x7b-32768 (Mixtral 8x7B)</option>
         `;
+    } else if (provider === 'deepseek') {
+        modelSelect.innerHTML = `
+            <option value="deepseek-v4-pro" class="bg-slate-900">DeepSeek-V4-Pro (Con Thinking Mode - Recomendado)</option>
+            <option value="deepseek-v4-flash" class="bg-slate-900">DeepSeek-V4-Flash (Rápido y económico)</option>
+            <option value="deepseek-chat" class="bg-slate-900">deepseek-chat (DeepSeek-V3)</option>
+            <option value="deepseek-reasoner" class="bg-slate-900">deepseek-reasoner (DeepSeek-R1)</option>
+        `;
     } else {
         modelSelect.innerHTML = `
             <option value="gemini-1.5-flash" class="bg-slate-900">gemini-1.5-flash (Estable y rápido)</option>
