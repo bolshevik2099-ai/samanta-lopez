@@ -73,7 +73,7 @@ serve(async (req) => {
     }
 
     const apiKey = config.api_key;
-    const systemInstructionBase = config.system_instruction || "Eres Samanta, el asistente inteligente de Procesa-T CRM.";
+    const systemInstructionBase = config.system_instruction || "Eres el asistente inteligente de Procesa-T CRM.";
     
     // Obtener la fecha actual en formato YYYY-MM-DD en la zona horaria de México
     const year = new Date().getFullYear();
