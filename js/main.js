@@ -256,6 +256,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Populate Driver Form Options
     populateDriverFormOptions();
+
+    // Event listener to auto-populate unit and driver when ID_Viaje is entered
+    const viajeInput = document.getElementById('ID_Viaje');
+    if (viajeInput) {
+        viajeInput.addEventListener('change', async (e) => {
+            const tripId = e.target.value.trim();
+            if (!tripId) return;
+            try {
+                const { data: trip, error } = await window.supabaseClient
+                    .from(DB_CONFIG.tableViajes)
+                    .select('id_unidad, id_chofer')
+                    .eq('id_viaje', tripId)
+                    .maybeSingle();
+
+                if (error) {
+                    console.error('Error fetching trip for auto-fill:', error);
+                    return;
+                }
+
+                if (trip) {
+                    const unitSelect = document.getElementById('ID_Unidad');
+                    const driverSelect = document.getElementById('ID_Chofer');
+                    if (unitSelect && trip.id_unidad) {
+                        unitSelect.value = trip.id_unidad;
+                        if (typeof window.updateLastYieldDisplay === 'function') {
+                            window.updateLastYieldDisplay(trip.id_unidad);
+                        }
+                        if (typeof window.updateLiveYield === 'function') {
+                            window.updateLiveYield();
+                        }
+                    }
+                    if (driverSelect && trip.id_chofer) {
+                        driverSelect.value = trip.id_chofer;
+                    }
+                }
+            } catch (err) {
+                console.error('Error in ID_Viaje change listener:', err);
+            }
+        });
+    }
 });
 
 
@@ -7129,6 +7169,22 @@ async function populateDriverFormOptions() {
             const activeUnits = units.filter(u => (u.estatus || 'Activo') === 'Activo');
             unitSelect.innerHTML = '<option value="" class="bg-slate-900">Selecciona Unidad</option>' +
                 activeUnits.map(u => `<option value="${u.id_unidad}" class="bg-slate-900">${u.id_unidad} - ${u.nombre_unidad} (${u.placas || 'S/P'})</option>`).join('');
+            
+            // Auto-select unit if driver is logged in and assigned to a unit
+            const session = checkAuth();
+            const driverId = session ? (session.id_chofer || session.id_contacto || session.userID) : null;
+            if (driverId) {
+                const assignedUnit = activeUnits.find(u => u.id_chofer === driverId);
+                if (assignedUnit) {
+                    unitSelect.value = assignedUnit.id_unidad;
+                    if (typeof window.updateLastYieldDisplay === 'function') {
+                        window.updateLastYieldDisplay(assignedUnit.id_unidad);
+                    }
+                    if (typeof window.updateLiveYield === 'function') {
+                        window.updateLiveYield();
+                    }
+                }
+            }
         }
 
         // Populate Drivers
@@ -7139,9 +7195,31 @@ async function populateDriverFormOptions() {
 
             // Auto-select current driver if session exists
             const session = checkAuth();
-            if (session && session.id_chofer) {
-                driverSelect.value = session.id_chofer;
+            const driverId = session ? (session.id_chofer || session.id_contacto || session.userID) : null;
+            if (driverId) {
+                const exists = activeDrivers.some(d => d.id_chofer === driverId);
+                if (exists) {
+                    driverSelect.value = driverId;
+                }
             }
+
+            // Also, when the driver is changed (e.g. by admin), auto-select their unit
+            driverSelect.addEventListener('change', (e) => {
+                const selectedDriverId = e.target.value;
+                if (selectedDriverId && unitSelect) {
+                    // Find active unit for this driver
+                    const assignedUnit = units.find(u => u.id_chofer === selectedDriverId && (u.estatus || 'Activo') === 'Activo');
+                    if (assignedUnit) {
+                        unitSelect.value = assignedUnit.id_unidad;
+                        if (typeof window.updateLastYieldDisplay === 'function') {
+                            window.updateLastYieldDisplay(assignedUnit.id_unidad);
+                        }
+                        if (typeof window.updateLiveYield === 'function') {
+                            window.updateLiveYield();
+                        }
+                    }
+                }
+            });
         }
 
     } catch (err) {
