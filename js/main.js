@@ -7202,24 +7202,6 @@ async function populateDriverFormOptions() {
                     driverSelect.value = driverId;
                 }
             }
-
-            // Also, when the driver is changed (e.g. by admin), auto-select their unit
-            driverSelect.addEventListener('change', (e) => {
-                const selectedDriverId = e.target.value;
-                if (selectedDriverId && unitSelect) {
-                    // Find active unit for this driver
-                    const assignedUnit = units.find(u => u.id_chofer === selectedDriverId && (u.estatus || 'Activo') === 'Activo');
-                    if (assignedUnit) {
-                        unitSelect.value = assignedUnit.id_unidad;
-                        if (typeof window.updateLastYieldDisplay === 'function') {
-                            window.updateLastYieldDisplay(assignedUnit.id_unidad);
-                        }
-                        if (typeof window.updateLiveYield === 'function') {
-                            window.updateLiveYield();
-                        }
-                    }
-                }
-            });
         }
 
     } catch (err) {
