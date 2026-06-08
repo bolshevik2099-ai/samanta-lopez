@@ -4884,6 +4884,9 @@ async function showSection(sectionId) {
             case 'tarifas':
                 if (typeof loadRatesList === 'function') loadRatesList();
                 break;
+            case 'capital':
+                if (typeof loadCapitalData === 'function') loadCapitalData();
+                break;
             case 'settings-chat':
                 if (typeof loadChatSettings === 'function') loadChatSettings();
                 break;
@@ -8718,6 +8721,395 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initChatSettingsListeners);
 } else {
     initChatSettingsListeners();
+}
+
+
+// --- LÓGICA DE CAPITAL E INVENTARIO ---
+
+let currentCapitalTab = 'consumibles';
+let allCapitalItems = [];
+let allCapitalMovements = [];
+
+async function loadCapitalData() {
+    console.log('Cargando datos de Capital e Inventario...');
+    try {
+        // Fetch items and movements
+        const [items, movements] = await Promise.all([
+            fetchSupabaseData('inventario_capital'),
+            fetchSupabaseData('inventario_movimientos')
+        ]);
+        
+        allCapitalItems = items || [];
+        // Sort movements by date desc
+        allCapitalMovements = (movements || []).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+        renderCapitalKPIs();
+        renderCapitalTables();
+        populateCapitalDropdowns();
+    } catch (err) {
+        console.error('Error al cargar datos de capital:', err);
+    }
+}
+
+function renderCapitalKPIs() {
+    // KPI 1: Total Bienes Físicos (Value: quantity * costo_promedio)
+    const physicalItems = allCapitalItems.filter(i => i.tipo === 'Bien Físico');
+    const totalValueBienes = physicalItems.reduce((acc, curr) => acc + (parseFloat(curr.cantidad || 0) * parseFloat(curr.costo_promedio || 0)), 0);
+    const kpiBienes = document.getElementById('kpi-cap-bienes-valor');
+    if (kpiBienes) {
+        kpiBienes.innerText = '$' + totalValueBienes.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+    }
+
+    // KPI 2: Types of Consumibles
+    const consumables = allCapitalItems.filter(i => i.tipo === 'Consumible');
+    const kpiConsumibles = document.getElementById('kpi-cap-consumibles-tipos');
+    if (kpiConsumibles) {
+        kpiConsumibles.innerText = consumables.length.toString();
+    }
+
+    // KPI 3: Total movements
+    const kpiMovimientos = document.getElementById('kpi-cap-movimientos-totales');
+    if (kpiMovimientos) {
+        kpiMovimientos.innerText = allCapitalMovements.length.toString();
+    }
+}
+
+function renderCapitalTables() {
+    const consumablesTable = document.getElementById('cap-table-consumibles');
+    const physicalTable = document.getElementById('cap-table-bienes');
+    const movementsTable = document.getElementById('cap-table-movimientos');
+
+    // 1. Render Consumables
+    if (consumablesTable) {
+        const consumables = allCapitalItems.filter(i => i.tipo === 'Consumible');
+        if (consumables.length === 0) {
+            consumablesTable.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-slate-500 uppercase tracking-wider font-bold text-xs">No hay consumibles registrados</td></tr>`;
+        } else {
+            consumablesTable.innerHTML = consumables.map(c => `
+                <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5">
+                    <td class="py-4 px-6 font-mono font-bold text-white">${c.id_item}</td>
+                    <td class="py-4 px-6 font-bold text-slate-200">${c.nombre}</td>
+                    <td class="py-4 px-6 text-slate-400 text-xs">${c.descripcion || '-'}</td>
+                    <td class="py-4 px-6 text-right font-mono font-bold ${parseFloat(c.cantidad) <= 5 ? 'text-red-400' : 'text-emerald-400'}">${parseFloat(c.cantidad).toLocaleString('es-MX')} <span class="text-[10px] text-slate-500 font-semibold uppercase">${c.unidad_medida}</span></td>
+                    <td class="py-4 px-6 text-right font-mono text-slate-300 font-semibold">$${parseFloat(c.costo_promedio || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                    <td class="py-4 px-6 text-center font-bold">
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="quickActionCapital('uso', '${c.id_item}')" title="Registrar Uso" class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-wrench text-xs"></i></button>
+                            <button onclick="quickActionCapital('entrada', '${c.id_item}')" title="Registrar Entrada/Compra" class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-dolly text-xs"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // 2. Render Physical Assets
+    if (physicalTable) {
+        const physical = allCapitalItems.filter(i => i.tipo === 'Bien Físico');
+        if (physical.length === 0) {
+            physicalTable.innerHTML = `<tr><td colspan="6" class="p-10 text-center text-slate-500 uppercase tracking-wider font-bold text-xs">No hay bienes físicos registrados</td></tr>`;
+        } else {
+            physicalTable.innerHTML = physical.map(p => `
+                <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5">
+                    <td class="py-4 px-6 font-mono font-bold text-white">${p.id_item}</td>
+                    <td class="py-4 px-6 font-bold text-slate-200">${p.nombre}</td>
+                    <td class="py-4 px-6 text-slate-400 text-xs">${p.descripcion || '-'}</td>
+                    <td class="py-4 px-6 text-right font-mono text-slate-300 font-bold">${parseFloat(p.cantidad).toLocaleString('es-MX')} <span class="text-[10px] text-slate-500 font-semibold uppercase">${p.unidad_medida}</span></td>
+                    <td class="py-4 px-6 text-right font-mono text-blue-400 font-black">$${(parseFloat(p.cantidad) * parseFloat(p.costo_promedio || 0)).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                    <td class="py-4 px-6 text-center font-bold">
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="quickActionCapital('entrada', '${p.id_item}')" title="Aumentar Stock / Compra" class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-plus text-xs"></i></button>
+                            <button onclick="quickActionCapital('uso', '${p.id_item}')" title="Dar de Baja / Retirar" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-minus text-xs"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    // 3. Render Movements
+    renderMovementsTable(allCapitalMovements);
+}
+
+function renderMovementsTable(movements) {
+    const movementsTable = document.getElementById('cap-table-movimientos');
+    if (!movementsTable) return;
+
+    if (movements.length === 0) {
+        movementsTable.innerHTML = `<tr><td colspan="7" class="p-10 text-center text-slate-500 uppercase tracking-wider font-bold text-xs">No hay movimientos registrados</td></tr>`;
+    } else {
+        movementsTable.innerHTML = movements.map(m => {
+            const item = allCapitalItems.find(i => i.id_item === m.id_item) || { nombre: m.id_item, unidad_medida: '' };
+            const total = parseFloat(m.cantidad) * parseFloat(m.precio_unitario || 0);
+            const badge = m.tipo_movimiento === 'Entrada' 
+                ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-green-500/10 text-green-400 border border-green-500/20"><i class="fas fa-arrow-down mr-1"></i>Entrada</span>`
+                : `<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-500/10 text-orange-400 border border-orange-500/20"><i class="fas fa-arrow-up mr-1"></i>Salida</span>`;
+            
+            return `
+                <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5">
+                    <td class="py-4 px-6 text-slate-400 text-xs font-mono">${m.fecha}</td>
+                    <td class="py-4 px-6 font-bold text-slate-200">${item.nombre} <span class="text-[9px] text-slate-500 font-mono font-bold block">${m.id_item}</span></td>
+                    <td class="py-4 px-6">${badge}</td>
+                    <td class="py-4 px-6 text-right font-mono font-bold text-slate-300">${m.tipo_movimiento === 'Entrada' ? '+' : '-'}${parseFloat(m.cantidad).toLocaleString('es-MX')} <span class="text-[10px] text-slate-500 uppercase">${item.unidad_medida}</span></td>
+                    <td class="py-4 px-6 text-right font-mono text-slate-400">$${parseFloat(m.precio_unitario || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                    <td class="py-4 px-6 text-right font-mono font-semibold text-slate-300">$${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                    <td class="py-4 px-6 text-slate-400 text-xs truncate max-w-[200px]" title="${m.observaciones || ''}">
+                        ${m.observaciones || '-'}
+                        ${m.id_unidad ? `<span class="block text-[9px] text-blue-400 font-semibold font-mono">Unidad: ${m.id_unidad}</span>` : ''}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+}
+
+function filterCapitalMovements() {
+    const q = document.getElementById('cap-search-mov')?.value.trim().toLowerCase();
+    if (!q) {
+        renderMovementsTable(allCapitalMovements);
+        return;
+    }
+
+    const filtered = allCapitalMovements.filter(m => {
+        const item = allCapitalItems.find(i => i.id_item === m.id_item) || { nombre: '', descripcion: '' };
+        return m.id_item.toLowerCase().includes(q) || 
+               item.nombre.toLowerCase().includes(q) || 
+               (m.observaciones || '').toLowerCase().includes(q);
+    });
+
+    renderMovementsTable(filtered);
+}
+
+function switchCapitalTab(tabName) {
+    currentCapitalTab = tabName;
+    
+    // Toggle active classes on tab buttons
+    document.querySelectorAll('.cap-tab').forEach(b => {
+        b.classList.remove('bg-blue-600', 'text-white', 'shadow-lg');
+        b.classList.add('text-slate-500', 'hover:text-white');
+    });
+
+    const activeBtn = document.getElementById('cap-tab-' + tabName);
+    if (activeBtn) {
+        activeBtn.classList.remove('text-slate-500', 'hover:text-white');
+        activeBtn.classList.add('bg-blue-600', 'text-white', 'shadow-lg');
+    }
+
+    // Toggle active sections
+    document.querySelectorAll('.cap-view').forEach(v => v.classList.add('hidden'));
+    const activeView = document.getElementById('cap-view-' + tabName);
+    if (activeView) activeView.classList.remove('hidden');
+}
+
+function openCapitalModal(modalType) {
+    const modal = document.getElementById('capital-modal-' + modalType);
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        // Reset form
+        const form = document.getElementById('capital-form-' + modalType);
+        if (form) form.reset();
+
+        // Set default dates to today
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${yyyy}-${mm}-${dd}`;
+
+        if (modalType === 'entrada') {
+            document.getElementById('cap-ent-fecha').value = todayStr;
+        } else if (modalType === 'uso') {
+            document.getElementById('cap-uso-fecha').value = todayStr;
+        }
+    }
+}
+
+function closeCapitalModal(modalType) {
+    const modal = document.getElementById('capital-modal-' + modalType);
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+async function populateCapitalDropdowns() {
+    const entItemSelect = document.getElementById('cap-ent-item');
+    const usoItemSelect = document.getElementById('cap-uso-item');
+    const usoChoferSelect = document.getElementById('cap-uso-chofer');
+    const usoUnidadSelect = document.getElementById('cap-uso-unidad');
+
+    // Populate Item selectors
+    if (entItemSelect) {
+        entItemSelect.innerHTML = '<option value="" class="bg-slate-900">Selecciona producto...</option>' +
+            allCapitalItems.map(i => `<option value="${i.id_item}" class="bg-slate-900">${i.id_item} - ${i.nombre} (${i.tipo})</option>`).join('');
+    }
+
+    if (usoItemSelect) {
+        usoItemSelect.innerHTML = '<option value="" class="bg-slate-900">Selecciona producto...</option>' +
+            allCapitalItems.map(i => `<option value="${i.id_item}" class="bg-slate-900">${i.id_item} - ${i.nombre} (${i.tipo})</option>`).join('');
+    }
+
+    // Populate Choferes & Unidades using standard CRM collections
+    try {
+        const [units, drivers] = await Promise.all([
+            fetchSupabaseData(DB_CONFIG.tableUnidades),
+            fetchSupabaseData(DB_CONFIG.tableChoferes)
+        ]);
+
+        if (usoChoferSelect) {
+            const activeDrivers = (drivers || []).filter(d => (d.estatus || 'Activo') === 'Activo');
+            usoChoferSelect.innerHTML = '<option value="" class="bg-slate-900">-- Selecciona Chofer --</option>' +
+                activeDrivers.map(d => `<option value="${d.id_chofer}" class="bg-slate-900">${d.nombre}</option>`).join('');
+        }
+
+        if (usoUnidadSelect) {
+            const activeUnits = (units || []).filter(u => (u.estatus || 'Activo') === 'Activo');
+            usoUnidadSelect.innerHTML = '<option value="" class="bg-slate-900">-- Selecciona Unidad --</option>' +
+                activeUnits.map(u => `<option value="${u.id_unidad}" class="bg-slate-900">${u.id_unidad} - ${u.nombre_unidad}</option>`).join('');
+        }
+    } catch(err) {
+        console.warn('Could not populate units and drivers in capital forms:', err);
+    }
+}
+
+function quickActionCapital(modalType, itemId) {
+    openCapitalModal(modalType);
+    if (modalType === 'entrada') {
+        const select = document.getElementById('cap-ent-item');
+        if (select) select.value = itemId;
+    } else if (modalType === 'uso') {
+        const select = document.getElementById('cap-uso-item');
+        if (select) select.value = itemId;
+    }
+}
+
+async function handleCapitalSubmit(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registrando...';
+
+    const newItem = {
+        id_item: document.getElementById('cap-add-id').value.trim().toUpperCase(),
+        nombre: document.getElementById('cap-add-nombre').value.trim(),
+        descripcion: document.getElementById('cap-add-descripcion').value.trim() || null,
+        tipo: document.getElementById('cap-add-tipo').value,
+        unidad_medida: document.getElementById('cap-add-unidad').value,
+        cantidad: 0,
+        costo_promedio: 0
+    };
+
+    try {
+        // Validation: check if id already exists
+        const exists = allCapitalItems.some(i => i.id_item === newItem.id_item);
+        if (exists) {
+            alert(`El código ${newItem.id_item} ya se encuentra registrado.`);
+            return;
+        }
+
+        const { error } = await window.supabaseClient
+            .from('inventario_capital')
+            .insert(newItem);
+
+        if (error) throw error;
+
+        alert('Producto registrado con éxito en el catálogo.');
+        closeCapitalModal('add');
+        await loadCapitalData();
+    } catch (err) {
+        console.error('Error saving capital product:', err);
+        alert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+async function handleMovementSubmit(e, tipo) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+    let id_item, cantidad, precio_unitario, fecha, observaciones, id_unidad = null, id_chofer = null;
+
+    if (tipo === 'Entrada') {
+        id_item = document.getElementById('cap-ent-item').value;
+        cantidad = parseFloat(document.getElementById('cap-ent-cantidad').value);
+        precio_unitario = parseFloat(document.getElementById('cap-ent-precio').value) || 0;
+        fecha = document.getElementById('cap-ent-fecha').value;
+        observaciones = document.getElementById('cap-ent-observaciones').value.trim() || null;
+    } else {
+        id_item = document.getElementById('cap-uso-item').value;
+        cantidad = parseFloat(document.getElementById('cap-uso-cantidad').value);
+        precio_unitario = 0; // Exits don't have purchase price
+        fecha = document.getElementById('cap-uso-fecha').value;
+        observaciones = document.getElementById('cap-uso-observaciones').value.trim() || null;
+        id_unidad = document.getElementById('cap-uso-unidad').value || null;
+        id_chofer = document.getElementById('cap-uso-chofer').value || null;
+    }
+
+    try {
+        const item = allCapitalItems.find(i => i.id_item === id_item);
+        if (!item) throw new Error('Producto no encontrado');
+
+        // Validation for stock exits
+        if (tipo === 'Salida' && parseFloat(item.cantidad) < cantidad) {
+            alert(`No hay stock suficiente para realizar esta salida. Stock actual: ${item.cantidad} ${item.unidad_medida}.`);
+            return;
+        }
+
+        // 1. Insert Movement record
+        const { error: errMov } = await window.supabaseClient
+            .from('inventario_movimientos')
+            .insert({
+                id_item,
+                tipo_movimiento: tipo,
+                cantidad,
+                precio_unitario,
+                fecha,
+                id_unidad,
+                id_chofer,
+                observaciones
+            });
+
+        if (errMov) throw errMov;
+
+        // 2. Update stock atomics
+        const currentStock = parseFloat(item.cantidad);
+        const newStock = tipo === 'Entrada' ? currentStock + cantidad : currentStock - cantidad;
+
+        const updateData = { cantidad: newStock };
+
+        // For entries, we calculate new weighted average cost
+        if (tipo === 'Entrada') {
+            const currentCostVal = parseFloat(item.costo_promedio || 0) * currentStock;
+            const newCostVal = precio_unitario * cantidad;
+            const finalAvgCost = newStock > 0 ? (currentCostVal + newCostVal) / newStock : 0;
+            updateData.costo_promedio = parseFloat(finalAvgCost.toFixed(2));
+        }
+
+        const { error: errStock } = await window.supabaseClient
+            .from('inventario_capital')
+            .update(updateData)
+            .eq('id_item', id_item);
+
+        if (errStock) throw errStock;
+
+        alert(`Movimiento de ${tipo} registrado con éxito.`);
+        closeCapitalModal(tipo === 'Entrada' ? 'entrada' : 'uso');
+        await loadCapitalData();
+    } catch (err) {
+        console.error('Error saving inventory movement:', err);
+        alert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
 }
 
 
