@@ -524,6 +524,10 @@ async function renderDriverDetail(id) {
                                 <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Unidad</p>
                                 <p class="text-sm font-bold text-blue-400">${globalUnitMap[driver.id_unidad] ? `${globalUnitMap[driver.id_unidad]} [${driver.id_unidad}]` : (driver.id_unidad || 'N/A')}</p>
                             </div>
+                            <div class="bg-white/[0.02] p-5 rounded-3xl border border-white/5 col-span-2">
+                                <p class="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Teléfono</p>
+                                <p class="text-sm font-bold text-white">${driver.telefono || 'N/A'}</p>
+                            </div>
                         </div>
                     </div>
 
@@ -5045,6 +5049,7 @@ function filterTrips(query) {
 // --- CATALOG MANAGEMENT LOGIC ---
 let currentCatalog = 'choferes';
 let catalogData = [];
+let catalogCrossRefData = [];
 let isEditingCatalog = false;
 let editingCatalogId = null;
 
@@ -5104,6 +5109,7 @@ async function loadCatalog(type) {
 
     const [data, expenses, crossRef] = await Promise.all(promises);
     catalogData = data;
+    catalogCrossRefData = crossRef || [];
 
     if (loader) loader.classList.add('hidden');
 
@@ -5126,7 +5132,7 @@ function renderCatalogTable(type, data, expenses = [], crossRef = []) {
 
     const config = {
         'choferes': {
-            headers: ['ID', 'Nombre', 'Licencia', 'Unidad Asignada', 'Rendimiento (Último)'],
+            headers: ['ID', 'Nombre', 'Teléfono', 'Licencia', 'Unidad Asignada', 'Rendimiento (Último)'],
             row: d => {
                 const metrics = calculateFuelMetrics(d.id_chofer, 'choferes', expenses);
                 const unit = crossRef.find(u => u.id_unidad === d.id_unidad);
@@ -5134,6 +5140,7 @@ function renderCatalogTable(type, data, expenses = [], crossRef = []) {
 
                 return `<td class="px-6 py-4 font-black text-white text-xs tracking-tight">${d.id_chofer}</td>
                        <td class="px-6 py-4 font-bold text-slate-200 text-xs">${d.nombre}</td>
+                       <td class="px-6 py-4 text-slate-400 text-[11px] font-medium">${d.telefono || '-'}</td>
                        <td class="px-6 py-4 text-slate-400 text-[11px] font-medium">${d.licencia || '-'}</td>
                        <td class="px-6 py-4 text-blue-400 font-black text-xs">${unitDisplay}</td>
                        <td class="px-6 py-4 font-black text-amber-500 text-xs">${metrics.last}</td>`;
@@ -5206,6 +5213,13 @@ function renderCatalogTable(type, data, expenses = [], crossRef = []) {
 async function deleteItem(table, id, idCol) {
     if (!confirm('¿Desea eliminar definitivamente este registro?')) return;
     try {
+        // Clear cross references before deletion
+        if (table === DB_CONFIG.tableChoferes) {
+            await window.supabaseClient.from(DB_CONFIG.tableUnidades).update({ id_chofer: null }).eq('id_chofer', id);
+        } else if (table === DB_CONFIG.tableUnidades) {
+            await window.supabaseClient.from(DB_CONFIG.tableChoferes).update({ id_unidad: null }).eq('id_unidad', id);
+        }
+
         const { error } = await window.supabaseClient.from(table).delete().eq(idCol, id);
         if (error) throw error;
         alert('Registro eliminado.');
@@ -5232,44 +5246,60 @@ function showCatalogForm(itemId = null) {
         if (submitBtn) submitBtn.innerText = 'Guardar Registro';
     }
 
+    // For choferes, populate id_unidad options dynamically
+    const unitOptions = [{ value: '', label: 'Sin asignar' }];
+    if (currentCatalog === 'choferes' && catalogCrossRefData) {
+        catalogCrossRefData.forEach(u => {
+            unitOptions.push({ value: u.id_unidad, label: `${u.id_unidad} - ${u.nombre_unidad || 'Sin nombre'}` });
+        });
+    }
+
+    // For unidades, populate id_chofer options dynamically
+    const driverOptions = [{ value: '', label: 'Sin asignar' }];
+    if (currentCatalog === 'unidades' && catalogCrossRefData) {
+        catalogCrossRefData.forEach(c => {
+            driverOptions.push({ value: c.id_chofer, label: c.nombre });
+        });
+    }
+
     const config = {
         'choferes': [
-            { id: 'id_chofer', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01', readonly: isEditingCatalog },
-            { id: 'nombre', label: 'Nombre Completo', type: 'text', placeholder: 'Nombre Apellido' },
-            { id: 'licencia', label: 'Num. Licencia', type: 'text', placeholder: 'LIC-000' },
-            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
-            { id: 'id_unidad', label: 'Unidad Asignada (ID ECO)', type: 'text', placeholder: 'ECO-01' },
-            { id: 'estatus', label: 'Estatus', type: 'select', options: ['Activo', 'Inactivo'] }
+            { id: 'id_chofer', label: 'ID Chofer', type: 'text', placeholder: 'CHO-01', readonly: isEditingCatalog, required: true },
+            { id: 'nombre', label: 'Nombre Completo', type: 'text', placeholder: 'Nombre Apellido', required: true },
+            { id: 'licencia', label: 'Num. Licencia', type: 'text', placeholder: 'LIC-000', required: false },
+            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000', required: false },
+            { id: 'id_unidad', label: 'Unidad Asignada', type: 'select', options: unitOptions, required: false },
+            { id: 'estatus', label: 'Estatus', type: 'select', options: ['Activo', 'Inactivo'], required: true }
         ],
         'unidades': [
-            { id: 'id_unidad', label: 'ID Unidad (ECO)', type: 'text', placeholder: 'ECO-01', readonly: isEditingCatalog },
-            { id: 'nombre_unidad', label: 'Nombre/Alias', type: 'text', placeholder: 'Kenworth T680' },
-            { id: 'placas', label: 'Placas', type: 'text', placeholder: '00-AA-00' },
-            { id: 'modelo', label: 'Modelo', type: 'text', placeholder: '2024' },
-            { id: 'marca', label: 'Marca', type: 'text', placeholder: 'Freightliner' },
-            { id: 'id_chofer', label: 'Chofer Asignado (ID)', type: 'text', placeholder: 'CHO-01' },
+            { id: 'id_unidad', label: 'ID Unidad (ECO)', type: 'text', placeholder: 'ECO-01', readonly: isEditingCatalog, required: true },
+            { id: 'nombre_unidad', label: 'Nombre/Alias', type: 'text', placeholder: 'Kenworth T680', required: false },
+            { id: 'placas', label: 'Placas', type: 'text', placeholder: '00-AA-00', required: false },
+            { id: 'modelo', label: 'Modelo', type: 'text', placeholder: '2024', required: false },
+            { id: 'marca', label: 'Marca', type: 'text', placeholder: 'Freightliner', required: false },
+            { id: 'id_chofer', label: 'Chofer Asignado', type: 'select', options: driverOptions, required: false },
             { id: 'registra_combustible', label: '¿Lleva registro de diésel/rendimiento?', type: 'select', options: [
                 { value: 'true', label: 'Sí' },
                 { value: 'false', label: 'No' }
-            ]},
-            { id: 'estatus', label: 'Estatus', type: 'select', options: ['Activo', 'Inactivo'] }
+            ], required: true },
+            { id: 'estatus', label: 'Estatus', type: 'select', options: ['Activo', 'Inactivo'], required: true }
         ],
         'clientes': [
-            { id: 'nombre_cliente', label: 'Nombre Comercial', type: 'text', placeholder: 'Empresa S.A.', readonly: isEditingCatalog },
-            { id: 'id_cliente', label: 'ID Cliente (Opcional)', type: 'text', placeholder: 'CLI-01' },
-            { id: 'razon_social', label: 'Razón Social', type: 'text', placeholder: 'Logística Total S.A. de C.V.' },
-            { id: 'rfc', label: 'RFC', type: 'text', placeholder: 'RFC000000AAA' },
-            { id: 'contacto_nombre', label: 'Nombre de Contacto', type: 'text', placeholder: 'Juan Pérez' },
-            { id: 'email', label: 'Email', type: 'email', placeholder: 'contacto@empresa.com' },
-            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
-            { id: 'estatus', label: 'Estatus', type: 'select', options: ['Activo', 'Inactivo'] }
+            { id: 'nombre_cliente', label: 'Nombre Comercial', type: 'text', placeholder: 'Empresa S.A.', readonly: isEditingCatalog, required: true },
+            { id: 'id_cliente', label: 'ID Cliente (Opcional)', type: 'text', placeholder: 'CLI-01', required: false },
+            { id: 'razon_social', label: 'Razón Social', type: 'text', placeholder: 'Logística Total S.A. de C.V.', required: false },
+            { id: 'rfc', label: 'RFC', type: 'text', placeholder: 'RFC000000AAA', required: false },
+            { id: 'contacto_nombre', label: 'Nombre de Contacto', type: 'text', placeholder: 'Juan Pérez', required: false },
+            { id: 'email', label: 'Email', type: 'email', placeholder: 'contacto@empresa.com', required: false },
+            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000', required: false },
+            { id: 'estatus', label: 'Estatus', type: 'select', options: ['Activo', 'Inactivo'], required: true }
         ],
         'proveedores': [
-            { id: 'id_proveedor', label: 'ID Proveedor', type: 'text', placeholder: 'PROV-01', readonly: isEditingCatalog },
-            { id: 'nombre_proveedor', label: 'Nombre/Razón Social', type: 'text', placeholder: 'Gasolinera Plus' },
-            { id: 'tipo_proveedor', label: 'Tipo Proveedor', type: 'text', placeholder: 'Diesel / Refacciones' },
-            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000' },
-            { id: 'estatus', label: 'Estatus', type: 'select', options: ['Activo', 'Inactivo'] }
+            { id: 'id_proveedor', label: 'ID Proveedor', type: 'text', placeholder: 'PROV-01', readonly: isEditingCatalog, required: true },
+            { id: 'nombre_proveedor', label: 'Nombre/Razón Social', type: 'text', placeholder: 'Gasolinera Plus', required: true },
+            { id: 'tipo_proveedor', label: 'Tipo Proveedor', type: 'text', placeholder: 'Diesel / Refacciones', required: false },
+            { id: 'telefono', label: 'Teléfono', type: 'tel', placeholder: '55 0000 0000', required: false },
+            { id: 'estatus', label: 'Estatus', type: 'select', options: ['Activo', 'Inactivo'], required: true }
         ]
     };
 
@@ -5299,6 +5329,7 @@ function showCatalogForm(itemId = null) {
         }
 
         const readonlyAttr = f.readonly ? 'readonly cursor-not-allowed bg-slate-800/40 text-slate-400 font-semibold' : '';
+        const requiredAttr = f.required ? 'required' : '';
 
         if (f.type === 'select') {
             const opts = f.options.map(o => {
@@ -5311,7 +5342,7 @@ function showCatalogForm(itemId = null) {
             return `
                 <div>
                     <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">${f.label}</label>
-                    <select id="${f.id}" required class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer ${readonlyAttr}">
+                    <select id="${f.id}" ${requiredAttr} class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none cursor-pointer ${readonlyAttr}">
                         ${opts}
                     </select>
                 </div>
@@ -5321,7 +5352,7 @@ function showCatalogForm(itemId = null) {
         return `
             <div>
                 <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">${f.label}</label>
-                <input type="${f.type}" id="${f.id}" required placeholder="${f.placeholder}" value="${val}" ${f.readonly ? 'readonly' : ''}
+                <input type="${f.type}" id="${f.id}" ${requiredAttr} placeholder="${f.placeholder}" value="${val}" ${f.readonly ? 'readonly' : ''}
                     class="w-full px-5 py-3.5 rounded-2xl input-dark outline-none ${readonlyAttr}">
             </div>
         `;
@@ -5349,6 +5380,8 @@ async function handleCatalogSubmit(e) {
             if (input.id) {
                 if (input.id === 'registra_combustible') {
                     payload[input.id] = input.value === 'true';
+                } else if ((input.id === 'id_unidad' || input.id === 'id_chofer') && input.value === '') {
+                    payload[input.id] = null;
                 } else {
                     payload[input.id] = input.value;
                 }
@@ -5380,6 +5413,81 @@ async function handleCatalogSubmit(e) {
         }
 
         if (error) throw error;
+
+        // --- CROSS-REFERENCE SYNCHRONIZATION ---
+        if (currentCatalog === 'choferes') {
+            const driverId = isEditingCatalog ? editingCatalogId : payload.id_chofer;
+            const newUnitId = payload.id_unidad || null;
+
+            // Get old unit ID if editing
+            let oldUnitId = null;
+            if (isEditingCatalog) {
+                const oldDriver = catalogData.find(d => d.id_chofer === editingCatalogId);
+                oldUnitId = oldDriver ? oldDriver.id_unidad : null;
+            }
+
+            if (newUnitId !== oldUnitId) {
+                // 1. If there's a new unit, set its assigned driver to this driver
+                if (newUnitId) {
+                    await window.supabaseClient
+                        .from('cat_unidades')
+                        .update({ id_chofer: driverId })
+                        .eq('id_unidad', newUnitId);
+
+                    // Also, any other driver that was assigned to this new unit should be set to null
+                    await window.supabaseClient
+                        .from('cat_choferes')
+                        .update({ id_unidad: null })
+                        .eq('id_unidad', newUnitId)
+                        .neq('id_chofer', driverId);
+                }
+
+                // 2. If there was an old unit, and its driver was this driver, set its driver to null
+                if (oldUnitId) {
+                    await window.supabaseClient
+                        .from('cat_unidades')
+                        .update({ id_chofer: null })
+                        .eq('id_unidad', oldUnitId)
+                        .eq('id_chofer', driverId);
+                }
+            }
+        } else if (currentCatalog === 'unidades') {
+            const unitId = isEditingCatalog ? editingCatalogId : payload.id_unidad;
+            const newDriverId = payload.id_chofer || null;
+
+            // Get old driver ID if editing
+            let oldDriverId = null;
+            if (isEditingCatalog) {
+                const oldUnit = catalogData.find(u => u.id_unidad === editingCatalogId);
+                oldDriverId = oldUnit ? oldUnit.id_chofer : null;
+            }
+
+            if (newDriverId !== oldDriverId) {
+                // 1. If there's a new driver, set its assigned unit to this unit
+                if (newDriverId) {
+                    await window.supabaseClient
+                        .from('cat_choferes')
+                        .update({ id_unidad: unitId })
+                        .eq('id_chofer', newDriverId);
+
+                    // Also, any other unit that was assigned to this new driver should be set to null
+                    await window.supabaseClient
+                        .from('cat_unidades')
+                        .update({ id_chofer: null })
+                        .eq('id_chofer', newDriverId)
+                        .neq('id_unidad', unitId);
+                }
+
+                // 2. If there was an old driver, and its unit was this unit, set its unit to null
+                if (oldDriverId) {
+                    await window.supabaseClient
+                        .from('cat_choferes')
+                        .update({ id_unidad: null })
+                        .eq('id_chofer', oldDriverId)
+                        .eq('id_unidad', unitId);
+                }
+            }
+        }
 
         hideCatalogForm();
         e.target.reset();
