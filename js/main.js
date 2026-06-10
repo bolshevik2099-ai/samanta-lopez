@@ -1034,7 +1034,7 @@ async function updateDashboardByPeriod() {
         const viajes = filterByDate(viajesRaw, start, end);
         const gastos = filterByDate(gastosRaw, start, end).filter(g => {
             const c = (g.concepto || '').toLowerCase();
-            return c !== 'comisión chofer' && c !== 'comision chofer';
+            return !((c.includes('comisi') && c.includes('chofer')) || c === 'comision chofer');
         });
 
         console.log('Viajes filtrados:', viajes.length);
@@ -2371,7 +2371,7 @@ async function updateUnitDashboard() {
         const viajes = filterByDate(tripsData, start, end);
         const gastos = filterByDate(expensesData, start, end).filter(g => {
             const c = (g.concepto || '').toLowerCase();
-            return c !== 'comisión chofer' && c !== 'comision chofer';
+            return !((c.includes('comisi') && c.includes('chofer')) || c === 'comision chofer');
         });
         
         currentUnitTrips = viajes;
@@ -3242,7 +3242,7 @@ async function updateDriverDashboard() {
         const viajes = filterByDate(tripsData, start, end);
         const gastos = filterByDate(expensesData, start, end).filter(g => {
             const c = (g.concepto || '').toLowerCase();
-            return c !== 'comisión chofer' && c !== 'comision chofer';
+            return !((c.includes('comisi') && c.includes('chofer')) || c === 'comision chofer');
         });
         
         const totalTrips = viajes.length;
@@ -3500,7 +3500,7 @@ async function updateExpensesDashboard() {
         
         const gastos = filterByDate(expensesData, start, end).filter(g => {
             const c = (g.concepto || '').toLowerCase();
-            return c !== 'comisión chofer' && c !== 'comision chofer';
+            return !((c.includes('comisi') && c.includes('chofer')) || c === 'comision chofer');
         });
         const viajes = filterByDate(tripsData, start, end);
         
@@ -8333,7 +8333,9 @@ async function loadProfitDashboard() {
             // EXCLUSIÓN DE NÓMINA Y COMISIONES: No debe afectar las ganancias netas ya que se descuentan de comisiones
             const concepto = g.concepto || '';
             const conceptoLower = concepto.toLowerCase();
-            if (conceptoLower === 'nómina' || conceptoLower === 'nomina' || conceptoLower === 'comisión chofer' || conceptoLower === 'comision chofer') {
+            const isNomina = conceptoLower.includes('nomin') || conceptoLower === 'nomina';
+            const isComision = (conceptoLower.includes('comisi') && conceptoLower.includes('chofer')) || conceptoLower === 'comision chofer';
+            if (isNomina || isComision) {
                 return;
             }
 
@@ -8560,8 +8562,8 @@ function showUnitProfitDetail(id_unidad) {
     const gastos = (window.gananciasGastosRaw || []).filter(g => {
         const concepto = g.concepto || '';
         const conceptoLower = concepto.toLowerCase();
-        const isNomina = conceptoLower === 'nómina' || conceptoLower === 'nomina';
-        const isComision = conceptoLower === 'comisión chofer' || conceptoLower === 'comision chofer';
+        const isNomina = conceptoLower.includes('nomin') || conceptoLower === 'nomina';
+        const isComision = (conceptoLower.includes('comisi') && conceptoLower.includes('chofer')) || conceptoLower === 'comision chofer';
         return String(g.id_unidad) == String(id_unidad) && !isNomina && !isComision;
     });
     const start = window.gananciasPeriodStart || '';
