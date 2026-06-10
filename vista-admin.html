@@ -260,7 +260,7 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-xl font-bold flex items-center gap-2">
                     <i class="fas fa-shield-alt text-blue-400"></i>
-                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.59</span>
+                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.60</span>
                 </h1>
                 <!-- Close Button: visible en portrait y landscape -->
                 <button onclick="toggleSidebar()" class="sidebar-close-btn text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-all">
@@ -3211,11 +3211,12 @@
                                     <th class="py-4 px-6 text-right">Precio Unitario</th>
                                     <th class="py-4 px-6 text-right">Total</th>
                                     <th class="py-4 px-6">Observaciones</th>
+                                    <th class="py-4 px-6 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="cap-table-movimientos" class="divide-y divide-white/5 text-sm text-slate-300">
                                 <tr>
-                                    <td colspan="7" class="p-10 text-center text-slate-500 uppercase tracking-wider font-bold text-xs">No hay movimientos registrados</td>
+                                    <td colspan="8" class="p-10 text-center text-slate-500 uppercase tracking-wider font-bold text-xs">No hay movimientos registrados</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -3528,16 +3529,145 @@
             </form>
         </div>
     </div>
+
+    <!-- Modal: Editar Producto de Capital -->
+    <div id="capital-modal-edit-item" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 w-full max-w-lg rounded-[2rem] shadow-2xl border border-white/5 overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                <h3 class="text-lg font-black text-white flex items-center gap-3">
+                    <i class="fas fa-edit text-blue-500"></i> Editar Producto / Activo
+                </h3>
+                <button type="button" onclick="closeCapitalModal('edit-item')" class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="capital-form-edit-item" onsubmit="handleCapitalEditSubmit(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Código / ID Único (No Editable)</label>
+                    <input type="text" id="cap-edit-id" readonly class="w-full px-4 py-3.5 rounded-xl bg-slate-950/30 border border-white/5 outline-none text-slate-400 font-mono cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Nombre</label>
+                    <input type="text" id="cap-edit-nombre" placeholder="Nombre descriptivo" required
+                        class="w-full px-4 py-3.5 rounded-xl input-dark outline-none text-white placeholder-slate-600">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Descripción</label>
+                    <textarea id="cap-edit-descripcion" placeholder="Especificaciones, marca, modelo..." rows="3"
+                        class="w-full px-4 py-3.5 rounded-xl input-dark outline-none text-white placeholder-slate-600 resize-none"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Tipo de Activo</label>
+                        <select id="cap-edit-tipo" required class="w-full px-4 py-3.5 rounded-xl input-dark outline-none cursor-pointer">
+                            <option value="Consumible" class="bg-slate-900">Consumible</option>
+                            <option value="Bien Físico" class="bg-slate-900">Bien Físico</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Unidad de Medida</label>
+                        <select id="cap-edit-unidad" required class="w-full px-4 py-3.5 rounded-xl input-dark outline-none cursor-pointer">
+                            <option value="Pieza" class="bg-slate-900">Pieza</option>
+                            <option value="Litro" class="bg-slate-900">Litro</option>
+                            <option value="Juego" class="bg-slate-900">Juego</option>
+                            <option value="Caja" class="bg-slate-900">Caja</option>
+                            <option value="Kilogramo" class="bg-slate-900">Kilogramo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="pt-4 flex justify-end gap-3">
+                    <button type="button" onclick="closeCapitalModal('edit-item')"
+                        class="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs transition-all">Cancelar</button>
+                    <button type="submit"
+                        class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Editar Movimiento de Capital -->
+    <div id="capital-modal-edit-movement" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 w-full max-w-lg rounded-[2rem] shadow-2xl border border-white/5 overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-6 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                <h3 class="text-lg font-black text-white flex items-center gap-3">
+                    <i class="fas fa-edit text-blue-500"></i> Editar Movimiento de Capital
+                </h3>
+                <button type="button" onclick="closeCapitalModal('edit-movement')" class="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="capital-form-edit-movement" onsubmit="handleCapitalMovementEditSubmit(event)" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Producto / Activo</label>
+                        <input type="text" id="cap-edit-mov-item" readonly class="w-full px-4 py-3.5 rounded-xl bg-slate-950/30 border border-white/5 outline-none text-slate-400 font-mono cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Tipo de Movimiento</label>
+                        <input type="text" id="cap-edit-mov-tipo" readonly class="w-full px-4 py-3.5 rounded-xl bg-slate-950/30 border border-white/5 outline-none text-slate-400 font-bold cursor-not-allowed">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Cantidad</label>
+                        <input type="number" id="cap-edit-mov-cantidad" min="0.01" step="0.01" placeholder="0.00" required
+                            class="w-full px-4 py-3.5 rounded-xl input-dark outline-none text-white placeholder-slate-600 font-mono">
+                    </div>
+                    <div id="cap-edit-mov-precio-container">
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Costo Unitario ($)</label>
+                        <input type="number" id="cap-edit-mov-precio" min="0" step="0.01" placeholder="0.00"
+                            class="w-full px-4 py-3.5 rounded-xl input-dark outline-none text-white placeholder-slate-600 font-mono">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Fecha</label>
+                        <input type="date" id="cap-edit-mov-fecha" required
+                            class="w-full px-4 py-3.5 rounded-xl input-dark outline-none text-white font-mono">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4" id="cap-edit-mov-refs-container">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Chofer (Opcional)</label>
+                        <select id="cap-edit-mov-chofer" class="w-full px-4 py-3.5 rounded-xl input-dark outline-none cursor-pointer">
+                            <option value="" class="bg-slate-900">-- Selecciona Chofer --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Unidad (Opcional)</label>
+                        <select id="cap-edit-mov-unidad" class="w-full px-4 py-3.5 rounded-xl input-dark outline-none cursor-pointer">
+                            <option value="" class="bg-slate-900">-- Selecciona Unidad --</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Observaciones</label>
+                    <textarea id="cap-edit-mov-observaciones" placeholder="Detalles, proveedor, factura, etc..." rows="2"
+                        class="w-full px-4 py-3.5 rounded-xl input-dark outline-none text-white placeholder-slate-600 resize-none"></textarea>
+                </div>
+                <div class="pt-4 flex justify-end gap-3">
+                    <button type="button" onclick="closeCapitalModal('edit-movement')"
+                        class="px-5 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-xs transition-all">Cancelar</button>
+                    <button type="submit"
+                        class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-600/20 flex items-center gap-2">
+                        <i class="fas fa-save"></i> Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
         </div>
     </div>
 
     <!-- PDF Generation Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="./js/config.js?v=15.59"></script>
+    <script src="./js/config.js?v=15.60"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=15.59"></script>
-    <script src="./js/auth.js?v=15.59"></script>
-    <script src="./js/main.js?v=15.59"></script>
+    <script src="./js/supabase-client.js?v=15.60"></script>
+    <script src="./js/auth.js?v=15.60"></script>
+    <script src="./js/main.js?v=15.60"></script>
     <script src="./js/chat.js?v=16.10"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();

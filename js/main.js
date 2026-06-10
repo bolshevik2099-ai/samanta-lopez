@@ -8842,6 +8842,9 @@ if (document.readyState === 'loading') {
 let currentCapitalTab = 'consumibles';
 let allCapitalItems = [];
 let allCapitalMovements = [];
+let editingCapitalItemId = null;
+let editingMovementId = null;
+let editingMovementItemId = null;
 
 async function loadCapitalData() {
     console.log('Cargando datos de Capital e Inventario...');
@@ -8890,9 +8893,8 @@ function renderCapitalKPIs() {
 function renderCapitalTables() {
     const consumablesTable = document.getElementById('cap-table-consumibles');
     const physicalTable = document.getElementById('cap-table-bienes');
-    const movementsTable = document.getElementById('cap-table-movimientos');
 
-    // 1. Render Consumables
+    // 1. Render Consumibles
     if (consumablesTable) {
         const consumables = allCapitalItems.filter(i => i.tipo === 'Consumible');
         if (consumables.length === 0) {
@@ -8909,6 +8911,8 @@ function renderCapitalTables() {
                         <div class="flex items-center justify-center gap-2">
                             <button onclick="quickActionCapital('uso', '${c.id_item}')" title="Registrar Uso" class="w-7 h-7 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-wrench text-xs"></i></button>
                             <button onclick="quickActionCapital('entrada', '${c.id_item}')" title="Registrar Entrada/Compra" class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-dolly text-xs"></i></button>
+                            <button onclick="showEditCapitalItemModal('${c.id_item}')" title="Editar Producto" class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-edit text-xs"></i></button>
+                            <button onclick="deleteCapitalItem('${c.id_item}')" title="Eliminar Producto" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-trash-alt text-xs"></i></button>
                         </div>
                     </td>
                 </tr>
@@ -8933,6 +8937,8 @@ function renderCapitalTables() {
                         <div class="flex items-center justify-center gap-2">
                             <button onclick="quickActionCapital('entrada', '${p.id_item}')" title="Aumentar Stock / Compra" class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-plus text-xs"></i></button>
                             <button onclick="quickActionCapital('uso', '${p.id_item}')" title="Dar de Baja / Retirar" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-minus text-xs"></i></button>
+                            <button onclick="showEditCapitalItemModal('${p.id_item}')" title="Editar Activo" class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-edit text-xs"></i></button>
+                            <button onclick="deleteCapitalItem('${p.id_item}')" title="Eliminar Activo" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-trash-alt text-xs"></i></button>
                         </div>
                     </td>
                 </tr>
@@ -8949,7 +8955,7 @@ function renderMovementsTable(movements) {
     if (!movementsTable) return;
 
     if (movements.length === 0) {
-        movementsTable.innerHTML = `<tr><td colspan="7" class="p-10 text-center text-slate-500 uppercase tracking-wider font-bold text-xs">No hay movimientos registrados</td></tr>`;
+        movementsTable.innerHTML = `<tr><td colspan="8" class="p-10 text-center text-slate-500 uppercase tracking-wider font-bold text-xs">No hay movimientos registrados</td></tr>`;
     } else {
         movementsTable.innerHTML = movements.map(m => {
             const item = allCapitalItems.find(i => i.id_item === m.id_item) || { nombre: m.id_item, unidad_medida: '' };
@@ -8969,6 +8975,13 @@ function renderMovementsTable(movements) {
                     <td class="py-4 px-6 text-slate-400 text-xs truncate max-w-[200px]" title="${m.observaciones || ''}">
                         ${m.observaciones || '-'}
                         ${m.id_unidad ? `<span class="block text-[9px] text-blue-400 font-semibold font-mono">Unidad: ${m.id_unidad}</span>` : ''}
+                        ${m.id_chofer ? `<span class="block text-[9px] text-amber-500 font-semibold font-mono">Chofer: ${m.id_chofer}</span>` : ''}
+                    </td>
+                    <td class="py-4 px-6 text-center font-bold">
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="showEditCapitalMovementModal(${m.id_movimiento})" title="Editar Movimiento" class="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-edit text-xs"></i></button>
+                            <button onclick="deleteCapitalMovement(${m.id_movimiento})" title="Eliminar Movimiento" class="w-7 h-7 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-all cursor-pointer border-0"><i class="fas fa-trash-alt text-xs"></i></button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -9052,6 +9065,8 @@ async function populateCapitalDropdowns() {
     const usoItemSelect = document.getElementById('cap-uso-item');
     const usoChoferSelect = document.getElementById('cap-uso-chofer');
     const usoUnidadSelect = document.getElementById('cap-uso-unidad');
+    const editMovChoferSelect = document.getElementById('cap-edit-mov-chofer');
+    const editMovUnidadSelect = document.getElementById('cap-edit-mov-unidad');
 
     // Populate Item selectors
     if (entItemSelect) {
@@ -9075,12 +9090,20 @@ async function populateCapitalDropdowns() {
             const activeDrivers = (drivers || []).filter(d => (d.estatus || 'Activo') === 'Activo');
             usoChoferSelect.innerHTML = '<option value="" class="bg-slate-900">-- Selecciona Chofer --</option>' +
                 activeDrivers.map(d => `<option value="${d.id_chofer}" class="bg-slate-900">${d.nombre}</option>`).join('');
+            if (editMovChoferSelect) {
+                editMovChoferSelect.innerHTML = '<option value="" class="bg-slate-900">-- Selecciona Chofer --</option>' +
+                    activeDrivers.map(d => `<option value="${d.id_chofer}" class="bg-slate-900">${d.nombre}</option>`).join('');
+            }
         }
 
         if (usoUnidadSelect) {
             const activeUnits = (units || []).filter(u => (u.estatus || 'Activo') === 'Activo');
             usoUnidadSelect.innerHTML = '<option value="" class="bg-slate-900">-- Selecciona Unidad --</option>' +
                 activeUnits.map(u => `<option value="${u.id_unidad}" class="bg-slate-900">${u.id_unidad} - ${u.nombre_unidad}</option>`).join('');
+            if (editMovUnidadSelect) {
+                editMovUnidadSelect.innerHTML = '<option value="" class="bg-slate-900">-- Selecciona Unidad --</option>' +
+                    activeUnits.map(u => `<option value="${u.id_unidad}" class="bg-slate-900">${u.id_unidad} - ${u.nombre_unidad}</option>`).join('');
+            }
         }
     } catch(err) {
         console.warn('Could not populate units and drivers in capital forms:', err);
@@ -9192,26 +9215,8 @@ async function handleMovementSubmit(e, tipo) {
 
         if (errMov) throw errMov;
 
-        // 2. Update stock atomics
-        const currentStock = parseFloat(item.cantidad);
-        const newStock = tipo === 'Entrada' ? currentStock + cantidad : currentStock - cantidad;
-
-        const updateData = { cantidad: newStock };
-
-        // For entries, we calculate new weighted average cost
-        if (tipo === 'Entrada') {
-            const currentCostVal = parseFloat(item.costo_promedio || 0) * currentStock;
-            const newCostVal = precio_unitario * cantidad;
-            const finalAvgCost = newStock > 0 ? (currentCostVal + newCostVal) / newStock : 0;
-            updateData.costo_promedio = parseFloat(finalAvgCost.toFixed(2));
-        }
-
-        const { error: errStock } = await window.supabaseClient
-            .from('inventario_capital')
-            .update(updateData)
-            .eq('id_item', id_item);
-
-        if (errStock) throw errStock;
+        // 2. Update stock atomics using central recalculation
+        await recalculateCapitalItemStockAndCost(id_item);
 
         alert(`Movimiento de ${tipo} registrado con éxito.`);
         closeCapitalModal(tipo === 'Entrada' ? 'entrada' : 'uso');
@@ -9222,6 +9227,282 @@ async function handleMovementSubmit(e, tipo) {
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
+    }
+}
+
+// --- FUNCIONES DE RECALCULO, EDICIÓN Y ELIMINACIÓN DE CAPITAL ---
+
+async function recalculateCapitalItemStockAndCost(id_item) {
+    console.log(`Recalculando stock y costo para: ${id_item}`);
+    try {
+        const { data: movements, error } = await window.supabaseClient
+            .from('inventario_movimientos')
+            .select('*')
+            .eq('id_item', id_item);
+
+        if (error) throw error;
+
+        let stock = 0;
+        let totalCostVal = 0;
+        let totalCostQty = 0;
+
+        for (const m of (movements || [])) {
+            const qty = parseFloat(m.cantidad || 0);
+            if (m.tipo_movimiento === 'Entrada') {
+                stock += qty;
+                totalCostVal += qty * parseFloat(m.precio_unitario || 0);
+                totalCostQty += qty;
+            } else {
+                stock -= qty;
+            }
+        }
+
+        const avgCost = totalCostQty > 0 ? parseFloat((totalCostVal / totalCostQty).toFixed(2)) : 0;
+
+        const { error: errUpdate } = await window.supabaseClient
+            .from('inventario_capital')
+            .update({
+                cantidad: stock,
+                costo_promedio: avgCost
+            })
+            .eq('id_item', id_item);
+
+        if (errUpdate) throw errUpdate;
+    } catch (err) {
+        console.error(`Error al recalcular stock/costo para ${id_item}:`, err);
+        throw err;
+    }
+}
+
+function showEditCapitalItemModal(id_item) {
+    const item = allCapitalItems.find(i => i.id_item === id_item);
+    if (!item) return;
+
+    editingCapitalItemId = id_item;
+
+    document.getElementById('cap-edit-id').value = item.id_item;
+    document.getElementById('cap-edit-nombre').value = item.nombre;
+    document.getElementById('cap-edit-descripcion').value = item.descripcion || '';
+    document.getElementById('cap-edit-tipo').value = item.tipo;
+    document.getElementById('cap-edit-unidad').value = item.unidad_medida;
+
+    openCapitalModal('edit-item');
+}
+
+async function handleCapitalEditSubmit(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+    const updateData = {
+        nombre: document.getElementById('cap-edit-nombre').value.trim(),
+        descripcion: document.getElementById('cap-edit-descripcion').value.trim() || null,
+        tipo: document.getElementById('cap-edit-tipo').value,
+        unidad_medida: document.getElementById('cap-edit-unidad').value
+    };
+
+    try {
+        const { error } = await window.supabaseClient
+            .from('inventario_capital')
+            .update(updateData)
+            .eq('id_item', editingCapitalItemId);
+
+        if (error) throw error;
+
+        alert('Producto/Activo actualizado con éxito.');
+        closeCapitalModal('edit-item');
+        await loadCapitalData();
+    } catch (err) {
+        console.error('Error al editar producto de capital:', err);
+        alert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+async function deleteCapitalItem(id_item) {
+    const item = allCapitalItems.find(i => i.id_item === id_item);
+    if (!item) return;
+
+    const confirmFirst = confirm(`¿Estás seguro de que deseas eliminar permanentemente el producto/activo "${item.nombre}" (${id_item})?`);
+    if (!confirmFirst) return;
+
+    // Check if there are movements
+    const hasMovements = allCapitalMovements.some(m => m.id_item === id_item);
+    if (hasMovements) {
+        const confirmCascade = confirm(`ATENCIÓN: Este producto tiene movimientos registrados en el historial. Si lo eliminas, también se eliminarán todos sus movimientos de manera permanente. ¿Deseas continuar?`);
+        if (!confirmCascade) return;
+        
+        try {
+            // Delete movements first
+            const { error: errMov } = await window.supabaseClient
+                .from('inventario_movimientos')
+                .delete()
+                .eq('id_item', id_item);
+            if (errMov) throw errMov;
+        } catch (err) {
+            console.error('Error al eliminar movimientos asociados:', err);
+            alert('Error al eliminar movimientos asociados: ' + err.message);
+            return;
+        }
+    }
+
+    try {
+        const { error } = await window.supabaseClient
+            .from('inventario_capital')
+            .delete()
+            .eq('id_item', id_item);
+
+        if (error) throw error;
+
+        alert('Producto/Activo eliminado con éxito.');
+        await loadCapitalData();
+    } catch (err) {
+        console.error('Error al eliminar producto de capital:', err);
+        alert('Error: ' + err.message);
+    }
+}
+
+function showEditCapitalMovementModal(id_movimiento) {
+    const mov = allCapitalMovements.find(m => m.id_movimiento === id_movimiento);
+    if (!mov) return;
+
+    editingMovementId = id_movimiento;
+    editingMovementItemId = mov.id_item;
+
+    const item = allCapitalItems.find(i => i.id_item === mov.id_item) || { nombre: mov.id_item };
+
+    document.getElementById('cap-edit-mov-item').value = `${mov.id_item} - ${item.nombre}`;
+    document.getElementById('cap-edit-mov-tipo').value = mov.tipo_movimiento;
+    document.getElementById('cap-edit-mov-cantidad').value = mov.cantidad;
+    document.getElementById('cap-edit-mov-fecha').value = mov.fecha;
+    document.getElementById('cap-edit-mov-observaciones').value = mov.observaciones || '';
+    
+    // Set optional dropdowns
+    document.getElementById('cap-edit-mov-chofer').value = mov.id_chofer || '';
+    document.getElementById('cap-edit-mov-unidad').value = mov.id_unidad || '';
+
+    // Show/hide price input based on movement type
+    const precioContainer = document.getElementById('cap-edit-mov-precio-container');
+    const precioInput = document.getElementById('cap-edit-mov-precio');
+    if (mov.tipo_movimiento === 'Entrada') {
+        precioContainer.classList.remove('hidden');
+        precioInput.value = mov.precio_unitario || 0;
+        precioInput.required = true;
+    } else {
+        precioContainer.classList.add('hidden');
+        precioInput.value = 0;
+        precioInput.required = false;
+    }
+
+    openCapitalModal('edit-movement');
+}
+
+async function handleCapitalMovementEditSubmit(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+    const cantidad = parseFloat(document.getElementById('cap-edit-mov-cantidad').value);
+    const precio_unitario = parseFloat(document.getElementById('cap-edit-mov-precio').value) || 0;
+    const fecha = document.getElementById('cap-edit-mov-fecha').value;
+    const id_chofer = document.getElementById('cap-edit-mov-chofer').value || null;
+    const id_unidad = document.getElementById('cap-edit-mov-unidad').value || null;
+    const observaciones = document.getElementById('cap-edit-mov-observaciones').value.trim() || null;
+
+    try {
+        const item = allCapitalItems.find(i => i.id_item === editingMovementItemId);
+        if (!item) throw new Error('Producto no encontrado');
+
+        const oldMov = allCapitalMovements.find(m => m.id_movimiento === editingMovementId);
+        if (!oldMov) throw new Error('Movimiento original no encontrado');
+
+        // Projected stock check
+        const currentStock = parseFloat(item.cantidad);
+        let projectedStock = currentStock;
+
+        if (oldMov.tipo_movimiento === 'Entrada') {
+            projectedStock = currentStock - oldMov.cantidad + cantidad;
+        } else {
+            projectedStock = currentStock + oldMov.cantidad - cantidad;
+        }
+
+        if (projectedStock < 0) {
+            alert(`No se puede realizar esta edición porque el stock del producto quedaría en negativo (${projectedStock} ${item.unidad_medida}).`);
+            return;
+        }
+
+        // Update movement
+        const { error } = await window.supabaseClient
+            .from('inventario_movimientos')
+            .update({
+                cantidad,
+                precio_unitario,
+                fecha,
+                id_chofer,
+                id_unidad,
+                observaciones
+            })
+            .eq('id_movimiento', editingMovementId);
+
+        if (error) throw error;
+
+        // Recalculate item stock and cost
+        await recalculateCapitalItemStockAndCost(editingMovementItemId);
+
+        alert('Movimiento actualizado con éxito.');
+        closeCapitalModal('edit-movement');
+        await loadCapitalData();
+    } catch (err) {
+        console.error('Error al editar movimiento:', err);
+        alert('Error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+async function deleteCapitalMovement(id_movimiento) {
+    const mov = allCapitalMovements.find(m => m.id_movimiento === id_movimiento);
+    if (!mov) return;
+
+    const confirmDelete = confirm('¿Estás seguro de que deseas eliminar este movimiento del historial? El stock del producto se ajustará automáticamente.');
+    if (!confirmDelete) return;
+
+    try {
+        const item = allCapitalItems.find(i => i.id_item === mov.id_item);
+        if (!item) throw new Error('Producto no encontrado');
+
+        // Projected stock check (if deleting an Entrada, stock goes down)
+        if (mov.tipo_movimiento === 'Entrada') {
+            const projectedStock = parseFloat(item.cantidad) - parseFloat(mov.cantidad);
+            if (projectedStock < 0) {
+                alert(`No se puede eliminar este movimiento porque el stock del producto quedaría en negativo (${projectedStock} ${item.unidad_medida}).`);
+                return;
+            }
+        }
+
+        // Delete movement
+        const { error } = await window.supabaseClient
+            .from('inventario_movimientos')
+            .delete()
+            .eq('id_movimiento', id_movimiento);
+
+        if (error) throw error;
+
+        // Recalculate
+        await recalculateCapitalItemStockAndCost(mov.id_item);
+
+        alert('Movimiento eliminado con éxito.');
+        await loadCapitalData();
+    } catch (err) {
+        console.error('Error al eliminar movimiento:', err);
+        alert('Error: ' + err.message);
     }
 }
 
