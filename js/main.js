@@ -1037,6 +1037,9 @@ async function updateDashboardByPeriod() {
             return !((c.includes('comisi') && c.includes('chofer')) || c === 'comision chofer');
         });
 
+        window.dashboardViajes = viajes;
+        window.dashboardGastos = gastos;
+
         console.log('Viajes filtrados:', viajes.length);
         console.log('Gastos filtrados:', gastos.length);
 
@@ -9221,6 +9224,294 @@ async function handleMovementSubmit(e, tipo) {
         btn.innerHTML = originalText;
     }
 }
+
+window.showDashboardKPIBreakdown = async function(cardType) {
+    const modal = document.getElementById('detail-modal');
+    const content = document.getElementById('modal-content');
+    const title = document.getElementById('modal-title');
+
+    if (!modal || !content || !title) return;
+
+    modal.classList.remove('hidden');
+
+    const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+    const viajes = window.dashboardViajes || [];
+    const gastos = window.dashboardGastos || [];
+
+    await ensureGlobalMapsLoaded();
+
+    let html = '';
+
+    if (cardType === 'venta') {
+        title.innerHTML = `<i class="fas fa-truck-moving text-blue-500"></i> Desglose de Ventas (Fletes Totales)`;
+        
+        const totalVenta = viajes.reduce((acc, v) => acc + (parseFloat(v.monto_flete) || 0), 0);
+        
+        html = `
+            <div class="space-y-6">
+                <!-- Summary Card -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/40 p-6 rounded-2xl border border-white/5">
+                    <div>
+                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">Total Fletes Acumulado</span>
+                        <span class="text-3xl font-black text-white">${fmt(totalVenta)}</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">Cantidad de Viajes Realizados</span>
+                        <span class="text-3xl font-black text-blue-400">${viajes.length} viajes</span>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto rounded-xl border border-white/5">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-white/[0.03] text-[10px] uppercase font-black text-slate-500 tracking-widest border-b border-white/5">
+                            <tr>
+                                <th class="px-6 py-4">ID Viaje</th>
+                                <th class="px-6 py-4">Fecha</th>
+                                <th class="px-6 py-4">Cliente</th>
+                                <th class="px-6 py-4">Origen -> Destino</th>
+                                <th class="px-6 py-4 text-right">Monto Flete</th>
+                                <th class="px-6 py-4 text-center">Estatus</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5 text-xs text-slate-300">
+                            ${viajes.length === 0 ? `
+                                <tr>
+                                    <td colspan="6" class="px-6 py-8 text-center text-slate-500 italic">No hay fletes registrados para este periodo.</td>
+                                </tr>
+                            ` : viajes.map(v => `
+                                <tr class="hover:bg-white/[0.02] transition-all">
+                                    <td class="px-6 py-4 font-mono font-bold text-white">${v.id_viaje}</td>
+                                    <td class="px-6 py-4">${v.fecha}</td>
+                                    <td class="px-6 py-4">${v.cliente || '---'}</td>
+                                    <td class="px-6 py-4 font-semibold text-slate-400">${v.origen || '---'} <i class="fas fa-arrow-right text-[9px] mx-1 text-slate-600"></i> ${v.destino || '---'}</td>
+                                    <td class="px-6 py-4 text-right font-black text-white">${fmt(parseFloat(v.monto_flete) || 0)}</td>
+                                    <td class="px-6 py-4 text-center">
+                                        <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase ${v.estatus_viaje === 'Liquidado' ? 'bg-green-500/10 text-green-400 border border-green-500/10' : 'bg-amber-500/10 text-amber-400 border border-amber-500/10'}">
+                                            ${v.estatus_viaje || 'Pendiente'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    } 
+    else if (cardType === 'gasto') {
+        title.innerHTML = `<i class="fas fa-receipt text-red-500"></i> Desglose de Gastos Operativos`;
+
+        const totalGasto = gastos.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+
+        html = `
+            <div class="space-y-6">
+                <!-- Summary Card -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/40 p-6 rounded-2xl border border-white/5">
+                    <div>
+                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">Total Gastos Operativos</span>
+                        <span class="text-3xl font-black text-red-400">${fmt(totalGasto)}</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">Registros de Gastos</span>
+                        <span class="text-3xl font-black text-slate-300">${gastos.length} registros</span>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto rounded-xl border border-white/5">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-white/[0.03] text-[10px] uppercase font-black text-slate-500 tracking-widest border-b border-white/5">
+                            <tr>
+                                <th class="px-6 py-4">ID Gasto</th>
+                                <th class="px-6 py-4">Fecha</th>
+                                <th class="px-6 py-4">Unidad</th>
+                                <th class="px-6 py-4">Concepto</th>
+                                <th class="px-6 py-4">Forma de Pago</th>
+                                <th class="px-6 py-4 text-right">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5 text-xs text-slate-300">
+                            ${gastos.length === 0 ? `
+                                <tr>
+                                    <td colspan="6" class="px-6 py-8 text-center text-slate-500 italic">No hay gastos operativos registrados para este periodo.</td>
+                                </tr>
+                            ` : gastos.map(g => `
+                                <tr class="hover:bg-white/[0.02] transition-all">
+                                    <td class="px-6 py-4 font-mono font-bold text-white">${g.id_gasto}</td>
+                                    <td class="px-6 py-4">${g.fecha}</td>
+                                    <td class="px-6 py-4 text-blue-400 font-bold">${g.id_unidad || g.id_unit_eco || '---'}</td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase ${g.concepto === 'Diesel' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/10' : 'bg-slate-500/10 text-slate-300 border border-slate-500/10'}">
+                                            ${g.concepto || 'Varios'}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4">${g.forma_pago || g.tipo_pago || 'Contado'}</td>
+                                    <td class="px-6 py-4 text-right font-black text-red-400">${fmt(parseFloat(g.monto) || 0)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+    else if (cardType === 'comisiones') {
+        title.innerHTML = `<i class="fas fa-users-cog text-amber-500"></i> Desglose de Comisiones de Choferes`;
+
+        const totalComisiones = viajes.reduce((acc, v) => acc + (parseFloat(v.comision_chofer) || 0), 0);
+        const tripsWithComissions = viajes.filter(v => (parseFloat(v.comision_chofer) || 0) > 0);
+
+        html = `
+            <div class="space-y-6">
+                <!-- Summary Card -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-950/40 p-6 rounded-2xl border border-white/5">
+                    <div>
+                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">Total Comisiones Acumulado</span>
+                        <span class="text-3xl font-black text-amber-400">${fmt(totalComisiones)}</span>
+                    </div>
+                    <div>
+                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">Fletes con Comisión</span>
+                        <span class="text-3xl font-black text-slate-300">${tripsWithComissions.length} fletes</span>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto rounded-xl border border-white/5">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-white/[0.03] text-[10px] uppercase font-black text-slate-500 tracking-widest border-b border-white/5">
+                            <tr>
+                                <th class="px-6 py-4">ID Viaje</th>
+                                <th class="px-6 py-4">Fecha</th>
+                                <th class="px-6 py-4">Chofer</th>
+                                <th class="px-6 py-4">Unidad</th>
+                                <th class="px-6 py-4 text-right">Monto Flete</th>
+                                <th class="px-6 py-4 text-right">Comisión (15%)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5 text-xs text-slate-300">
+                            ${tripsWithComissions.length === 0 ? `
+                                <tr>
+                                    <td colspan="6" class="px-6 py-8 text-center text-slate-500 italic">No hay comisiones de choferes registradas para este periodo.</td>
+                                </tr>
+                            ` : tripsWithComissions.map(v => `
+                                <tr class="hover:bg-white/[0.02] transition-all">
+                                    <td class="px-6 py-4 font-mono font-bold text-white">${v.id_viaje}</td>
+                                    <td class="px-6 py-4">${v.fecha}</td>
+                                    <td class="px-6 py-4 font-semibold text-slate-200">${globalDriverMap[v.id_chofer] || v.id_chofer || '---'}</td>
+                                    <td class="px-6 py-4 font-bold text-blue-400">${v.id_unidad || '---'}</td>
+                                    <td class="px-6 py-4 text-right text-slate-400">${fmt(parseFloat(v.monto_flete) || 0)}</td>
+                                    <td class="px-6 py-4 text-right font-black text-amber-400">${fmt(parseFloat(v.comision_chofer) || 0)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+    else if (cardType === 'ganancia') {
+        title.innerHTML = `<i class="fas fa-wallet text-white"></i> Resumen de Ganancia Neta`;
+
+        const totalVenta = viajes.reduce((acc, v) => acc + (parseFloat(v.monto_flete) || 0), 0);
+        const totalGasto = gastos.reduce((acc, g) => acc + (parseFloat(g.monto) || 0), 0);
+        const totalComisiones = viajes.reduce((acc, v) => acc + (parseFloat(v.comision_chofer) || 0), 0);
+        const totalGanancia = totalVenta - totalGasto - totalComisiones;
+        const margen = totalVenta > 0 ? (totalGanancia / totalVenta) * 100 : 0;
+
+        // Group by Unit (ECO) for Net Profit contribution breakdown
+        const unitStats = {};
+        viajes.forEach(v => {
+            const u = v.id_unidad || 'Sin ECO';
+            if (!unitStats[u]) {
+                unitStats[u] = { eco: u, ingresos: 0, gastos: 0, comisiones: 0 };
+            }
+            unitStats[u].ingresos += parseFloat(v.monto_flete) || 0;
+            unitStats[u].comisiones += parseFloat(v.comision_chofer) || 0;
+        });
+
+        gastos.forEach(g => {
+            const u = g.id_unidad || g.id_unit_eco || 'Sin ECO';
+            if (!unitStats[u]) {
+                unitStats[u] = { eco: u, ingresos: 0, gastos: 0, comisiones: 0 };
+            }
+            unitStats[u].gastos += parseFloat(g.monto) || 0;
+        });
+
+        const listStats = Object.values(unitStats).map(stat => {
+            stat.gananciaNeta = stat.ingresos - stat.gastos - stat.comisiones;
+            return stat;
+        }).sort((a, b) => b.gananciaNeta - a.gananciaNeta);
+
+        html = `
+            <div class="space-y-6">
+                <!-- Financial Calculation Card -->
+                <div class="bg-slate-950/60 p-6 rounded-2xl border border-white/5 space-y-4">
+                    <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Desglose de la Fórmula Financiera</span>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 divide-y md:divide-y-0 md:divide-x divide-white/5 text-center">
+                        <div class="py-2">
+                            <span class="text-[10px] text-slate-400 font-bold block mb-1">Ingresos (Ventas)</span>
+                            <span class="text-xl font-bold text-white">${fmt(totalVenta)}</span>
+                        </div>
+                        <div class="py-2 md:pl-4">
+                            <span class="text-[10px] text-red-400 font-bold block mb-1">(-) Egresos (Gastos)</span>
+                            <span class="text-xl font-bold text-red-400">${fmt(totalGasto)}</span>
+                        </div>
+                        <div class="py-2 md:pl-4">
+                            <span class="text-[10px] text-amber-400 font-bold block mb-1">(-) Comisiones</span>
+                            <span class="text-xl font-bold text-amber-400">${fmt(totalComisiones)}</span>
+                        </div>
+                        <div class="py-2 md:pl-4 bg-blue-600/10 rounded-xl">
+                            <span class="text-[10px] text-blue-400 font-black block mb-1">(=) Ganancia Neta</span>
+                            <span class="text-xl font-black text-green-400">${fmt(totalGanancia)}</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 text-center text-xs font-semibold text-slate-400">
+                        Margen de Utilidad del Periodo: <span class="text-white font-black">${margen.toFixed(2)}%</span>
+                    </div>
+                </div>
+
+                <!-- Rentabilidad por Unidad -->
+                <div class="space-y-3">
+                    <h4 class="text-xs font-black uppercase text-slate-400 tracking-wider"><i class="fas fa-chart-bar text-blue-500 mr-2"></i>Contribución de Ganancia por Unidad (ECO)</h4>
+                    
+                    <div class="overflow-x-auto rounded-xl border border-white/5">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-white/[0.03] text-[9px] uppercase font-black text-slate-500 tracking-widest border-b border-white/5">
+                                <tr>
+                                    <th class="px-6 py-3">ECO</th>
+                                    <th class="px-6 py-3 text-right">Ingresos</th>
+                                    <th class="px-6 py-3 text-right">Gastos</th>
+                                    <th class="px-6 py-3 text-right">Comisiones</th>
+                                    <th class="px-6 py-3 text-right">Ganancia Neta</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/5 text-xs text-slate-300">
+                                ${listStats.length === 0 ? `
+                                    <tr>
+                                        <td colspan="5" class="px-6 py-6 text-center text-slate-500 italic">No hay datos de rentabilidad disponibles.</td>
+                                    </tr>
+                                ` : listStats.map(s => `
+                                    <tr class="hover:bg-white/[0.01] transition-all">
+                                        <td class="px-6 py-3 font-bold text-white">${s.eco}</td>
+                                        <td class="px-6 py-3 text-right text-slate-400">${fmt(s.ingresos)}</td>
+                                        <td class="px-6 py-3 text-right text-red-500/80">-${fmt(s.gastos)}</td>
+                                        <td class="px-6 py-3 text-right text-amber-500/80">-${fmt(s.comisiones)}</td>
+                                        <td class="px-6 py-3 text-right font-black ${s.gananciaNeta >= 0 ? 'text-green-400' : 'text-red-400'}">${fmt(s.gananciaNeta)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    content.innerHTML = html;
+};
 
 
 
