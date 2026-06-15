@@ -8876,14 +8876,21 @@ function renderCapitalKPIs() {
         kpiBienes.innerText = '$' + totalValueBienes.toLocaleString('es-MX', { minimumFractionDigits: 2 });
     }
 
-    // KPI 2: Types of Consumibles
+    // KPI 2: Total Consumibles (Value: quantity * costo_promedio)
     const consumables = allCapitalItems.filter(i => i.tipo === 'Consumible');
+    const totalValueConsumibles = consumables.reduce((acc, curr) => acc + (parseFloat(curr.cantidad || 0) * parseFloat(curr.costo_promedio || 0)), 0);
+    const kpiConsumiblesValor = document.getElementById('kpi-cap-consumibles-valor');
+    if (kpiConsumiblesValor) {
+        kpiConsumiblesValor.innerText = '$' + totalValueConsumibles.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+    }
+
+    // KPI 3: Types of Consumibles
     const kpiConsumibles = document.getElementById('kpi-cap-consumibles-tipos');
     if (kpiConsumibles) {
         kpiConsumibles.innerText = consumables.length.toString();
     }
 
-    // KPI 3: Total movements
+    // KPI 4: Total movements
     const kpiMovimientos = document.getElementById('kpi-cap-movimientos-totales');
     if (kpiMovimientos) {
         kpiMovimientos.innerText = allCapitalMovements.length.toString();

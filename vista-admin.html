@@ -260,7 +260,7 @@
             <div class="flex justify-between items-center">
                 <h1 class="text-xl font-bold flex items-center gap-2">
                     <i class="fas fa-shield-alt text-blue-400"></i>
-                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.60</span>
+                    Procesa-T <span class="text-xs font-light text-slate-400">Admin v15.61</span>
                 </h1>
                 <!-- Close Button: visible en portrait y landscape -->
                 <button onclick="toggleSidebar()" class="sidebar-close-btn text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-all">
@@ -3101,7 +3101,7 @@
                 </div>
 
                 <!-- KPI Summary Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     <div class="glass-card p-6 flex items-center justify-between">
                         <div>
                             <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Total Bienes Físicos</p>
@@ -3109,6 +3109,15 @@
                         </div>
                         <div class="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400">
                             <i class="fas fa-tools text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="glass-card p-6 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Total Consumibles</p>
+                            <h3 id="kpi-cap-consumibles-valor" class="text-2xl font-black text-white font-mono">$0.00</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-400">
+                            <i class="fas fa-cubes text-xl"></i>
                         </div>
                     </div>
                     <div class="glass-card p-6 flex items-center justify-between">
@@ -3663,11 +3672,11 @@
 
     <!-- PDF Generation Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="./js/config.js?v=15.60"></script>
+    <script src="./js/config.js?v=15.61"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="./js/supabase-client.js?v=15.60"></script>
-    <script src="./js/auth.js?v=15.60"></script>
-    <script src="./js/main.js?v=15.60"></script>
+    <script src="./js/supabase-client.js?v=15.61"></script>
+    <script src="./js/auth.js?v=15.61"></script>
+    <script src="./js/main.js?v=15.61"></script>
     <script src="./js/chat.js?v=16.10"></script>
     <script>
         document.getElementById('build-time').innerText = new Date().toLocaleTimeString();
