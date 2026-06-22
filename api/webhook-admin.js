@@ -460,29 +460,69 @@ module.exports = async (req, res) => {
 async function executeTool(name, args, supabaseClient, userId) {
     try {
         if (name === "consultar_viajes") {
-            let query = supabaseClient.from('reg_viajes').select('*', { count: 'exact' });
-            if (args.id_chofer) query = query.ilike('id_chofer', `%${args.id_chofer}%`);
-            if (args.cliente) query = query.ilike('cliente', `%${args.cliente}%`);
-            if (args.estatus_viaje) query = query.eq('estatus_viaje', args.estatus_viaje);
-            if (args.fecha) query = query.eq('fecha', args.fecha);
-            const { data, count, error } = await query.order('fecha', { ascending: false }).limit(10000);
-            if (error) throw error;
+            let allData = [];
+            let start = 0;
+            const pageSize = 1000;
+            let totalCount = 0;
+            
+            while (true) {
+                let query = supabaseClient.from('reg_viajes').select('*', { count: 'exact' });
+                if (args.id_chofer) query = query.ilike('id_chofer', `%${args.id_chofer}%`);
+                if (args.cliente) query = query.ilike('cliente', `%${args.cliente}%`);
+                if (args.estatus_viaje) query = query.eq('estatus_viaje', args.estatus_viaje);
+                if (args.fecha) query = query.eq('fecha', args.fecha);
+                
+                const { data, count, error } = await query
+                    .order('fecha', { ascending: false })
+                    .order('id_viaje', { ascending: false })
+                    .range(start, start + pageSize - 1);
+                
+                if (error) throw error;
+                totalCount = count || 0;
+                
+                if (!data || data.length === 0) break;
+                allData = allData.concat(data);
+                
+                if (allData.length >= totalCount) break;
+                start += data.length;
+            }
+            
             return {
-                total_registros_encontrados: count || 0,
-                registros_muestra: data || []
+                total_registros_encontrados: totalCount,
+                registros_muestra: allData
             };
 
         } else if (name === "consultar_gastos") {
-            let query = supabaseClient.from('reg_gastos').select('*', { count: 'exact' });
-            if (args.id_chofer) query = query.ilike('id_chofer', `%${args.id_chofer}%`);
-            if (args.id_unidad) query = query.eq('id_unidad', args.id_unidad);
-            if (args.concepto) query = query.ilike('concepto', `%${args.concepto}%`);
-            if (args.fecha) query = query.eq('fecha', args.fecha);
-            const { data, count, error } = await query.order('fecha', { ascending: false }).limit(10000);
-            if (error) throw error;
+            let allData = [];
+            let start = 0;
+            const pageSize = 1000;
+            let totalCount = 0;
+            
+            while (true) {
+                let query = supabaseClient.from('reg_gastos').select('*', { count: 'exact' });
+                if (args.id_chofer) query = query.ilike('id_chofer', `%${args.id_chofer}%`);
+                if (args.id_unidad) query = query.eq('id_unidad', args.id_unidad);
+                if (args.concepto) query = query.ilike('concepto', `%${args.concepto}%`);
+                if (args.fecha) query = query.eq('fecha', args.fecha);
+                
+                const { data, count, error } = await query
+                    .order('fecha', { ascending: false })
+                    .order('id_gasto', { ascending: false })
+                    .range(start, start + pageSize - 1);
+                
+                if (error) throw error;
+                totalCount = count || 0;
+                
+                if (!data || data.length === 0) break;
+                allData = allData.concat(data);
+                
+                if (allData.length >= totalCount) break;
+                start += data.length;
+            }
+            
             return {
-                total_registros_encontrados: count || 0,
-                registros_muestra: data || []
+                total_registros_encontrados: totalCount,
+                registros_muestra: allData
             };
 
         } else if (name === "consultar_choferes") {

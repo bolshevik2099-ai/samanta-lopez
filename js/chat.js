@@ -1,6 +1,93 @@
 const VENTAS_URL = `${SUPABASE_CONFIG.url}/functions/v1/webhook-ventas`;
 const ADMIN_URL = `${SUPABASE_CONFIG.url}/functions/v1/webhook-admin`;
 
+// Inject Markdown CSS Styles for Chat Window
+const chatStyle = document.createElement('style');
+chatStyle.innerHTML = `
+    .chat-markdown {
+        word-break: break-word;
+    }
+    .chat-markdown table {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        border-collapse: collapse;
+        margin: 10px 0;
+        font-size: 11px;
+        line-height: 1.4;
+        border-radius: 8px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+    .chat-markdown th, .chat-markdown td {
+        padding: 6px 8px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        text-align: left;
+    }
+    .chat-markdown th {
+        background: rgba(15, 23, 42, 0.05);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.05em;
+    }
+    .chat-markdown tr:nth-child(even) {
+        background: rgba(0, 0, 0, 0.02);
+    }
+    
+    /* Dark mode styling for user messages */
+    .bg-slate-900 .chat-markdown table {
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+    .bg-slate-900 .chat-markdown th, .bg-slate-900 .chat-markdown td {
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+    .bg-slate-900 .chat-markdown th {
+        background: rgba(255, 255, 255, 0.15);
+    }
+    .bg-slate-900 .chat-markdown tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .chat-markdown p {
+        margin: 4px 0;
+    }
+    .chat-markdown p:first-child {
+        margin-top: 0;
+    }
+    .chat-markdown p:last-child {
+        margin-bottom: 0;
+    }
+    .chat-markdown ul {
+        margin: 6px 0;
+        padding-left: 20px;
+        list-style-type: disc;
+    }
+    .chat-markdown ol {
+        margin: 6px 0;
+        padding-left: 20px;
+        list-style-type: decimal;
+    }
+    .chat-markdown li {
+        margin: 2px 0;
+    }
+    
+    /* Custom scrollbar for tables inside chat */
+    .chat-markdown table::-webkit-scrollbar {
+        height: 4px;
+    }
+    .chat-markdown table::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .chat-markdown table::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 2px;
+    }
+    .bg-slate-900 .chat-markdown table::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+    }
+`;
+document.head.appendChild(chatStyle);
+
 // ID de sesión para persistencia de memoria
 let sessionId = localStorage.getItem('chat_session_id');
 if (!sessionId) {
@@ -50,7 +137,7 @@ function initChat() {
             // Si es administrador, ejecutamos vía Vercel Serverless Function Proxy para evitar errores de CORS
             if (isAdmin) {
                 let targetUrl = '/api/webhook-admin';
-                if (window.location.hostname !== 'crm-samanta.vercel.app') {
+                if (window.location.protocol === 'file:' || !window.location.hostname) {
                     targetUrl = 'https://crm-samanta.vercel.app/api/webhook-admin';
                 }
 
@@ -131,17 +218,24 @@ function initChat() {
         // Procesar enlaces para que sean clickeables
         let processedText = text;
         if (!isTyping) {
-            const urlRegex = /(https?:\/\/[^\s]+)/g;
-            processedText = text.replace(urlRegex, (url) => {
-                return `<a href="${url}" target="_blank" class="text-blue-600 underline hover:text-blue-800 break-all">${url}</a>`;
-            });
-            // También procesar saltos de línea
-            processedText = processedText.replace(/\n/g, '<br>');
+            if (typeof marked !== 'undefined') {
+                processedText = marked.parse(text, {
+                    breaks: true,
+                    gfm: true
+                });
+            } else {
+                const urlRegex = /(https?:\/\/[^\s]+)/g;
+                processedText = text.replace(urlRegex, (url) => {
+                    return `<a href="${url}" target="_blank" class="text-blue-600 underline hover:text-blue-800 break-all">${url}</a>`;
+                });
+                // También procesar saltos de línea
+                processedText = processedText.replace(/\n/g, '<br>');
+            }
         }
 
         const inner = `
             <div class="max-w-[85%] rounded-2xl px-4 py-2 ${sender === 'user' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-800'} text-sm shadow-sm ring-1 ring-slate-900/5">
-                ${processedText}
+                <div class="chat-markdown">${processedText}</div>
             </div>
         `;
         div.innerHTML = inner;
