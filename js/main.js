@@ -8461,7 +8461,10 @@ function renderProfitChart(unitsArray) {
     const activeUnits = unitsArray.filter(u => u.viajes > 0 || u.ingresos > 0 || u.gastos > 0);
     activeUnits.sort((a, b) => b.ganancia - a.ganancia);
 
-    const labels = activeUnits.map(u => `${u.id_unidad} (${u.chofer})`);
+    const labels = activeUnits.map(u => {
+        const name = (u.alias && u.alias !== 'Sin alias' && u.alias !== 'Desconocida') ? u.alias : u.id_unidad;
+        return `${name} (${u.chofer})`;
+    });
     const ingresosData = activeUnits.map(u => u.ingresos);
     const costosData = activeUnits.map(u => u.gastos + u.comisiones);
     const gananciasData = activeUnits.map(u => u.ganancia);
@@ -8572,7 +8575,9 @@ function showUnitProfitDetail(id_unidad) {
     const start = window.gananciasPeriodStart || '';
     const end = window.gananciasPeriodEnd || '';
 
-    title.innerHTML = `<i class="fas fa-chart-line text-green-500"></i> Desglose Rentabilidad ECO: ${id_unidad}`;
+    const unitObj = (window.gananciasUnidadesRaw || []).find(u => String(u.id_unidad) === String(id_unidad));
+    const aliasStr = unitObj && unitObj.nombre_unidad && unitObj.nombre_unidad !== 'Sin alias' ? ` (${unitObj.nombre_unidad})` : '';
+    title.innerHTML = `<i class="fas fa-chart-line text-green-500"></i> Desglose Rentabilidad ECO: ${id_unidad}${aliasStr}`;
     modal.classList.remove('hidden');
 
     const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
