@@ -4267,30 +4267,12 @@ function calculateFleetEfficiency(expenses, unidadesData = []) {
         fuelMonitoringMap[u.id_unidad] = u.registra_combustible !== false;
     });
 
-    // Sort expenses by date descending to get the most recent records first
-    const sortedExpenses = [...expenses].sort((a, b) => {
-        const dateA = parseDateToISO(a.fecha);
-        const dateB = parseDateToISO(b.fecha);
-        const dateComp = dateB.localeCompare(dateA);
-        if (dateComp !== 0) return dateComp;
-        const timeA = a.created_at || a.id_gasto || '';
-        const timeB = b.created_at || b.id_gasto || '';
-        return timeB.localeCompare(timeA);
-    });
-
-    const unitYields = {};
-    const seenUnits = new Set();
-    let totalKm = 0;
-    let totalLts = 0;
-
-    sortedExpenses.forEach(e => {
+    // Group cumulative km and liters per unit in the period
+    const unitGroups = {};
+    expenses.forEach(e => {
         const unitId = e.id_unidad || e.id_unit_eco;
         if (!unitId) return;
-        
-        // Exclude units not registering fuel monitoring
         if (fuelMonitoringMap[unitId] === false) return;
-        
-        if (seenUnits.has(unitId)) return;
 
         const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
         const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
@@ -4298,17 +4280,33 @@ function calculateFleetEfficiency(expenses, unidadesData = []) {
 
         if (effectiveVol > 0 && km > 0) {
             const yieldVal = km / effectiveVol;
-            // Basic sanity check: 0.5 < yield < 15 km/l to avoid bad data outliers
+            // Basic sanity check per fill-up to filter out clear typos or outliers
             if (yieldVal > 0.5 && yieldVal < 15) {
-                unitYields[unitId] = parseFloat(yieldVal.toFixed(2));
-                seenUnits.add(unitId);
-                totalKm += km;
-                totalLts += effectiveVol;
+                if (!unitGroups[unitId]) {
+                    unitGroups[unitId] = { km: 0, lts: 0 };
+                }
+                unitGroups[unitId].km += km;
+                unitGroups[unitId].lts += effectiveVol;
             }
         }
     });
 
-    const fleetAvg = totalLts > 0 ? (totalKm / totalLts) : 0;
+    const unitYields = {};
+    let sumOfYields = 0;
+    let unitCount = 0;
+
+    Object.keys(unitGroups).forEach(unitId => {
+        const group = unitGroups[unitId];
+        if (group.lts > 0) {
+            const y = group.km / group.lts;
+            unitYields[unitId] = parseFloat(y.toFixed(2));
+            sumOfYields += y;
+            unitCount++;
+        }
+    });
+
+    // Fleet average is the simple average of all monitored units' yields in the period
+    const fleetAvg = unitCount > 0 ? (sumOfYields / unitCount) : 0;
 
     return {
         unitYields,
@@ -4323,28 +4321,12 @@ function calculateDriverEfficiency(expenses, unidadesData = []) {
         fuelMonitoringMap[u.id_unidad] = u.registra_combustible !== false;
     });
 
-    // Sort expenses by date descending to get the most recent records first
-    const sortedExpenses = [...expenses].sort((a, b) => {
-        const dateA = parseDateToISO(a.fecha);
-        const dateB = parseDateToISO(b.fecha);
-        const dateComp = dateB.localeCompare(dateA);
-        if (dateComp !== 0) return dateComp;
-        const timeA = a.created_at || a.id_gasto || '';
-        const timeB = b.created_at || b.id_gasto || '';
-        return timeB.localeCompare(timeA);
-    });
-
-    const driverYields = {};
-    const seenDrivers = new Set();
-
-    sortedExpenses.forEach(e => {
+    // Group cumulative km and liters per driver in the period
+    const driverGroups = {};
+    expenses.forEach(e => {
         if (!e.id_chofer) return;
-        
-        // Exclude expenses belonging to units not registering fuel monitoring
         const unitId = e.id_unidad || e.id_unit_eco;
         if (unitId && fuelMonitoringMap[unitId] === false) return;
-        
-        if (seenDrivers.has(e.id_chofer)) return;
 
         const tractoSupport = (parseFloat(e.litros_tracto) > 0 || parseFloat(e.litros_termo) > 0);
         const effectiveVol = tractoSupport ? (parseFloat(e.litros_tracto) || 0) : (parseFloat(e.litros_rellenados) || 0);
@@ -4352,11 +4334,21 @@ function calculateDriverEfficiency(expenses, unidadesData = []) {
 
         if (effectiveVol > 0 && km > 0) {
             const yieldVal = km / effectiveVol;
-            // Basic sanity check: 0.5 < yield < 15 km/l
             if (yieldVal > 0.5 && yieldVal < 15) {
-                driverYields[e.id_chofer] = parseFloat(yieldVal.toFixed(2));
-                seenDrivers.add(e.id_chofer);
+                if (!driverGroups[e.id_chofer]) {
+                    driverGroups[e.id_chofer] = { km: 0, lts: 0 };
+                }
+                driverGroups[e.id_chofer].km += km;
+                driverGroups[e.id_chofer].lts += effectiveVol;
             }
+        }
+    });
+
+    const driverYields = {};
+    Object.keys(driverGroups).forEach(chofer => {
+        const group = driverGroups[chofer];
+        if (group.lts > 0) {
+            driverYields[chofer] = parseFloat((group.km / group.lts).toFixed(2));
         }
     });
 
