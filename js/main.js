@@ -1003,11 +1003,19 @@ async function updateDashboardByPeriod() {
 
 
         // Fetch de datos maestros
-        const [viajesRaw, gastosRaw, unidadesRaw] = await Promise.all([
+        const [viajesRaw, gastosRaw, unidadesRaw, choferesRaw] = await Promise.all([
             fetchSupabaseData(DB_CONFIG.tableViajes, 'fecha', start, end),
             fetchSupabaseData(DB_CONFIG.tableGastos, 'fecha', start, end),
-            fetchSupabaseData(DB_CONFIG.tableUnidades)
+            fetchSupabaseData(DB_CONFIG.tableUnidades),
+            fetchSupabaseData(DB_CONFIG.tableChoferes)
         ]);
+
+        // Populate globalDriverMap for chart labels mapping
+        if (choferesRaw && choferesRaw.length > 0) {
+            choferesRaw.forEach(d => {
+                globalDriverMap[d.id_chofer] = d.nombre;
+            });
+        }
 
         if (viajesRaw.length === 0 && gastosRaw.length === 0) {
             if (statusEl) {
