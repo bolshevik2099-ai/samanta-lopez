@@ -3483,23 +3483,31 @@ async function updateExpensesDashboard() {
     }
     
     try {
-        const [expensesRaw, tripsRaw, driversRaw] = await Promise.all([
+        const [expensesRaw, tripsRaw, driversRaw, unitsRaw] = await Promise.all([
             window.supabaseClient.from(DB_CONFIG.tableGastos).select('*'),
             window.supabaseClient.from(DB_CONFIG.tableViajes).select('*'),
-            window.supabaseClient.from(DB_CONFIG.tableChoferes).select('id_chofer, nombre')
+            window.supabaseClient.from(DB_CONFIG.tableChoferes).select('id_chofer, nombre'),
+            window.supabaseClient.from(DB_CONFIG.tableUnidades).select('id_unidad, nombre_unidad')
         ]);
         
         if (expensesRaw.error) throw expensesRaw.error;
         if (tripsRaw.error) throw tripsRaw.error;
         if (driversRaw.error) throw driversRaw.error;
+        if (unitsRaw.error) throw unitsRaw.error;
         
         const expensesData = expensesRaw.data || [];
         const tripsData = tripsRaw.data || [];
         const driversData = driversRaw.data || [];
+        const unitsData = unitsRaw.data || [];
         
         const driverMap = {};
         driversData.forEach(d => {
             driverMap[d.id_chofer] = d.nombre;
+        });
+
+        const unitMap = {};
+        unitsData.forEach(u => {
+            unitMap[u.id_unidad] = u.nombre_unidad || u.id_unidad;
         });
         
         const parseDate = parseDateToISO;
@@ -3546,7 +3554,7 @@ async function updateExpensesDashboard() {
                         <tr class="hover:bg-slate-800/20 transition-colors">
                             <td class="px-6 py-4 font-mono text-slate-400">${g.fecha || '---'}</td>
                             <td class="px-6 py-4 text-white font-semibold">${driverName}</td>
-                            <td class="px-6 py-4 text-slate-300 font-mono">${g.id_unidad || '---'}</td>
+                            <td class="px-6 py-4 text-slate-300 font-mono">${(unitMap[g.id_unidad] && unitMap[g.id_unidad] !== 'Sin alias') ? unitMap[g.id_unidad] : (g.id_unidad || '---')}</td>
                             <td class="px-6 py-4">
                                 <div class="text-white font-semibold">${g.concepto}</div>
                                 <div class="text-[10px] text-slate-500 truncate max-w-[180px]">${g.observaciones || g.id_viaje || ''}</div>
@@ -3620,7 +3628,7 @@ async function updateExpensesDashboard() {
         const sortedEco = Object.entries(ecoGrouped).sort((a,b) => b[1] - a[1]);
         
         renderChartInstance('expensesUnitChart', 'bar', {
-            labels: sortedEco.map(u => u[0]),
+            labels: sortedEco.map(u => (unitMap[u[0]] && unitMap[u[0]] !== 'Sin alias') ? unitMap[u[0]] : u[0]),
             datasets: [{
                 label: 'Total Gastado',
                 data: sortedEco.map(u => u[1]),
@@ -8740,7 +8748,7 @@ async function loadChatSettings() {
     try {
         const { data, error } = await window.supabaseClient
             .from('chat_config')
-            .select('*')
+            .select('provider, model_name, system_instruction')
             .eq('id', 1)
             .single();
 
@@ -8762,7 +8770,8 @@ async function loadChatSettings() {
             
             updateModelOptions(data.provider || 'gemini');
             document.getElementById('chat-model-name').value = data.model_name || 'gemini-2.5-flash';
-            document.getElementById('chat-api-key').value = data.api_key || '';
+            document.getElementById('chat-api-key').value = '';
+            document.getElementById('chat-api-key').placeholder = 'Escribe tu nueva API Key (vacío para conservar la actual)';
             document.getElementById('chat-system-instruction').value = data.system_instruction || '';
         }
     } catch (err) {
@@ -8786,20 +8795,26 @@ async function saveChatSettings(e) {
         const api_key = document.getElementById('chat-api-key').value.trim();
         const system_instruction = document.getElementById('chat-system-instruction').value.trim();
 
+        const updatePayload = {
+            provider,
+            model_name,
+            system_instruction,
+            updated_at: new Date().toISOString()
+        };
+
+        if (api_key) {
+            updatePayload.api_key = api_key;
+        }
+
         const { error } = await window.supabaseClient
             .from('chat_config')
-            .update({
-                provider,
-                model_name,
-                api_key,
-                system_instruction,
-                updated_at: new Date().toISOString()
-            })
+            .update(updatePayload)
             .eq('id', 1);
 
         if (error) throw error;
 
         alert('✅ Configuración del asistente guardada exitosamente.');
+        await loadChatSettings();
     } catch (err) {
         console.error('Error al guardar ajustes de chat:', err);
         alert('❌ Error al guardar la configuración: ' + err.message);

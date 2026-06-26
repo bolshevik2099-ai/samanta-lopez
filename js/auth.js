@@ -66,26 +66,40 @@ async function handleLogin(e) {
         }
 
         try {
-            const { data, error, status, statusText } = await window.supabaseClient
-                .from(DB_CONFIG.tableUsuarios)
-                .select('*')
-                .eq('usuario', userVal)
-                .eq('password', passVal);
+            console.log('Intentando validar credenciales...');
+            // Intentar primero a través del RPC seguro (Servidor) para evitar exponer la tabla 'usuarios' públicamente
+            let rpcRes = await window.supabaseClient.rpc('login_user', {
+                p_username: userVal,
+                p_password: passVal
+            });
 
-            console.log('Respuesta cruda de Supabase:', { data, error, status, statusText });
+            let data = rpcRes.data;
+            let error = rpcRes.error;
+
+            // Si la función RPC no existe en la base de datos (ej. código 42883), aplicar fallback
+            if (error && (error.code === '42883' || error.message.includes('does not exist'))) {
+                console.log('RPC login_user no encontrado. Aplicando fallback de consulta directa...');
+                const fallback = await window.supabaseClient
+                    .from(DB_CONFIG.tableUsuarios)
+                    .select('*')
+                    .eq('usuario', userVal)
+                    .eq('password', passVal);
+                data = fallback.data;
+                error = fallback.error;
+            }
 
             if (error) {
-                console.error('Error de Supabase en login:', error);
-                alert(`Error de Supabase [${status}]: ${error.message}\nDetalle: ${error.details || 'Ninguno'}`);
+                console.error('Error durante la validación:', error);
+                alert(`Error de validación: ${error.message}`);
             }
 
             if (data && data.length > 0) {
                 foundUser = data[0];
                 console.log('Usuario validado con éxito:', foundUser);
             } else {
-                console.warn('No se encontró usuario con esas credenciales exactas.');
+                console.warn('Credenciales incorrectas o usuario no encontrado.');
                 if (!error) {
-                    alert("No se encontró ningún usuario con esas credenciales en la tabla 'usuarios'.\n\nVerifica:\n1. Que el nombre de usuario y contraseña coincidan exactamente (mayúsculas/minúsculas).\n2. Que la tabla 'usuarios' tenga datos.");
+                    alert("No se encontró ningún usuario con esas credenciales exactas.\n\nVerifica tu usuario y contraseña.");
                 }
             }
         } catch (err) {
